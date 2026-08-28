@@ -4669,6 +4669,33 @@ class AppLocalizationsRu extends AppLocalizations {
   String get kdvRateIsRequired => 'Выберите ставку НДС';
 
   @override
+  String get sellerRelationshipLabel => 'Роль продавца';
+
+  @override
+  String get sellerRelationshipIsRequired => 'Выберите роль продавца';
+
+  @override
+  String get sellerRelationshipBrandOwner => 'Владелец бренда';
+
+  @override
+  String get sellerRelationshipManufacturer => 'Производитель';
+
+  @override
+  String get sellerRelationshipAuthorizedDistributor => 'Официальный дистрибьютор';
+
+  @override
+  String get sellerRelationshipAuthorizedDealer => 'Официальный дилер';
+
+  @override
+  String get sellerRelationshipImporter => 'Импортер';
+
+  @override
+  String get sellerRelationshipReseller => 'Реселлер';
+
+  @override
+  String get mediaMaxTwentyEntries => 'Можно добавить не более 20 медиафайлов';
+
+  @override
   String get invalidPrice => 'Недействительная цена';
 
   @override

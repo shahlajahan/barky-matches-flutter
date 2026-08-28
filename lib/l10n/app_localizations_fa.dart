@@ -4667,6 +4667,33 @@ class AppLocalizationsFa extends AppLocalizations {
   String get kdvRateIsRequired => 'یک نرخ مالیات بر ارزش افزوده انتخاب کنید';
 
   @override
+  String get sellerRelationshipLabel => 'رابطه فروشنده';
+
+  @override
+  String get sellerRelationshipIsRequired => 'یک رابطه فروشنده انتخاب کنید';
+
+  @override
+  String get sellerRelationshipBrandOwner => 'مالک برند';
+
+  @override
+  String get sellerRelationshipManufacturer => 'تولیدکننده';
+
+  @override
+  String get sellerRelationshipAuthorizedDistributor => 'توزیع‌کننده مجاز';
+
+  @override
+  String get sellerRelationshipAuthorizedDealer => 'نماینده مجاز';
+
+  @override
+  String get sellerRelationshipImporter => 'واردکننده';
+
+  @override
+  String get sellerRelationshipReseller => 'فروشنده مجدد';
+
+  @override
+  String get mediaMaxTwentyEntries => 'حداکثر می‌توانید ۲۰ مورد رسانه اضافه کنید';
+
+  @override
   String get invalidPrice => 'قیمت نامعتبر است';
 
   @override

@@ -107,6 +107,16 @@ class Product {
   final String? businessLogo;
   final double? kdvRate;
 
+  // Marketplace P1-A Slice 4.8 Phase A (docs/plans/marketplace_p1a_
+  // compliance_review_implementation_plan_2026-08-21.md §0.14/§0.15,
+  // §13.1/§16): both fields are matching inputs for the compliance
+  // engine's own freshness comparisons (§4/§10.1) — never compliance
+  // outputs themselves. Absent/legacy documents read `productInputRevision`
+  // as `0` and `sellerRelationship` as `null` ("not yet declared"), never
+  // a thrown error and never a silently-fabricated non-empty value.
+  final int productInputRevision;
+  final String? sellerRelationship;
+
   double get finalPrice => salePrice ?? price;
 
   /// Customer-facing unit price matching the marketplace checkout model.
@@ -191,6 +201,8 @@ class Product {
     this.businessName,
     this.businessLogo,
     this.kdvRate,
+    this.productInputRevision = 0,
+    this.sellerRelationship,
   });
 
   // =====================================================
@@ -326,6 +338,18 @@ class Product {
       createdAt: json['createdAt'] is Timestamp ? json['createdAt'] : null,
 
       updatedAt: json['updatedAt'] is Timestamp ? json['updatedAt'] : null,
+
+      // Legacy/malformed values never throw — an absent or non-int
+      // productInputRevision parses as baseline 0 (matching firestore.rules'
+      // own "absent treated as baseline 0" contract, §9 row B); an absent
+      // or non-string sellerRelationship parses as null ("not yet
+      // declared"), never a fabricated enum value.
+      productInputRevision: json['productInputRevision'] is int
+          ? json['productInputRevision'] as int
+          : 0,
+      sellerRelationship: json['sellerRelationship'] is String
+          ? json['sellerRelationship'] as String
+          : null,
     );
   }
 
@@ -416,6 +440,9 @@ class Product {
       // 🔥 timestamps
       "createdAt": createdAt,
       "updatedAt": updatedAt,
+
+      "productInputRevision": productInputRevision,
+      "sellerRelationship": sellerRelationship,
     };
   }
 

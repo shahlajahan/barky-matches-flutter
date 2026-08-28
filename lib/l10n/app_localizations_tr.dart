@@ -4667,6 +4667,33 @@ class AppLocalizationsTr extends AppLocalizations {
   String get kdvRateIsRequired => 'Bir KDV oranı seçin';
 
   @override
+  String get sellerRelationshipLabel => 'Satıcı ilişkisi';
+
+  @override
+  String get sellerRelationshipIsRequired => 'Bir satıcı ilişkisi seçin';
+
+  @override
+  String get sellerRelationshipBrandOwner => 'Marka sahibi';
+
+  @override
+  String get sellerRelationshipManufacturer => 'Üretici';
+
+  @override
+  String get sellerRelationshipAuthorizedDistributor => 'Yetkili distribütör';
+
+  @override
+  String get sellerRelationshipAuthorizedDealer => 'Yetkili bayi';
+
+  @override
+  String get sellerRelationshipImporter => 'İthalatçı';
+
+  @override
+  String get sellerRelationshipReseller => 'Yeniden satıcı';
+
+  @override
+  String get mediaMaxTwentyEntries => 'En fazla 20 medya öğesi ekleyebilirsiniz';
+
+  @override
   String get invalidPrice => 'Geçersiz fiyat';
 
   @override

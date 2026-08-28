@@ -32,6 +32,190 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'product_save_plan.dart';
 import 'product_submit_exception.dart';
 
+// Marketplace P1-A Slice 4.8 Phase A implementation correction (§0.16
+// remaining-work items 3 — Revision 18; §15 items 404/405/414; failed
+// independent audit, test-matrix correction): extracted as small, pure,
+// top-level functions — never re-implemented/copied by any test —
+// specifically so items 404/405/414's own frozen [Dart unit test] proof
+// type can exercise the real production computation directly, without
+// needing a Firestore-injectable transaction boundary. Each remains
+// called from exactly its own pre-existing call site(s) inside _submit(),
+// unchanged in position/logic from what it always computed as a private
+// instance-method/inline code. Each is annotated `@visibleForTesting`
+// (`package:flutter/foundation.dart`, already imported above — matching
+// this repository's own established convention for a test-only top-level
+// function, e.g. `lib/ui/adoption/adoption_upload_helper.dart`'s
+// `adoptionContentTypeFor`): the annotation documents production-internal
+// intent and triggers the analyzer's own
+// `invalid_use_of_visible_for_testing_member` lint against any call site
+// outside this library or a `test/` file — a genuine, tool-enforced
+// boundary, not merely a comment. None is exported, re-exported, or
+// referenced by any other production file (proven below,
+// `product_save_plan_test.dart`'s own "helper/API-surface" group).
+
+/// **Test-only/internal** (`@visibleForTesting`) — firestore.rules' own
+/// productInputRevisionMatchingFields() set, exactly:
+/// category/brand/barcode/sku/sellerRelationship. Compares the
+/// freshly-read stored document (existing) against the new payload's own
+/// product object — never a value cached before this same transaction's
+/// own read.
+@visibleForTesting
+bool matchingFieldsChanged(Map<String, dynamic> existing, Product product) {
+  return existing['category'] != product.category ||
+      existing['brand'] != product.brand ||
+      existing['barcode'] != product.barcode ||
+      existing['sku'] != product.sku ||
+      existing['sellerRelationship'] != product.sellerRelationship;
+}
+
+/// **Test-only/internal** (`@visibleForTesting`) — §0.14 "productInputRevision
+/// computation (edit only)": the exact +0/+1 rule — never more than +1
+/// regardless of how many matching fields changed simultaneously, never
+/// applied when nothing matching changed.
+@visibleForTesting
+int computeProductInputRevision({
+  required int existingRevision,
+  required bool matchingChanged,
+}) {
+  return existingRevision + (matchingChanged ? 1 : 0);
+}
+
+/// **Test-only/internal** (`@visibleForTesting`) — §0.14 "absent treated as
+/// baseline 0" (§9 row B) — a missing or malformed (non-int) stored value
+/// never throws and is never treated as anything other than the baseline.
+@visibleForTesting
+int normalizedExistingRevision(Map<String, dynamic> existing) {
+  final value = existing['productInputRevision'];
+  return value is int ? value : 0;
+}
+
+/// **Test-only/internal** (`@visibleForTesting`) — §0.14 "sellerRelationship
+/// UI requirement"/§9.B, §13.1: the exact six SELLER_RELATIONSHIP enum
+/// values, closed — never a default, never inferred, matching
+/// firestore.rules' own isValidSellerRelationshipValue() exactly. Shared,
+/// single source of truth for `_AddProductPageState._sellerRelationshipValues`
+/// (the UI-layer dropdown's own field, which delegates to this same
+/// constant — never a second, independently-maintained literal) and §15
+/// item 408's own genuine, closed-set membership proof that a malformed
+/// (non-enum) value can never be accepted, without needing to force an
+/// unreachable state through the picker UI.
+@visibleForTesting
+const List<String> sellerRelationshipValues = [
+  'brand_owner',
+  'manufacturer',
+  'authorized_distributor',
+  'authorized_dealer',
+  'importer',
+  'reseller',
+];
+
+/// **Test-only/internal** (`@visibleForTesting`) — §0.14 "Media cap (write
+/// side, client)": the single, authoritative client-side media cap value
+/// (exactly 20), shared by both the UI-layer rejection boundary
+/// (`_AddProductPageState._maxMediaEntries`, which delegates to this same
+/// constant — never a second, independently-maintained literal) and
+/// `buildProductWritePayload`'s own independent, defense-in-depth
+/// enforcement below (§15 item 412). The value itself remains exactly 20,
+/// unchanged from its original frozen form.
+@visibleForTesting
+const int maxProductMediaEntries = 20;
+
+/// **Test-only/internal** (`@visibleForTesting`) — §0.14's exact create/edit
+/// allowlist (the "Create allowlist"/"Edit allowlist" paragraphs): the
+/// single construction point for every Firestore product write payload in
+/// this file, extracted verbatim from the pre-existing private instance
+/// method of the same body (no key added, removed, or reordered) so §15
+/// item 414's own frozen `[Dart unit test]` proof type can invoke the real
+/// production builder and inspect its actual runtime key set, rather than
+/// a static-source proxy. The returned map is always the explicit, closed
+/// allowlist §0.14 freezes — never a wider set derived from `Product`'s
+/// own `toJson()`. It always omits all five Rules-reserved compliance
+/// names unconditionally, at any value including `null`. It throws,
+/// fail-closed, before returning anything, if `product.media` exceeds the
+/// frozen 20-entry cap (`maxProductMediaEntries`, above) — a payload-
+/// construction-level defense independent of the UI-layer picker guard,
+/// never a truncation. This function makes, and is authorized to make, no
+/// claim about product-identity/SKU-reuse mitigation (§0.15/§0.12 Gap B)
+/// — it is unrelated, addressing payload-key construction only.
+@visibleForTesting
+Map<String, dynamic> buildProductWritePayload({
+  required Product product,
+  required int productInputRevision,
+}) {
+  if (product.media.length > maxProductMediaEntries) {
+    throw ArgumentError.value(
+      product.media.length,
+      'product.media.length',
+      'exceeds the frozen §0.14 media cap of $maxProductMediaEntries — '
+          'payload construction must never produce an oversized media '
+          'array, independent of the UI-layer rejection boundary (§15 '
+          'item 412)',
+    );
+  }
+  return {
+    'businessId': product.businessId,
+    'name': product.name,
+    'description': product.description,
+    'price': product.price,
+    'salePrice': product.salePrice,
+    'wholesalePrice': product.wholesalePrice,
+    'kdvRate': product.kdvRate,
+    'suggestedPrice': product.suggestedPrice,
+    'suggestedMinPrice': product.suggestedMinPrice,
+    'suggestedMaxPrice': product.suggestedMaxPrice,
+    'pricePosition': product.pricePosition,
+    'marginPercent': product.marginPercent,
+    'markupPercent': product.markupPercent,
+    'hasSmartPricing': product.hasSmartPricing,
+    'shippingFee': product.shippingFee,
+    'freeShippingThreshold': product.freeShippingThreshold,
+    'weightKg': product.weightKg,
+    'lengthCm': product.lengthCm,
+    'widthCm': product.widthCm,
+    'heightCm': product.heightCm,
+    'fixedDesi': product.fixedDesi,
+    'shippingMode': product.shippingMode,
+    'shippingPayer': product.shippingPayer,
+    'originCity': product.originCity,
+    'shippingProfile': product.shippingProfile,
+    'taxIncluded': product.taxIncluded,
+    'preparationDays': product.preparationDays,
+    'maxDeliveryDays': product.maxDeliveryDays,
+    'allowFreeShipping': product.allowFreeShipping,
+    'isShippable': product.isShippable,
+    'deliveryType': product.deliveryType,
+    'allowPickup': product.allowPickup,
+    'allowSameDay': product.allowSameDay,
+    'isFragile': product.isFragile,
+    'isPerishable': product.isPerishable,
+    'isOversize': product.isOversize,
+    'allowReturns': product.allowReturns,
+    'returnWindowDays': product.returnWindowDays,
+    'businessName': product.businessName,
+    'businessLogo': product.businessLogo,
+    'returnShippingPayer': product.returnShippingPayer,
+    'hasContractedReturnCarrier': product.hasContractedReturnCarrier,
+    'returnCarrierCode': product.returnCarrierCode,
+    'allowedCarrierCodes': product.allowedCarrierCodes,
+    'excludedCities': product.excludedCities,
+    'currency': product.currency,
+    'media': product.media.map((e) => e.toJson()).toList(),
+    'stock': product.stock,
+    'minStock': product.minStock,
+    'category': product.category,
+    'brand': product.brand,
+    'barcode': product.barcode,
+    'sku': product.sku,
+    'isActive': product.isActive,
+    'moderationStatus': product.moderationStatus,
+    'shippingSnapshot': product.shippingSnapshot,
+    'createdAt': product.createdAt,
+    'updatedAt': product.updatedAt,
+    'productInputRevision': productInputRevision,
+    'sellerRelationship': product.sellerRelationship,
+  };
+}
+
 class AddProductPage extends StatefulWidget {
   final String businessId;
 
@@ -129,6 +313,21 @@ class _AddProductPageState extends State<AddProductPage> {
     "Toys": ["Chew Toy", "Interactive"],
   };
 
+  // Delegates to the top-level sellerRelationshipValues constant (above
+  // AddProductPage) — the single frozen, closed enum set, shared with
+  // §15 item 408's own genuine malformed-value proof.
+  static const List<String> _sellerRelationshipValues =
+      sellerRelationshipValues;
+
+  // §0.14 "Media cap (write side, client)": the create/edit UI rejects
+  // selecting/attaching a 21st media entry — this bounds only new
+  // additions via _pickMedia(); it does not retroactively truncate an
+  // already-oversized legacy product's own existing, untouched media list.
+  // Delegates to the top-level maxProductMediaEntries constant (above
+  // AddProductPage) — the single frozen cap value, shared with
+  // buildProductWritePayload's own independent enforcement (§15 item 412).
+  static const int _maxMediaEntries = maxProductMediaEntries;
+
   File? _image;
   bool _loading = false;
   final List<XFile> _media = [];
@@ -144,6 +343,12 @@ class _AddProductPageState extends State<AddProductPage> {
   String _mainCategory = "Food";
   String _subCategory = "Dry Food";
   String _currency = "TRY";
+
+  // No default, no pre-selected value — §0.14 "sellerRelationship UI
+  // requirement". Prefilled from an existing product's own already-declared
+  // value on edit (initState below); remains null until an explicit
+  // selection is made otherwise.
+  String? _sellerRelationship;
 
   bool _barcodeMatched = false;
   String? _priceSuggestionText;
@@ -196,6 +401,25 @@ class _AddProductPageState extends State<AddProductPage> {
         return l10n.carrierDhlExpress;
       default:
         return code;
+    }
+  }
+
+  String _sellerRelationshipLabel(AppLocalizations l10n, String value) {
+    switch (value) {
+      case 'brand_owner':
+        return l10n.sellerRelationshipBrandOwner;
+      case 'manufacturer':
+        return l10n.sellerRelationshipManufacturer;
+      case 'authorized_distributor':
+        return l10n.sellerRelationshipAuthorizedDistributor;
+      case 'authorized_dealer':
+        return l10n.sellerRelationshipAuthorizedDealer;
+      case 'importer':
+        return l10n.sellerRelationshipImporter;
+      case 'reseller':
+        return l10n.sellerRelationshipReseller;
+      default:
+        return value;
     }
   }
 
@@ -891,6 +1115,10 @@ class _AddProductPageState extends State<AddProductPage> {
       _selectedReturnCarrier = p.returnCarrierCode ?? "Yurtici";
       _selectedCarriers = List<String>.from(p.allowedCarrierCodes);
       _excludedCities = List<String>.from(p.excludedCities ?? []);
+      _sellerRelationship =
+          _sellerRelationshipValues.contains(p.sellerRelationship)
+          ? p.sellerRelationship
+          : null;
       _calculatedDesi = _computeDesi();
     }
     _calculatedDesi ??= _computeDesi();
@@ -958,6 +1186,14 @@ class _AddProductPageState extends State<AddProductPage> {
 
     if (_kdvRate == null) {
       _snack(l10n.kdvRateIsRequired);
+      return false;
+    }
+
+    // §0.14 "sellerRelationship UI requirement": no default, no
+    // pre-selected value — submission is blocked until an explicit
+    // selection from the six enum values is made, on both create and edit.
+    if (!_sellerRelationshipValues.contains(_sellerRelationship)) {
+      _snack(l10n.sellerRelationshipIsRequired);
       return false;
     }
 
@@ -1208,6 +1444,14 @@ class _AddProductPageState extends State<AddProductPage> {
   Future<void> _pickMedia() async {
     if (_picking) return;
 
+    // §0.14 "Media cap (write side, client)": reject a 21st entry before
+    // ever invoking the picker — the existing (up to 20) entries remain
+    // completely unaffected by a rejected attempt.
+    if (_media.length >= _maxMediaEntries) {
+      _snack(AppLocalizations.of(context)!.mediaMaxTwentyEntries);
+      return;
+    }
+
     _picking = true;
 
     try {
@@ -1444,9 +1688,7 @@ class _AddProductPageState extends State<AddProductPage> {
         businessLogo: businessLogo?.toString(),
         createdAt: preserveCreatedAt(widget.existingProduct?.createdAt, now),
         updatedAt: now,
-      );
-      final productPayload = Map<String, dynamic>.unmodifiable(
-        product.toJson(),
+        sellerRelationship: _sellerRelationship,
       );
 
       final targetRef = firestore
@@ -1474,7 +1716,15 @@ class _AddProductPageState extends State<AddProductPage> {
           if (targetSnapshot.exists) {
             throw const ProductSubmitException('sku-collision');
           }
-          tx.set(targetRef, productPayload);
+          // §0.14 create allowlist: productInputRevision is exactly 0,
+          // unconditionally. §0.15 (Revision 17): a moved-to-a-different-ID
+          // edit's own new-target write follows this identical rule below —
+          // this branch establishes it once.
+          final payload = buildProductWritePayload(
+            product: product,
+            productInputRevision: 0,
+          );
+          tx.set(targetRef, payload, SetOptions(merge: true));
           return;
         }
 
@@ -1485,15 +1735,47 @@ class _AddProductPageState extends State<AddProductPage> {
         }
 
         if (savePlan.mode == ProductWriteMode.sameIdEdit) {
-          tx.set(originalRef, productPayload);
+          // §0.14 "productInputRevision computation (edit only)": read the
+          // target document's own current value via this same tx.get() —
+          // never a value cached before this transaction's own read.
+          final existingData = originalSnapshot.data() ?? <String, dynamic>{};
+          final existingRevision = normalizedExistingRevision(existingData);
+          final matchingChanged = matchingFieldsChanged(existingData, product);
+          final payload = buildProductWritePayload(
+            product: product,
+            productInputRevision: computeProductInputRevision(
+              existingRevision: existingRevision,
+              matchingChanged: matchingChanged,
+            ),
+          );
+          tx.set(originalRef, payload, SetOptions(merge: true));
           return;
         }
 
+        // SKU-changing edit. §0.15 (Revision 17) freezes this branch's
+        // boundary exactly: the new-target write below receives the same
+        // allowlisted merge:true correction as create, for the identical
+        // collision-guard reason (targetSnapshot is transactionally
+        // confirmed absent before this write executes, so merge:true is
+        // behaviorally inert here — nothing exists to merge with) —
+        // productInputRevision is therefore 0, unconditionally, exactly
+        // like create, never the +0/+1 edit rule (there is no existing
+        // target document to read a prior value from). This write-method
+        // correction does not fix, cover, or reduce the productComplianceDecisions/
+        // productEvidenceLinks orphaning-and-reuse finding (§0.15/§0.12
+        // Gap B) — it is unrelated, addressing a different document at a
+        // different path. The original document's own deletion below is
+        // completely unmodified: no cleanup, tombstone, or invalidation of
+        // any kind is added.
         final targetSnapshot = await tx.get(targetRef);
         if (targetSnapshot.exists) {
           throw const ProductSubmitException('sku-collision');
         }
-        tx.set(targetRef, productPayload);
+        final payload = buildProductWritePayload(
+          product: product,
+          productInputRevision: 0,
+        );
+        tx.set(targetRef, payload, SetOptions(merge: true));
         tx.delete(originalRef);
       });
 
@@ -3391,6 +3673,19 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                     if (v != null) setState(() => _subCategory = v);
                   },
                 ),
+                _desktopDropdown<String>(
+                  label: l10n.sellerRelationshipLabel,
+                  value: _sellerRelationship,
+                  items: _sellerRelationshipValues
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(_sellerRelationshipLabel(l10n, e)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _sellerRelationship = v),
+                ),
               ]),
               _veterinaryMedicineNotice(l10n),
             ],
@@ -3544,6 +3839,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                 children: [
                   // 📸 MEDIA
                   GestureDetector(
+                    key: const Key('addProductMediaPickTarget'),
                     onTap: _pickMedia,
                     child: Container(
                       height: 120,
@@ -3653,7 +3949,11 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   ),
                   const SizedBox(height: 12),
 
-                  input(_name, l10n.productNameMinCharsLabel),
+                  input(
+                    _name,
+                    l10n.productNameMinCharsLabel,
+                    key: const Key('addProductNameField'),
+                  ),
                   const SizedBox(height: 12),
                   input(_brand, l10n.brandLabel),
                   const SizedBox(height: 12),
@@ -3901,6 +4201,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       SizedBox(
                         width: 90, // 🔥 مهم
                         child: DropdownButtonFormField<double>(
+                          key: const Key('addProductKdvDropdown'),
                           initialValue: _kdvRate,
                           decoration: InputDecoration(
                             labelText: l10n.kdvLabel,
@@ -4304,6 +4605,30 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                     },
                   ),
 
+                  const SizedBox(height: 12),
+
+                  DropdownButtonFormField<String>(
+                    key: const Key('addProductSellerRelationshipDropdown'),
+                    initialValue: _sellerRelationship,
+                    decoration: InputDecoration(
+                      labelText: l10n.sellerRelationshipLabel,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: _sellerRelationshipValues
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(_sellerRelationshipLabel(l10n, e)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _sellerRelationship = v),
+                  ),
+
                   _veterinaryMedicineNotice(l10n),
 
                   const SizedBox(height: 12),
@@ -4338,6 +4663,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
 
                   // 🔹 SUBMIT
                   ElevatedButton(
+                    key: const Key('addProductSubmitButton'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFC107),
                       foregroundColor: Colors.black,
@@ -4440,8 +4766,10 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     int maxLines = 1,
     String? hint,
     ValueChanged<String>? onChanged,
+    Key? key,
   }) {
     return TextFormField(
+      key: key,
       controller: controller,
       maxLines: maxLines,
       keyboardType: isNumber

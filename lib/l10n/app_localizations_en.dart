@@ -4667,6 +4667,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kdvRateIsRequired => 'Select a VAT rate';
 
   @override
+  String get sellerRelationshipLabel => 'Seller relationship';
+
+  @override
+  String get sellerRelationshipIsRequired => 'Select a seller relationship';
+
+  @override
+  String get sellerRelationshipBrandOwner => 'Brand owner';
+
+  @override
+  String get sellerRelationshipManufacturer => 'Manufacturer';
+
+  @override
+  String get sellerRelationshipAuthorizedDistributor => 'Authorized distributor';
+
+  @override
+  String get sellerRelationshipAuthorizedDealer => 'Authorized dealer';
+
+  @override
+  String get sellerRelationshipImporter => 'Importer';
+
+  @override
+  String get sellerRelationshipReseller => 'Reseller';
+
+  @override
+  String get mediaMaxTwentyEntries => 'You can add up to 20 media items';
+
+  @override
   String get invalidPrice => 'Invalid price';
 
   @override

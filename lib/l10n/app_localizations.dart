@@ -8763,6 +8763,60 @@ abstract class AppLocalizations {
   /// **'Select a VAT rate'**
   String get kdvRateIsRequired;
 
+  /// No description provided for @sellerRelationshipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Seller relationship'**
+  String get sellerRelationshipLabel;
+
+  /// No description provided for @sellerRelationshipIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a seller relationship'**
+  String get sellerRelationshipIsRequired;
+
+  /// No description provided for @sellerRelationshipBrandOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Brand owner'**
+  String get sellerRelationshipBrandOwner;
+
+  /// No description provided for @sellerRelationshipManufacturer.
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer'**
+  String get sellerRelationshipManufacturer;
+
+  /// No description provided for @sellerRelationshipAuthorizedDistributor.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorized distributor'**
+  String get sellerRelationshipAuthorizedDistributor;
+
+  /// No description provided for @sellerRelationshipAuthorizedDealer.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorized dealer'**
+  String get sellerRelationshipAuthorizedDealer;
+
+  /// No description provided for @sellerRelationshipImporter.
+  ///
+  /// In en, this message translates to:
+  /// **'Importer'**
+  String get sellerRelationshipImporter;
+
+  /// No description provided for @sellerRelationshipReseller.
+  ///
+  /// In en, this message translates to:
+  /// **'Reseller'**
+  String get sellerRelationshipReseller;
+
+  /// No description provided for @mediaMaxTwentyEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'You can add up to 20 media items'**
+  String get mediaMaxTwentyEntries;
+
   /// No description provided for @invalidPrice.
   ///
   /// In en, this message translates to:
