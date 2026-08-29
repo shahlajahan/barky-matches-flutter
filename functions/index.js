@@ -321,6 +321,9 @@ const {
   reviewProductModeration,
 } = require("./src/marketplace/compliance/productModeration");
 const {
+  deleteMarketplaceProduct,
+} = require("./src/marketplace/compliance/productDeletion");
+const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
 } = require("./src/marketplace/publicCatalog/marketplaceListing");
@@ -20136,6 +20139,24 @@ exports.reviewProductModeration = onCall({ region: "europe-west3" }, async (requ
     auth: request.auth,
     data: request.data,
     featureEnabled: PRODUCT_MODERATION_REVIEW_ENABLED.value() === "true",
+  })
+);
+
+// Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §0.17, committed Revision
+// 19) — the sole path by which a seller may delete their own product
+// once the Flutter client is switched to call it (§0.17 Phase 16); the
+// corresponding firestore.rules `allow delete: if false` change (§9.E)
+// denies every direct client-SDK product delete, admin included. No
+// feature flag (§0.17 Phase 6) — dormant only in the sense that no
+// shipped Flutter client calls it yet. Thin exports.* wiring only, same
+// convention as the Slice 4.4 callable immediately above; all business
+// logic lives in functions/src/marketplace/compliance/productDeletion.js.
+exports.deleteMarketplaceProduct = onCall({ region: "europe-west3" }, async (request) =>
+  deleteMarketplaceProduct({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
   })
 );
 

@@ -40,11 +40,24 @@ const { checkAndReserveUploadQuota } = require("./complianceUploadQuota");
 // Cloud Functions run with Admin SDK privileges and must perform this
 // check themselves rather than relying on Rules, which never apply to
 // Admin SDK writes.
-async function assertCallerOwnsBusiness({ db, businessId, uid }) {
+//
+// `tx` (Marketplace P1-A Slice 4.10, docs/plans/marketplace_p1a_
+// compliance_review_implementation_plan_2026-08-21.md §0.17 Phase 5,
+// corrected by independent review): an additive, optional parameter,
+// mirroring the exact `tx`-parameter pattern already frozen for
+// `evaluateLiveProductEligibility`/`resolveActivePolicy` (§10.1 correction
+// 53). When supplied, the business read uses `tx.get(ref)` so it
+// genuinely participates in the caller's own transaction's read set and
+// retry semantics — never a fallback to a plain `ref.get()`. When
+// omitted, behavior is byte-for-byte unchanged for every existing
+// non-transactional caller (`createComplianceUploadSession` below, and
+// `complianceDocumentOperations.js`'s three existing callers).
+async function assertCallerOwnsBusiness({ db, businessId, uid, tx }) {
   if (typeof businessId !== "string" || businessId.length === 0) {
     throw new HttpsError("invalid-argument", "businessId is required");
   }
-  const businessSnap = await db.collection("businesses").doc(businessId).get();
+  const businessRef = db.collection("businesses").doc(businessId);
+  const businessSnap = tx ? await tx.get(businessRef) : await businessRef.get();
   if (!businessSnap.exists) {
     throw new HttpsError("not-found", "Business not found");
   }

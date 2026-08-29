@@ -1348,6 +1348,23 @@ match /dogs/{dogId}/visits/{visitId} {
       && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
       && isValidTransitionalProductInputRevisionUpdate(incoming, existing)
       && isValidTransitionalSellerRelationshipUpdate(incoming, existing)
+      // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_
+      // compliance_review_implementation_plan_2026-08-21.md §0.17 Phase
+      // 12, §9.E, committed Revision 19): SKU immutability, exact raw
+      // equality — deliberately stronger than any normalized-identifier
+      // comparison this codebase uses elsewhere for candidate matching.
+      // A same-characters-different-case, different-whitespace, or
+      // different-punctuation "edit" to sku is rejected exactly as a
+      // genuinely different SKU would be. Expressed via
+      // diff().affectedKeys(), this rule's own already-established,
+      // absent-key-safe idiom (see productInputRevisionMatchingFieldsChanged
+      // above) rather than a bare incoming.sku == existing.sku access,
+      // which would throw (denying via evaluation error rather than a
+      // controlled false) if either side genuinely lacks the key —
+      // mechanically equivalent raw-equality semantics, since any
+      // sku change of any kind (including absent<->present) always
+      // appears in affectedKeys, but never throws.
+      && !incoming.diff(existing).affectedKeys().hasAny(['sku'])
       && incoming.keys().hasOnly(productAllowedFields())
       && !incoming.diff(existing).affectedKeys().hasAny([
         'businessId',
@@ -1369,12 +1386,20 @@ match /dogs/{dogId}/visits/{visitId} {
 
   allow update: if isAdmin() || isSafeProductResubmission();
 
-  allow delete:
-    if isAdmin() ||
-    (
-      resource.data.businessId is string &&
-      isBusinessOwner(resource.data.businessId)
-    );
+  // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md §0.17 Phase 12, §9.E,
+  // committed Revision 19): direct client-SDK product deletion is
+  // denied unconditionally, admin included — the prior seller-owner and
+  // admin branches are both removed, closing Gap B's own orphaning
+  // mechanism (§0.12/§0.15) for every client caller, not only sellers.
+  // A seller deletes their own product only through the new
+  // `deleteMarketplaceProduct` callable (Admin SDK, bypasses Rules by
+  // construction); no client-Rules-mediated admin bypass exists. This
+  // mirrors the already-established, already-deployed posture for
+  // `productComplianceDecisions`/`productEvidenceLinks`, both already
+  // `allow create, update, delete: if false` unconditionally, admin
+  // included.
+  allow delete: if false;
 }
 
     match /global_products/{productId} {

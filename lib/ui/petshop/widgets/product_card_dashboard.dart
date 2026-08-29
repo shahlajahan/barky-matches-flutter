@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/models/product.dart';
-import 'package:barky_matches_fixed/services/product_service.dart';
 
 import 'package:barky_matches_fixed/ui/business/petshop/add_product_page.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -18,6 +17,13 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
 import 'package:barky_matches_fixed/promotion/widgets/promotion_plan_sheet.dart';
+// Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §0.17 Phase 13, committed
+// Revision 19) — the shared delete-action widget is defined once in
+// product_card_shared.dart and reused here, rather than duplicated into
+// a third shared-widget file outside this revision's own frozen scope.
+import 'package:barky_matches_fixed/ui/petshop/widgets/product_card_shared.dart'
+    show DeleteProductButton;
 
 class ProductCardDashboard extends StatelessWidget {
   final Product product;
@@ -55,8 +61,6 @@ class ProductCardDashboard extends StatelessWidget {
     final hasDiscount = p.salePrice != null && p.salePrice! < p.price;
 
     final displayPrice = p.finalPrice;
-
-    final service = ProductService();
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -218,12 +222,7 @@ class ProductCardDashboard extends StatelessWidget {
                   context.read<AppState>().openEditProduct(product);
                 },
               ),
-              IconButton(
-                icon: const Icon(LucideIcons.trash2),
-                onPressed: () {
-                  service.deleteProduct(businessId, p.id);
-                },
-              ),
+              DeleteProductButton(businessId: businessId, productId: p.id),
               IconButton(
                 tooltip: 'Boost product',
                 icon: const Icon(LucideIcons.rocket),

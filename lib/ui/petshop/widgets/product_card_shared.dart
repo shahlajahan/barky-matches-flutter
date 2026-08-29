@@ -535,7 +535,6 @@ class ProductCardShared extends StatelessWidget {
   Widget _buildDashboardActions(BuildContext context) {
     final appState = context.read<AppState>();
     final businessId = appState.businessId;
-    final service = ProductService();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -556,13 +555,8 @@ class ProductCardShared extends StatelessWidget {
             );
           },
         ),
-        IconButton(
-          icon: const Icon(LucideIcons.trash2, color: Colors.red),
-          onPressed: () {
-            if (businessId == null) return;
-            service.deleteProduct(businessId, product.id);
-          },
-        ),
+        if (businessId != null)
+          DeleteProductButton(businessId: businessId, productId: product.id),
       ],
     );
   }
@@ -824,6 +818,138 @@ class ProductCardShared extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
+/// review_implementation_plan_2026-08-21.md §0.17 Phase 13, committed
+/// Revision 19) — the frozen delete-action UI: confirmation, in-flight
+/// loading state, double-submit prevention, and success/replay/
+/// not-found/permission-denied/network-error outcome mapping. Shared by
+/// both product-card production files (this one and
+/// `product_card_dashboard.dart`), defined here once rather than
+/// duplicated, since introducing a third shared-widget file is outside
+/// this revision's own frozen file scope.
+class DeleteProductButton extends StatefulWidget {
+  final String businessId;
+  final String productId;
+
+  /// Test-only seam — production call sites never supply this, always
+  /// getting a real `ProductService()` (which resolves the real Firebase
+  /// Functions callable). Lets widget tests inject a fake callable
+  /// without needing a live Firebase project.
+  @visibleForTesting
+  final ProductService? productService;
+
+  const DeleteProductButton({
+    super.key,
+    required this.businessId,
+    required this.productId,
+    @visibleForTesting this.productService,
+  });
+
+  @override
+  State<DeleteProductButton> createState() => _DeleteProductButtonState();
+}
+
+class _DeleteProductButtonState extends State<DeleteProductButton> {
+  bool _busy = false;
+  // Generated once, lazily, on the first confirmed delete tap, and
+  // reused for every subsequent retry of that same logical attempt —
+  // never regenerated on retry, since a fresh key on every retry would
+  // defeat the server-side receipt's own idempotency guarantee (§0.17
+  // Phase 13).
+  String? _idempotencyKey;
+
+  Future<void> _handleTap() async {
+    if (_busy) return; // double-submit guard
+
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.deleteProductConfirmTitle),
+        content: Text(l10n.deleteProductConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.deleteProductCancelAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.deleteProductConfirmAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    _idempotencyKey ??= generateProductDeletionIdempotencyKey();
+
+    try {
+      await (widget.productService ?? ProductService())
+          .deleteMarketplaceProduct(
+            businessId: widget.businessId,
+            productId: widget.productId,
+            clientIdempotencyKey: _idempotencyKey!,
+          );
+      // Both `deleted` and `replayed` are success from the user's own
+      // perspective (§0.17 Phase 13) — the product card itself is
+      // removed from the visible list only once the underlying data
+      // stream reflects the real deletion, never optimistically here.
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.deleteProductSuccess)));
+      }
+    } on ProductDeletionException catch (e) {
+      if (!mounted) return;
+      final message = switch (e.kind) {
+        ProductDeletionFailureKind.productNotFound =>
+          l10n.deleteProductAlreadyGone,
+        ProductDeletionFailureKind.notBusinessOwner ||
+        ProductDeletionFailureKind.businessIdMismatch ||
+        ProductDeletionFailureKind.unauthenticated =>
+          l10n.deleteProductPermissionDenied,
+        _ => l10n.deleteProductNetworkError,
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.deleteProductNetworkError)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_busy) {
+      final l10n = AppLocalizations.of(context)!;
+      return Tooltip(
+        message: l10n.deleteProductInProgress,
+        child: const SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+    return IconButton(
+      icon: const Icon(LucideIcons.trash2, color: Colors.red),
+      onPressed: _handleTap,
     );
   }
 }

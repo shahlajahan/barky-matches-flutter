@@ -20,6 +20,7 @@ const {
   doc,
   setDoc,
   updateDoc,
+  deleteDoc,
   getDoc,
   getDocs,
   collection,
@@ -1241,12 +1242,12 @@ rulesTest(
 );
 
 rulesTest(
-  "4.2-updateA-14. sku change (absent->value), absent->absent revision, is allowed",
+  "4.2-updateA-14. sku change (absent->value) is rejected — superseded by Slice 4.10's SKU-immutability freeze (§0.17 Phase 12, §9.E, committed Revision 19); sku may no longer change on any update, including from absent",
   async () => {
     await resetSeed();
     await seedProductWithRevision(undefined, {}, "piv-a14");
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/piv-a14"),
         safeProduct({ sku: "SKU-1" })
@@ -1287,11 +1288,21 @@ rulesTest(
   }
 );
 
+// `sku` is deliberately excluded from this shared value-change fixture
+// list — Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+// Revision 19) freezes sku as immutable via raw equality on every
+// update, unconditionally, regardless of productInputRevision/
+// sellerRelationship state. A generic "matching-field VALUE change is
+// allowed, and requires productInputRevision +1" fixture is therefore no
+// longer a valid scenario for sku specifically — every test below that
+// iterates this array now correctly exercises only the three fields
+// that remain freely editable (category, brand, barcode). sku's own
+// dedicated, now-inverted coverage lives at items 512-514 (SKU
+// raw-equality section) and the standalone 4.2-updateA-14 test above.
 const MATCHING_FIELD_CHANGES = [
   ["category", "Toys > Chew Toy"],
   ["brand", "Acme"],
   ["barcode", "1234567890123"],
-  ["sku", "SKU-1"],
 ];
 
 for (const [field, value] of MATCHING_FIELD_CHANGES) {
@@ -2345,10 +2356,11 @@ rulesTest(
   }
 );
 
+// `sku` excluded here for the same reason as the shared
+// MATCHING_FIELD_CHANGES array above — see that array's own comment.
 for (const [field, value] of [
   ["brand", "Acme"],
   ["barcode", "1234567890123"],
-  ["sku", "SKU-1"],
 ]) {
   rulesTest(
     `4.2r7-matrix-20. relationship change plus ${field} change together requires exactly +1`,
@@ -2675,3 +2687,202 @@ test(
 // Item 37 (no skip/todo/environment bypass) is a property of this file's
 // own authorship — no .skip()/.todo() call was added anywhere above; it
 // is not separately re-asserted here.
+
+// ---------------------------------------------------------------------
+// Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §0.17 Phase 12, §9.E,
+// committed Revision 19) — SKU raw-equality on update, §15 items
+// 512-514.
+// ---------------------------------------------------------------------
+
+async function seedProductWithSku(sku, productId = "sku-target") {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+      safeProduct({ sku })
+    );
+  });
+  return productId;
+}
+
+rulesTest(
+  "512. a seller update changing only sku to a genuinely different value is rejected",
+  async () => {
+    await resetSeed();
+    const productId = await seedProductWithSku("ABC-1", "sku-512");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ sku: "ABC-2" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "513. a seller update changing sku only by case is rejected — raw equality, not normalized equivalence",
+  async () => {
+    await resetSeed();
+    const productId = await seedProductWithSku("ABC-1", "sku-513");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ sku: "abc-1" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "513b. a seller update changing sku only by leading/trailing whitespace is rejected",
+  async () => {
+    await resetSeed();
+    const productId = await seedProductWithSku("ABC-1", "sku-513b");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ sku: " ABC-1 " })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "514. an unrelated field edit that leaves sku exactly unchanged still succeeds",
+  async () => {
+    await resetSeed();
+    const productId = await seedProductWithSku("ABC-1", "sku-514");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ sku: "ABC-1", price: 42 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "514b. sku remains unchanged (both sides absent) when the field is never set at all",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const productId = "sku-514b";
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, `businesses/biz-1/products/${productId}`), {
+        price: 42,
+      })
+    );
+  }
+);
+
+// ---------------------------------------------------------------------
+// Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed Revision
+// 19) — direct client-SDK product deletion is denied unconditionally,
+// admin included, §15 items 515-517.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "515. a seller cannot directly delete their own product",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/delete-target-1"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(
+      deleteDoc(doc(db, "businesses/biz-1/products/delete-target-1"))
+    );
+  }
+);
+
+rulesTest(
+  "515b. an unrelated authenticated user cannot directly delete another business's product",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/delete-target-2"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-2").firestore();
+    await assertFails(
+      deleteDoc(doc(db, "businesses/biz-1/products/delete-target-2"))
+    );
+  }
+);
+
+rulesTest(
+  "516. an authenticated admin client cannot directly delete a product either — allow delete is if false unconditionally",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/delete-target-3"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      deleteDoc(doc(db, "businesses/biz-1/products/delete-target-3"))
+    );
+  }
+);
+
+rulesTest(
+  "517. an unauthenticated caller cannot directly delete a product",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/delete-target-4"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      deleteDoc(doc(db, "businesses/biz-1/products/delete-target-4"))
+    );
+  }
+);
+
+rulesTest(
+  "the server-authoritative deletion path is the only mechanism — Admin SDK (simulating deleteMarketplaceProduct's own server-side transaction) can still delete a product",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/delete-target-5"),
+        safeProduct()
+      );
+      // Admin SDK writes bypass Rules entirely by construction — this is
+      // the exact trust boundary `deleteMarketplaceProduct` itself
+      // relies on; not a Rules permission, and not tested as one.
+      await deleteDoc(doc(context.firestore(), "businesses/biz-1/products/delete-target-5"));
+      const snap = await getDoc(
+        doc(context.firestore(), "businesses/biz-1/products/delete-target-5")
+      );
+      assert.equal(snap.exists(), false);
+    });
+  }
+);

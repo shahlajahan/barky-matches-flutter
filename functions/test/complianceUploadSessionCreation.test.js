@@ -18,6 +18,9 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 const functions = require("../index");
+const {
+  assertCallerOwnsBusiness,
+} = require("../src/marketplace/compliance/complianceUploadSessions");
 
 const hasFirestoreEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 function itest(name, fn) {
@@ -641,3 +644,117 @@ itest("the canary gate does not bypass quota — an allow-listed business still 
     );
   });
 });
+
+// ---------------------------------------------------------------------
+// Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §0.17 Phase 5, committed
+// Revision 19, corrected by independent review) — `assertCallerOwnsBusiness`
+// gains an additive, optional `tx` parameter, mirroring Revision 10's
+// own already-frozen `tx`/`productSnapshot` pattern. This module already
+// owns this function's coverage (confirmed: no second test file exists
+// for it) — these tests are added here directly, not in a new file,
+// exercising the function's own exported behavior rather than only its
+// one indirect call site inside `createComplianceUploadSession`. §15
+// item 525.
+// ---------------------------------------------------------------------
+
+itest(
+  "525a. the additive tx parameter genuinely participates in the caller's own transaction — a real, instrumented Firestore Transaction proves assertCallerOwnsBusiness calls tx.get() exactly once, never a plain ref.get()",
+  async () => {
+    // Per §0.17 Phase 11, point 12 (committed Revision 19): "no Type-A
+    // retry-determinism proof is claimed unless callback re-execution is
+    // directly instrumented (e.g., a fake/counting Firestore transaction
+    // harness proving the callback body ran more than once for a
+    // forced-conflict scenario)" — this test follows exactly that
+    // sanctioned technique, applied to the read call itself rather than
+    // callback re-execution: the `tx` object is the real, live Firestore
+    // Transaction the emulator handed back for this exact transaction
+    // attempt (never a fake/mock of the SDK), wrapped only to count
+    // which of its own real methods get called — genuine emulator
+    // evidence, not a fabricated double. A best-effort, non-asserted
+    // concurrent-conflict scenario is exercised immediately below this
+    // test as a secondary, informational data point only, since the
+    // Firestore emulator's own conflict-detection timing is not always
+    // reliably provokable within a bounded test duration.
+    const businessId = await seedBusiness("seller-1");
+    let txGetCalls = 0;
+
+    await db.runTransaction(async (tx) => {
+      const realGet = tx.get.bind(tx);
+      const instrumentedTx = Object.create(tx);
+      instrumentedTx.get = (...args) => {
+        txGetCalls += 1;
+        return realGet(...args);
+      };
+      await assertCallerOwnsBusiness({
+        db,
+        businessId,
+        uid: "seller-1",
+        tx: instrumentedTx,
+      });
+    });
+
+    assert.equal(
+      txGetCalls,
+      1,
+      "assertCallerOwnsBusiness must call tx.get() exactly once when tx is supplied — never a fallback to a plain ref.get()"
+    );
+  }
+);
+
+itest(
+  "525a-info. best-effort: two genuinely concurrent transactions, one reading and one writing the same business document, may force a real SDK-level retry (informational only, not required to pass deterministically)",
+  async () => {
+    const businessId = await seedBusiness("seller-1");
+    let attemptsA = 0;
+    const txA = db.runTransaction(async (tx) => {
+      attemptsA += 1;
+      await assertCallerOwnsBusiness({ db, businessId, uid: "seller-1", tx });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      tx.set(db.collection("test-scratch").doc(`tx-proof-a-${businessId}`), {
+        attemptsA,
+      });
+    });
+    let attemptsB = 0;
+    const txB = db.runTransaction(async (tx) => {
+      attemptsB += 1;
+      await assertCallerOwnsBusiness({ db, businessId, uid: "seller-1", tx });
+      tx.update(db.collection("businesses").doc(businessId), {
+        pingedAt: Date.now(),
+      });
+    });
+    await Promise.all([txA, txB]);
+    // No hard assertion on attemptsA/attemptsB — the deterministic proof
+    // is item 525a above; this is retained only as an informational,
+    // best-effort real-emulator data point, logged rather than asserted,
+    // since the emulator's own conflict-detection timing is not always
+    // reliably reproducible.
+    console.log(
+      `[525a-info] attemptsA=${attemptsA} attemptsB=${attemptsB}`
+    );
+  }
+);
+
+itest(
+  "525b. every existing non-transactional caller is byte-for-byte unaffected — omitting tx preserves the exact prior owner/non-owner behavior",
+  async () => {
+    const businessId = await seedBusiness("seller-1");
+    await assert.doesNotReject(
+      assertCallerOwnsBusiness({ db, businessId, uid: "seller-1" })
+    );
+    await assert.rejects(
+      assertCallerOwnsBusiness({ db, businessId, uid: "seller-2" }),
+      (error) => {
+        assert.equal(error.code, "permission-denied");
+        return true;
+      }
+    );
+    await assert.rejects(
+      assertCallerOwnsBusiness({ db, businessId: "nonexistent-biz", uid: "seller-1" }),
+      (error) => {
+        assert.equal(error.code, "not-found");
+        return true;
+      }
+    );
+  }
+);

@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/models/product_media.dart';
+import 'package:barky_matches_fixed/notification_service.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/add_product_page.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/product_save_plan.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +17,91 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:provider/provider.dart';
+
+// Marketplace P1-A Slice 4.10 item-510 closing-proof correction: a real
+// call-boundary spy for the sameIdEdit transaction's own `tx.set(...)`
+// call, layered over `FakeFirebaseFirestore` by extending it (never
+// wrapping a second, separate instance — `_CallCountingFakeFirestore` IS
+// the single fake store used for both test-fixture seeding and the
+// widget's own real reads/writes, so both see identical state) and
+// overriding only `runTransaction` to substitute a spying `Transaction`
+// for whatever real one the fake store's own unmodified transaction
+// machinery produces. This observes the actual `Transaction.set(...)`
+// invocation the widget's real `_submit()` performs — an exact call-count/
+// argument proof, not a state-derived inference — while every other
+// Firestore operation (`.collection()`, `.doc()`, non-transactional reads)
+// is untouched, inherited verbatim from `FakeFirebaseFirestore` itself.
+class _CallCountingFakeFirestore extends FakeFirebaseFirestore {
+  int productWriteCallCount = 0;
+  DocumentReference<Object?>? lastProductWriteRef;
+  Map<String, dynamic>? lastProductWriteData;
+
+  @override
+  Future<T> runTransaction<T>(
+    TransactionHandler<T> transactionHandler, {
+    Duration timeout = const Duration(seconds: 30),
+    int maxAttempts = 5,
+  }) {
+    return super.runTransaction<T>(
+      (tx) => transactionHandler(
+        _SpyTransaction(
+          tx,
+          onSet: (ref, data) {
+            productWriteCallCount += 1;
+            lastProductWriteRef = ref;
+            lastProductWriteData = data;
+          },
+        ),
+      ),
+      timeout: timeout,
+      maxAttempts: maxAttempts,
+    );
+  }
+}
+
+class _SpyTransaction implements Transaction {
+  _SpyTransaction(this._inner, {required this.onSet});
+
+  final Transaction _inner;
+  final void Function(DocumentReference<dynamic> ref, Map<String, dynamic> data)
+  onSet;
+
+  @override
+  Future<DocumentSnapshot<T>> get<T extends Object?>(
+    DocumentReference<T> documentReference,
+  ) {
+    return _inner.get(documentReference);
+  }
+
+  @override
+  Transaction delete(DocumentReference documentReference) {
+    _inner.delete(documentReference);
+    return this;
+  }
+
+  @override
+  Transaction update(
+    DocumentReference documentReference,
+    Map<String, dynamic> data,
+  ) {
+    _inner.update(documentReference, data);
+    return this;
+  }
+
+  @override
+  Transaction set<T>(
+    DocumentReference<T> documentReference,
+    T data, [
+    SetOptions? options,
+  ]) {
+    if (data is Map<String, dynamic>) {
+      onSet(documentReference, data);
+    }
+    _inner.set(documentReference, data, options);
+    return this;
+  }
+}
 
 void main() {
   group('ProductSavePlan', () {
@@ -155,21 +243,120 @@ void main() {
     expect(transactionBody, isNot(contains('.text')));
     expect(transactionBody, contains('await tx.get'));
     expect(transactionBody, contains('tx.set'));
-    expect(transactionBody, contains('tx.delete'));
+    // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_
+    // compliance_review_implementation_plan_2026-08-21.md §0.17 Phase
+    // 12, §9.E, committed Revision 19): the SKU-changing-edit branch's
+    // own tx.delete(originalRef) call — the only tx.delete in this
+    // transaction — is retired along with the rest of that write
+    // branch. No tx.delete of any kind remains in this transaction body
+    // (create and same-ID edit both use tx.set only).
+    expect(transactionBody, isNot(contains('tx.delete')));
   });
 
-  test('SKU collision is rejected before create or move writes', () {
+  test('SKU collision on create is still rejected before any write', () {
     final source = File(
       'lib/ui/business/petshop/add_product_page.dart',
     ).readAsStringSync();
 
+    // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+    // Revision 19): only the create branch's own collision guard
+    // remains — the SKU-changing-edit branch's own duplicate collision
+    // check is gone along with the rest of that retired write branch,
+    // so this count is corrected from 2 to exactly 1.
     expect(
       RegExp(
         r'targetSnapshot\.exists\)[\s\S]*?ProductSubmitException\('
         r"'sku-collision'",
       ).allMatches(source).length,
-      2,
+      1,
     );
+  });
+
+  // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+  // Revision 19; §15 item 511) — the risky SKU-changing write branch is
+  // proven absent from add_product_page.dart's own save-transaction
+  // body, and the required fail-closed guard is proven present. This
+  // item does not require, and is not satisfied or defeated by, the
+  // mere textual presence or absence of the identifier
+  // `skuChangingEdit` in this file — `ProductWriteMode.skuChangingEdit`
+  // is an enum value defined in product_save_plan.dart, and a
+  // defensive, non-write-performing reference to it (exactly what the
+  // fail-closed guard below is) is permitted to remain.
+  group('item 511: the retired SKU-changing write branch is absent', () {
+    late String source;
+
+    setUpAll(() {
+      source = File(
+        'lib/ui/business/petshop/add_product_page.dart',
+      ).readAsStringSync();
+    });
+
+    test(
+      'no tx.set(targetRef, ...)/tx.delete(originalRef) write pair remains anywhere in this file',
+      () {
+        // The exact write-branch pattern this revision retires — proven
+        // absent as a literal adjacent sequence, not merely "some tx.set
+        // exists somewhere" (which remains true for the create/same-ID
+        // branches and must not be mistaken for this specific pair).
+        expect(
+          RegExp(
+            r'tx\.set\(targetRef,[\s\S]{0,400}?tx\.delete\(originalRef\)',
+          ).hasMatch(source),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'ProductWriteMode.skuChangingEdit resolves to a fail-closed rejection, before any transaction write',
+      () {
+        // The earliest-possible guard, immediately after savePlan is
+        // resolved, before any Firestore read or write of any kind.
+        final guardIndex = source.indexOf(
+          'if (savePlan.mode == ProductWriteMode.skuChangingEdit) {',
+        );
+        expect(guardIndex, greaterThanOrEqualTo(0));
+        final runTransactionIndex = source.indexOf(
+          'await firestore.runTransaction((tx) async {',
+        );
+        expect(runTransactionIndex, greaterThan(guardIndex));
+
+        final guardBody = source.substring(
+          guardIndex,
+          source.indexOf('}', guardIndex) + 1,
+        );
+        expect(guardBody, contains("ProductSubmitException('sku-locked')"));
+      },
+    );
+
+    test(
+      'the transaction body itself also fails closed for this mode, as defense-in-depth',
+      () {
+        final callbackStart = source.indexOf(
+          'await firestore.runTransaction((tx) async {',
+        );
+        final callbackEnd = source.indexOf(
+          'debugPrint("✅ TRANSACTION SUCCESS")',
+          callbackStart,
+        );
+        final transactionBody = source.substring(callbackStart, callbackEnd);
+        expect(
+          transactionBody,
+          contains("throw const ProductSubmitException('sku-locked')"),
+        );
+      },
+    );
+
+    test('create and same-ID-edit branches are completely unaffected', () {
+      expect(
+        source,
+        contains('if (savePlan.mode == ProductWriteMode.create) {'),
+      );
+      expect(
+        source,
+        contains('if (savePlan.mode == ProductWriteMode.sameIdEdit) {'),
+      );
+    });
   });
 
   // Marketplace P1-A Slice 4.8 Phase A (docs/plans/marketplace_p1a_
@@ -203,23 +390,32 @@ void main() {
       'complianceReasonCode',
     ];
 
-    test('all three tx.set(...) call sites use SetOptions(merge: true)', () {
-      final matches = RegExp(
-        r'tx\.set\([^;]*?SetOptions\(merge:\s*true\)',
-        dotAll: true,
-      ).allMatches(source);
-      expect(matches.length, 3);
-    });
+    test(
+      'both remaining tx.set(...) call sites use SetOptions(merge: true)',
+      () {
+        // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+        // Revision 19): corrected from 3 to 2 — the SKU-changing-edit
+        // branch's own tx.set(targetRef, ...) call is retired along with
+        // the rest of that write branch; only create's and same-ID-edit's
+        // own tx.set calls remain.
+        final matches = RegExp(
+          r'tx\.set\([^;]*?SetOptions\(merge:\s*true\)',
+          dotAll: true,
+        ).allMatches(source);
+        expect(matches.length, 2);
+      },
+    );
 
     test('no tx.set(...) call site is a bare full-document set', () {
       // Every tx.set( call must be immediately followed, before its own
       // closing ");", by SetOptions(merge: true) — a bare set() would
-      // close without ever mentioning SetOptions.
+      // close without ever mentioning SetOptions. Corrected from 3 to 2
+      // for the same reason as the test immediately above.
       final setCalls = RegExp(
         r'tx\.set\([^;]*?\);',
         dotAll: true,
       ).allMatches(source).map((m) => m.group(0)!).toList();
-      expect(setCalls, hasLength(3));
+      expect(setCalls, hasLength(2));
       for (final call in setCalls) {
         expect(call, contains('SetOptions(merge: true)'));
       }
@@ -245,10 +441,16 @@ void main() {
       }
     });
 
-    test('create and the SKU-changing new-target write each send '
-        'productInputRevision: 0 unconditionally, and the sameIdEdit branch '
-        'never does (branch-scoped, not merely a location-blind file-wide '
-        'count)', () {
+    test('create sends productInputRevision: 0 unconditionally, and the '
+        'sameIdEdit branch never does (branch-scoped, not merely a '
+        'location-blind file-wide count)', () {
+      // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+      // Revision 19): corrected — the SKU-changing-edit branch's own
+      // former "each" comparison is retired along with that branch's
+      // own productInputRevision: 0 write; only create's branch is
+      // scoped and asserted here now. The branch's own fail-closed
+      // rejection is proven separately (see the "item 511" group
+      // below).
       final createStart = source.indexOf(
         'if (savePlan.mode == ProductWriteMode.create) {',
       );
@@ -264,22 +466,20 @@ void main() {
         'if (savePlan.mode == ProductWriteMode.sameIdEdit) {',
         createEnd,
       );
-      final sameIdEnd = source.indexOf('// SKU-changing edit.', sameIdStart);
+      final sameIdEnd = source.indexOf(
+        'debugPrint("✅ TRANSACTION SUCCESS");',
+        sameIdStart,
+      );
       expect(sameIdStart, greaterThan(createEnd));
       expect(sameIdEnd, greaterThan(sameIdStart));
+      // Includes the trailing fail-closed rejection text after the
+      // sameIdEdit branch's own `return;` — harmless for this
+      // assertion, since that text itself contains no
+      // `productInputRevision: 0,` occurrence of its own.
       final sameIdEditBranch = source.substring(sameIdStart, sameIdEnd);
-
-      final skuChangeStart = sameIdEnd;
-      final skuChangeEnd = source.indexOf(
-        'debugPrint("✅ TRANSACTION SUCCESS");',
-        skuChangeStart,
-      );
-      expect(skuChangeEnd, greaterThan(skuChangeStart));
-      final skuChangeBranch = source.substring(skuChangeStart, skuChangeEnd);
 
       final revisionZero = RegExp(r'productInputRevision:\s*0,');
       expect(revisionZero.allMatches(createBranch).length, 1);
-      expect(revisionZero.allMatches(skuChangeBranch).length, 1);
       expect(revisionZero.allMatches(sameIdEditBranch).length, 0);
 
       // The sameIdEdit branch instead computes the revision via the
@@ -290,19 +490,6 @@ void main() {
         sameIdEditBranch,
         contains('productInputRevision: computeProductInputRevision('),
       );
-    });
-
-    test('the SKU-changing edit branch still deletes the original document, '
-        'unchanged, immediately after its own new-target write', () {
-      final skuChangeSection = source.substring(
-        source.indexOf('// SKU-changing edit.'),
-      );
-      final setIndex = skuChangeSection.indexOf(
-        'tx.set(targetRef, payload, SetOptions(merge: true));',
-      );
-      final deleteIndex = skuChangeSection.indexOf('tx.delete(originalRef);');
-      expect(setIndex, greaterThanOrEqualTo(0));
-      expect(deleteIndex, greaterThan(setIndex));
     });
 
     test('no decision/link cleanup, tombstone, or invalidation call is '
@@ -318,11 +505,13 @@ void main() {
       );
       expect(source, isNot(contains(".collection('productEvidenceLinks'")));
       expect(source, isNot(contains('.collection("productEvidenceLinks"')));
-      // Exactly one deletion call exists in this file — the pre-existing,
-      // unmodified original-document delete on the SKU-changing branch
-      // (asserted precisely in the test below); no second delete call of
-      // any kind is introduced.
-      expect(RegExp(r'\.delete\(').allMatches(source).length, 1);
+      // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+      // Revision 19): corrected from 1 to 0 — the SKU-changing-edit
+      // branch's own tx.delete(originalRef) call, the only delete call
+      // this file ever had, is retired along with the rest of that
+      // write branch (proven absent precisely in the "item 511" group
+      // below). No delete call of any kind remains in this file.
+      expect(RegExp(r'\.delete\(').allMatches(source).length, 0);
     });
 
     test(
@@ -778,15 +967,18 @@ void main() {
       // computeProductInputRevision/normalizedExistingRevision are each
       // declared once and called exactly once, inside _submit()'s own
       // same-ID-edit branch; buildProductWritePayload is declared once
-      // and called exactly three times, at _submit()'s own create/
-      // sameIdEdit/skuChangingEdit branches. A total-occurrence-count
-      // check (1 declaration + N calls, no more) is a stronger,
-      // simpler proof than a call-site regex.
+      // and called exactly twice, at _submit()'s own create/sameIdEdit
+      // branches — corrected from 3 to 2, Marketplace P1-A Slice 4.10
+      // (§0.17 Phase 12, §9.E, committed Revision 19): the retired
+      // SKU-changing-edit branch's own call site is gone along with the
+      // rest of that write branch. A total-occurrence-count check (1
+      // declaration + N calls, no more) is a stronger, simpler proof
+      // than a call-site regex.
       const expectedCallCounts = {
         'matchingFieldsChanged': 1,
         'computeProductInputRevision': 1,
         'normalizedExistingRevision': 1,
-        'buildProductWritePayload': 3,
+        'buildProductWritePayload': 2,
       };
 
       final submitStart = source.indexOf('Future<void> _submit() async {');
@@ -1509,6 +1701,8 @@ void main() {
       WidgetTester tester, {
       Product? existingProduct,
       Locale locale = const Locale('en'),
+      FirebaseFirestore? firestoreOverride,
+      String? authUidOverride,
     }) async {
       // The compact layout's pre-existing, unmodified fixed-width KDV/
       // currency dropdowns (add_product_page.dart, width: 90 — confirmed
@@ -1534,23 +1728,49 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      // A real, minimal AppState — the same production class the real app
+      // itself provides at its root — mounted via the repository's own
+      // established test convention (identical construction recipe to
+      // test/social/social_post_navigation_test.dart, test/services/
+      // mobile_ad_widget_gate_test.dart, and test/ui/orders/
+      // my_orders_page_test.dart's own _appState() helpers). This lets
+      // _submit()'s real, unmodified `context.read<AppState>().
+      // closeBusinessSubPage()` call complete normally on the success
+      // path, rather than throwing ProviderNotFoundException — no fake/
+      // partial AppState, no new DI framework, just the existing
+      // repository-wide pattern for exercising widgets that sit under a
+      // real AppState ancestor.
+      final appState = AppState(
+        favoriteDogs: const <Dog>[],
+        favoriteDogsNotifier: ValueNotifier<List<Dog>>(<Dog>[]),
+        likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
+        onToggleFavorite: (_) {},
+        notificationService: NotificationService(),
+      );
+      addTearDown(appState.dispose);
+
       await tester.pumpWidget(
-        MaterialApp(
-          locale: locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          // AddProductPage is mounted as a sub-page body within the real
-          // app's own persistent Scaffold (via AppState's own in-app
-          // navigation, not a pushed Flutter route) — it renders its own
-          // header inline rather than an AppBar, and _snack() requires a
-          // ScaffoldMessenger with at least one live Scaffold to route
-          // to. A bare Scaffold(body: ...) here is the minimal harness
-          // that matches how the real app actually hosts this widget,
-          // not a re-implementation of any of its own behavior.
-          home: Scaffold(
-            body: AddProductPage(
-              businessId: 'business-1',
-              existingProduct: existingProduct,
+        ChangeNotifierProvider<AppState>.value(
+          value: appState,
+          child: MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            // AddProductPage is mounted as a sub-page body within the real
+            // app's own persistent Scaffold (via AppState's own in-app
+            // navigation, not a pushed Flutter route) — it renders its own
+            // header inline rather than an AppBar, and _snack() requires a
+            // ScaffoldMessenger with at least one live Scaffold to route
+            // to. A bare Scaffold(body: ...) here is the minimal harness
+            // that matches how the real app actually hosts this widget,
+            // not a re-implementation of any of its own behavior.
+            home: Scaffold(
+              body: AddProductPage(
+                businessId: 'business-1',
+                existingProduct: existingProduct,
+                firestoreOverride: firestoreOverride,
+                authUidOverride: authUidOverride,
+              ),
             ),
           ),
         ),
@@ -1558,7 +1778,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Product existingProductWith({String? sellerRelationship}) {
+    Product existingProductWith({String? sellerRelationship, String? sku}) {
       return Product(
         id: 'business-1_EXISTING',
         businessId: 'business-1',
@@ -1571,7 +1791,23 @@ void main() {
         category: 'Food > Dry Food',
         isActive: false,
         sellerRelationship: sellerRelationship,
+        sku: sku,
       );
+    }
+
+    Future<void> selectFirstKdvRate(WidgetTester tester) async {
+      // The KDV rate labels are themselves localized (e.g. Russian
+      // "Скидка 1%", not a bare "1%") — resolve the real, current
+      // locale's own string rather than assuming an English literal.
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(AddProductPage)),
+      )!;
+      final kdvFinder = find.byKey(const Key('addProductKdvDropdown'));
+      await tester.ensureVisible(kdvFinder);
+      await tester.tap(kdvFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.discountRate1Label).last);
+      await tester.pumpAndSettle();
     }
 
     testWidgets('sellerRelationship control renders with no default '
@@ -1644,20 +1880,365 @@ void main() {
       },
     );
 
-    Future<void> selectFirstKdvRate(WidgetTester tester) async {
-      // The KDV rate labels are themselves localized (e.g. Russian
-      // "Скидка 1%", not a bare "1%") — resolve the real, current
-      // locale's own string rather than assuming an English literal.
+    // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+    // Revision 19) — the SKU field is disabled/read-only on every edit
+    // of an existing product, editable only at create time.
+    testWidgets('the SKU field is enabled on create', (tester) async {
+      await pumpAddProductPage(tester);
+
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('addProductSkuField')),
+      );
+      expect(field.enabled, isTrue);
+    });
+
+    testWidgets('the SKU field is disabled on edit of an existing product', (
+      tester,
+    ) async {
+      await pumpAddProductPage(tester, existingProduct: existingProductWith());
+
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('addProductSkuField')),
+      );
+      expect(field.enabled, isFalse);
+    });
+
+    testWidgets(
+      'the SKU-locked explanatory message renders on edit, not on create',
+      (tester) async {
+        await pumpAddProductPage(tester);
+        expect(
+          find.textContaining(
+            'SKU cannot be changed after a listing is created',
+          ),
+          findsNothing,
+        );
+
+        await pumpAddProductPage(
+          tester,
+          existingProduct: existingProductWith(),
+        );
+        expect(
+          find.textContaining(
+            'SKU cannot be changed after a listing is created',
+          ),
+          findsWidgets,
+        );
+      },
+    );
+
+    // Marketplace P1-A Slice 4.10 closing-proof correction (§15 item 510,
+    // corrected Revision 20 — the earlier item-510 tests are renamed
+    // 510a/510b below, mirroring this file's own established
+    // sub-lettering convention for multiple proofs belonging to one
+    // frozen item — see functions/test/productDeletion.test.js's own
+    // 506a/506b/492b/500b/500c/504b). The frozen requirement is not
+    // satisfied merely by TextField.enabled == false or the lock
+    // message rendering (both proven above as supplementary evidence
+    // only, per the item's own text) — it requires proving no user
+    // interaction can change the field's displayed/submitted value, and
+    // that the value actually submitted equals the original SKU
+    // exactly, via a fake service call-count/argument assertion.
+    testWidgets(
+      '510a. no user interaction can change the displayed SKU value on edit',
+      (tester) async {
+        await pumpAddProductPage(
+          tester,
+          existingProduct: existingProductWith(sku: 'ORIGINAL-SKU-1'),
+        );
+
+        final skuFinder = find.byKey(const Key('addProductSkuField'));
+        expect(
+          tester.widget<TextField>(skuFinder).controller?.text,
+          'ORIGINAL-SKU-1',
+        );
+
+        // A real tap — the only way a user could begin editing this
+        // field. Blocked by the field's own `enabled: false`
+        // pointer-absorption; `warnIfMissed: false` since a genuinely
+        // disabled field may legitimately not register as hit-testable.
+        await tester.tap(skuFinder, warnIfMissed: false);
+        await tester.pump();
+
+        // A direct enterText attempt — tolerated whether it throws (no
+        // focusable/open text input on a disabled field, the expected
+        // outcome in most Flutter test-harness versions) or is a no-op.
+        // Either way, the assertion below is what this test actually
+        // relies on, not which of these two outcomes occurred.
+        try {
+          await tester.enterText(skuFinder, 'HACKED-SKU');
+          await tester.pump();
+        } catch (_) {
+          // Expected on a genuinely disabled field — a thrown error
+          // here is itself evidence the field cannot be entered, not a
+          // test failure.
+        }
+
+        expect(
+          tester.widget<TextField>(skuFinder).controller?.text,
+          'ORIGINAL-SKU-1',
+          reason:
+              'no real user interaction may change the displayed SKU on edit',
+        );
+      },
+    );
+
+    // Genuine widget-submission proof (§15 item 510, corrected Revision
+    // 20). Drives the REAL AddProductPage widget — real _validate(),
+    // real ProductSavePlan.resolve(), real Product construction, real
+    // buildProductWritePayload call site, real firestore.runTransaction
+    // — through a controlled, call-counting FakeFirebaseFirestore/
+    // authenticated-UID injected via the minimal, optional, default-
+    // preserving firestoreOverride/authUidOverride seam
+    // (add_product_page.dart). Not a re-implementation of _submit()'s
+    // own logic: every step below is the production widget doing
+    // production work against a fake, in-memory Firestore backend,
+    // exactly the same production code path real users exercise.
+    //
+    // pumpAddProductPage now mounts a real, minimal AppState via
+    // ChangeNotifierProvider (see its own definition above) — the same
+    // repository-wide test convention used elsewhere in this codebase —
+    // so _submit()'s real, unmodified
+    // `context.read<AppState>().closeBusinessSubPage()` call completes
+    // normally on the success path. No ProviderNotFoundException occurs
+    // and no second, generic error SnackBar is ever queued; this test
+    // directly asserts both.
+    testWidgets('510b. a genuine same-ID edit submission through the real widget '
+        'sends exactly one write, targeting exactly the original product '
+        'document, whose captured payload argument carries exactly the '
+        'original, unchanged sku — proven via a call-count/argument spy on '
+        'the real transaction boundary, composed with persisted-state '
+        'confirmation, with no alternate document created, no reserved '
+        'compliance field included, and no ProviderNotFoundException or '
+        'error state reached', (tester) async {
+      const businessId = 'business-1';
+      const authUid = 'seller-1';
+      const originalSku = 'ORIGINAL-SKU-1';
+      const productId = '${businessId}_$originalSku';
+
+      final fakeFirestore = _CallCountingFakeFirestore();
+      await fakeFirestore.collection('businesses').doc(businessId).set({
+        'ownerUid': authUid,
+      });
+      final originalDocRef = fakeFirestore
+          .collection('businesses')
+          .doc(businessId)
+          .collection('products')
+          .doc(productId);
+      await originalDocRef.set({
+        'businessId': businessId,
+        'name': 'Existing product',
+        'category': 'Food > Dry Food',
+        'brand': null,
+        'barcode': null,
+        'sku': originalSku,
+        'sellerRelationship': 'manufacturer',
+        'productInputRevision': 0,
+      });
+
+      final existingProduct = Product(
+        id: productId,
+        businessId: businessId,
+        name: 'Existing product',
+        description: 'Existing product description, long enough',
+        price: 10,
+        currency: 'TRY',
+        media: const [],
+        stock: 1,
+        category: 'Food > Dry Food',
+        isActive: false,
+        sku: originalSku,
+        sellerRelationship: 'manufacturer',
+        weightKg: 1.0,
+        fixedDesi: 5.0,
+        allowedCarrierCodes: const ['YURTICI'],
+      );
+
+      await pumpAddProductPage(
+        tester,
+        existingProduct: existingProduct,
+        firestoreOverride: fakeFirestore,
+        authUidOverride: authUid,
+      );
+
+      // Attempt to alter the disabled SKU field through the real
+      // widget before submitting — same real-interaction proof as the
+      // test immediately above, now composed with the real submit
+      // that follows.
+      final skuFinder = find.byKey(const Key('addProductSkuField'));
+      await tester.tap(skuFinder, warnIfMissed: false);
+      await tester.pump();
+      try {
+        await tester.enterText(skuFinder, 'HACKED-SKU-2');
+        await tester.pump();
+      } catch (_) {
+        // Expected on a genuinely disabled field.
+      }
+      expect(
+        tester.widget<TextField>(skuFinder).controller?.text,
+        originalSku,
+        reason: 'no real user interaction may change the displayed SKU',
+      );
+
+      // The real edit-mode UI has no existingProduct-derived kdvRate
+      // prefill — every scenario in this file that reaches a real
+      // submit must select it explicitly.
+      await selectFirstKdvRate(tester);
+
+      final submitFinder = find.byKey(const Key('addProductSubmitButton'));
+      await tester.ensureVisible(submitFinder);
+      await tester.tap(submitFinder);
+      // Bounded: never an unbounded/default-10-minute pumpAndSettle —
+      // an explicit, short timeout. With a real AppState now mounted,
+      // this settles on the genuine final success state, not an
+      // intermediate one.
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+
+      // No uncaught/unexpected Flutter error escaped the widget tree
+      // (ProviderNotFoundException, were it still reachable, would
+      // have been caught internally by _submit()'s own try/catch, not
+      // surfaced here — the two assertions immediately below are the
+      // direct proof it was never thrown at all).
+      expect(tester.takeException(), isNull);
+
+      // The real success SnackBar can only ever render after the real
+      // firestore.runTransaction(...) call has already returned
+      // successfully — this is UI completion-state evidence, not a
+      // re-implementation of _submit()'s own logic.
       final l10n = AppLocalizations.of(
         tester.element(find.byType(AddProductPage)),
       )!;
-      final kdvFinder = find.byKey(const Key('addProductKdvDropdown'));
-      await tester.ensureVisible(kdvFinder);
-      await tester.tap(kdvFinder);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.discountRate1Label).last);
-      await tester.pumpAndSettle();
-    }
+      expect(
+        find.text(l10n.productSubmittedForReviewStatus),
+        findsOneWidget,
+        reason:
+            'the real submit success state must be reached — this SnackBar '
+            'is only ever shown after the real transaction has already '
+            'committed',
+      );
+
+      // Direct proof _submit()'s catch block was never entered: with a
+      // real AppState now mounted, context.read<AppState>() completes
+      // normally, so no second, generic error SnackBar is ever queued
+      // — the widget reaches a clean, final, Provider-complete success
+      // state, not an intermediate one masking a latent error.
+      expect(
+        find.text(l10n.somethingWentWrong),
+        findsNothing,
+        reason:
+            'no ProviderNotFoundException/generic error SnackBar may be '
+            'queued once a real AppState ancestor is mounted',
+      );
+
+      // Exact call-boundary proof (§15 item 510's own frozen text: "a
+      // fake service call-count/argument assertion") — captured
+      // directly at the real Transaction.set(...) invocation the
+      // widget's own _submit() performs, via _CallCountingFakeFirestore
+      // (defined above this file's main()). Exactly one write occurs
+      // in the sameIdEdit branch (add_product_page.dart's own single
+      // `tx.set(originalRef, payload, ...)` call site), so this call
+      // count is an exact, not merely inferred, single-write proof.
+      expect(
+        fakeFirestore.productWriteCallCount,
+        1,
+        reason:
+            'exactly one product-document write must occur — a second '
+            'write (e.g. a write-then-correction sequence) would be '
+            'detected here even though it would be invisible to a '
+            'final-state-only assertion',
+      );
+      expect(
+        fakeFirestore.lastProductWriteRef?.path,
+        originalDocRef.path,
+        reason:
+            'the captured write must target exactly the original '
+            'product document path',
+      );
+      expect(
+        fakeFirestore.lastProductWriteData?['sku'],
+        originalSku,
+        reason:
+            'the exact argument captured at the real transaction '
+            'boundary must carry the original, unchanged sku — not '
+            'merely the value later found in persisted state',
+      );
+
+      // Persisted-state confirmation, retained as an independent,
+      // second line of evidence alongside the call-boundary proof
+      // above — never itself substituted for it.
+      final finalSnap = await originalDocRef.get();
+      expect(
+        finalSnap.exists,
+        isTrue,
+        reason:
+            'the original document must still exist — no delete/move branch executed',
+      );
+      final finalData = finalSnap.data()!;
+      expect(
+        finalData['sku'],
+        originalSku,
+        reason:
+            'the submitted payload\'s sku must equal the original sku exactly',
+      );
+      expect(finalData['name'], 'Existing product');
+      // A genuine write actually occurred (not a no-op read): the
+      // seeded document deliberately omitted moderationStatus/
+      // isActive/updatedAt — buildProductWritePayload's own real
+      // output always includes them, so their presence here is direct
+      // proof this exact write executed, not merely that the document
+      // already happened to look this way.
+      expect(finalData['moderationStatus'], 'pending_review');
+      expect(finalData['isActive'], false);
+      expect(finalData.containsKey('updatedAt'), isTrue);
+
+      // No alternate, SKU-derived document was created anywhere under
+      // this business — the only product document that exists at all
+      // is the original one.
+      final allProducts = await fakeFirestore
+          .collection('businesses')
+          .doc(businessId)
+          .collection('products')
+          .get();
+      expect(
+        allProducts.docs.map((d) => d.id).toList(),
+        [productId],
+        reason:
+            'exactly one product document must exist — no alternate '
+            'SKU-derived document was created',
+      );
+
+      // The original product ID is unchanged (the write landed at the
+      // exact same document path it started at).
+      expect(finalSnap.reference.path, originalDocRef.path);
+
+      // sameIdEdit revision behavior: nothing matching-relevant
+      // changed (category/brand/barcode/sku/sellerRelationship are all
+      // identical to the seeded original), so productInputRevision
+      // stays at its existing value (0 + 0), never bumped.
+      expect(finalData['productInputRevision'], 0);
+
+      // The five Rules-reserved compliance fields are never included
+      // in the client's own write payload — buildProductWritePayload's
+      // own closed allowlist (§0.14) never names any of them.
+      for (final reserved in [
+        'complianceEffectiveStatus',
+        'complianceValidUntil',
+        'evidenceRevision',
+        'complianceUpdatedAt',
+        'complianceReasonCode',
+      ]) {
+        expect(
+          finalData.containsKey(reserved),
+          isFalse,
+          reason:
+              '$reserved must never be included in the client write payload',
+        );
+      }
+    });
 
     testWidgets(
       'submission without a sellerRelationship selection is blocked, with '

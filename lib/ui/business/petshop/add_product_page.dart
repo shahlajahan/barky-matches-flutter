@@ -221,10 +221,27 @@ class AddProductPage extends StatefulWidget {
 
   final Product? existingProduct;
 
+  /// Test-only, default-preserving override for the Firestore instance
+  /// this page's submission path reads/writes through. Always `null` in
+  /// production; when `null`, production behavior is unchanged
+  /// (`FirebaseFirestore.instance`).
+  @visibleForTesting
+  final FirebaseFirestore? firestoreOverride;
+
+  /// Test-only, default-preserving override for the authenticated
+  /// caller's UID this page's submission path uses for the
+  /// business-ownership/authorization check. Always `null` in
+  /// production; when `null`, production behavior is unchanged
+  /// (`FirebaseAuth.instance.currentUser?.uid`).
+  @visibleForTesting
+  final String? authUidOverride;
+
   const AddProductPage({
     super.key,
     required this.businessId,
     this.existingProduct,
+    @visibleForTesting this.firestoreOverride,
+    @visibleForTesting this.authUidOverride,
   });
   @override
   State<AddProductPage> createState() => _AddProductPageState();
@@ -1538,9 +1555,9 @@ class _AddProductPageState extends State<AddProductPage> {
     }
 
     try {
-      final firestore = FirebaseFirestore.instance;
+      final firestore = widget.firestoreOverride ?? FirebaseFirestore.instance;
       final authUser = FirebaseAuth.instance.currentUser;
-      final authUid = authUser?.uid;
+      final authUid = widget.authUidOverride ?? authUser?.uid;
       final businessId = widget.businessId.trim();
 
       debugPrint("👤 auth uid = ${authUid ?? 'null'}");
@@ -1564,6 +1581,18 @@ class _AddProductPageState extends State<AddProductPage> {
       );
       final targetProductId = savePlan.targetProductId;
       final originalProductId = savePlan.originalProductId;
+
+      // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
+      // Revision 19): SKU is immutable on every edit. The field is
+      // disabled below whenever isEdit is true, so this mode should
+      // never actually be reachable from this UI — this is the
+      // earliest possible fail-closed guard for any malformed or
+      // programmatic state that somehow still resolves to it anyway:
+      // reject before any Firestore read or write of any kind, never
+      // fall through to the retired SKU-changing write branch.
+      if (savePlan.mode == ProductWriteMode.skuChangingEdit) {
+        throw const ProductSubmitException('sku-locked');
+      }
 
       debugPrint("📦 businessId = $businessId");
       debugPrint("📦 sku = $sku");
@@ -1752,31 +1781,21 @@ class _AddProductPageState extends State<AddProductPage> {
           return;
         }
 
-        // SKU-changing edit. §0.15 (Revision 17) freezes this branch's
-        // boundary exactly: the new-target write below receives the same
-        // allowlisted merge:true correction as create, for the identical
-        // collision-guard reason (targetSnapshot is transactionally
-        // confirmed absent before this write executes, so merge:true is
-        // behaviorally inert here — nothing exists to merge with) —
-        // productInputRevision is therefore 0, unconditionally, exactly
-        // like create, never the +0/+1 edit rule (there is no existing
-        // target document to read a prior value from). This write-method
-        // correction does not fix, cover, or reduce the productComplianceDecisions/
-        // productEvidenceLinks orphaning-and-reuse finding (§0.15/§0.12
-        // Gap B) — it is unrelated, addressing a different document at a
-        // different path. The original document's own deletion below is
-        // completely unmodified: no cleanup, tombstone, or invalidation of
-        // any kind is added.
-        final targetSnapshot = await tx.get(targetRef);
-        if (targetSnapshot.exists) {
-          throw const ProductSubmitException('sku-collision');
-        }
-        final payload = buildProductWritePayload(
-          product: product,
-          productInputRevision: 0,
-        );
-        tx.set(targetRef, payload, SetOptions(merge: true));
-        tx.delete(originalRef);
+        // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_
+        // compliance_review_implementation_plan_2026-08-21.md §0.17
+        // Phase 12, §9.E, committed Revision 19): the SKU-changing-edit
+        // write branch — a single client-driven transaction that wrote
+        // a new document at a new deterministic ID and deleted the
+        // original — is retired. SKU is now immutable on every edit
+        // (the field is disabled above whenever isEdit is true, and
+        // firestore.rules independently enforces raw-equality
+        // regardless of this client's own behavior). The only remaining
+        // possibility of reaching this branch is malformed/programmatic
+        // state, already guarded against earlier in this method
+        // (immediately after `savePlan` is resolved) — this is the
+        // required defense-in-depth fail-closed backstop: reject before
+        // any write, never fall through to the removed write pattern.
+        throw const ProductSubmitException('sku-locked');
       });
 
       debugPrint("✅ TRANSACTION SUCCESS");
@@ -1852,6 +1871,7 @@ class _AddProductPageState extends State<AddProductPage> {
         'business-not-found' => l10n.businessNotFound,
         'sku-collision' => l10n.productAlreadyExistsTitle,
         'original-product-missing' => l10n.businessNotFound,
+        'sku-locked' => l10n.skuLockedAfterCreation,
         _ => l10n.somethingWentWrong,
       };
       _snack(message, isError: true);
@@ -3235,7 +3255,13 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
             _desktopLabel(
               l10n.skuCodeLabel,
               TextField(
+                key: const Key('addProductSkuField'),
                 controller: _sku,
+                // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E,
+                // committed Revision 19): SKU is immutable on every
+                // edit — disabled/read-only whenever isEdit is true,
+                // editable only at create time.
+                enabled: !isEdit,
                 onEditingComplete: () async {
                   final value = _sku.text.trim().toUpperCase();
                   if (value.isNotEmpty)
@@ -3247,7 +3273,9 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                 ),
                 decoration: _desktopDecoration(),
               ),
-              helper: l10n.autoGeneratedSkuHint,
+              helper: isEdit
+                  ? l10n.skuLockedAfterCreation
+                  : l10n.autoGeneratedSkuHint,
             ),
           ]),
           buildBarcodeStatus(),
@@ -4082,7 +4110,14 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextField(
+                        key: const Key('addProductSkuField'),
                         controller: _sku,
+                        // Marketplace P1-A Slice 4.10 (§0.17 Phase 12,
+                        // §9.E, committed Revision 19): SKU is
+                        // immutable on every edit — disabled/read-only
+                        // whenever isEdit is true, editable only at
+                        // create time.
+                        enabled: !isEdit,
                         onEditingComplete: () async {
                           final value = _sku.text.trim().toUpperCase();
 
@@ -4101,7 +4136,9 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       ),
 
                       Text(
-                        l10n.autoGeneratedSkuHint,
+                        isEdit
+                            ? l10n.skuLockedAfterCreation
+                            : l10n.autoGeneratedSkuHint,
                         style: AppTheme.caption(color: Colors.grey),
                       ),
                     ],
