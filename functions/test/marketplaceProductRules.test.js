@@ -90,8 +90,28 @@ function safeProduct(overrides = {}) {
     category: "Health > Vitamins",
     isActive: false,
     moderationStatus: "pending_review",
+    // Marketplace P1-A media-cap prerequisite (docs/plans/marketplace_p1a_
+    // compliance_review_implementation_plan_2026-08-21.md §10.1/§17 21c):
+    // media is now a required, ≤20-length list on every create/resubmission.
+    // Defaulting it here (rather than at each of this fixture's ~140 call
+    // sites) keeps every pre-existing, unrelated test's already-expected
+    // outcome unchanged; the dedicated media-cap tests below override this
+    // default explicitly to exercise the boundary itself.
+    media: [],
     ...overrides,
   };
+}
+
+// A single valid, minimal media entry, reused by the media-cap boundary
+// tests below to build lists of an exact target length without asserting
+// anything about per-entry media schema (§10.1: "No per-entry media schema
+// validation... is introduced by this prerequisite").
+function mediaEntry(n) {
+  return { type: "image", originalUrl: `https://example.test/${n}.jpg` };
+}
+
+function mediaList(count) {
+  return Array.from({ length: count }, (_, i) => mediaEntry(i));
 }
 
 test.after(async () => {
@@ -2884,5 +2904,462 @@ rulesTest(
       );
       assert.equal(snap.exists(), false);
     });
+  }
+);
+
+// =======================================================================
+// Marketplace P1-A media-cap enforcement prerequisite (docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
+// §10.1 "Authoritative media-cap enforcement prerequisite", §17 step 21c,
+// Revision 23 §0.21 dependency-boundary clarification).
+//
+// These tests prove the frozen Rules boundary itself, through the real
+// Firestore emulator — never a static-source or regex substitute. They
+// are local, dormant, emulator-only proof: this file's own change is not
+// deployed by writing or running these tests, does not run the separate,
+// later-authorized §17 step 21a compatibility inventory, and draws no
+// conclusion about any real, currently-stored production document. Per
+// the plan's own explicit disposition for this state: IMPLEMENTED AND
+// TESTED LOCALLY — STEP 21c REVIEW PENDING 21a INVENTORY.
+// =======================================================================
+
+// ---------------------------------------------------------------------
+// A. CREATE / new submission — isSafeNewProductSubmission()
+// ---------------------------------------------------------------------
+
+rulesTest("MEDIA-CAP-A1. create with media: [] is allowed", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertSucceeds(
+    setDoc(
+      doc(db, "businesses/biz-1/products/media-a1"),
+      safeProduct({ media: [] })
+    )
+  );
+});
+
+rulesTest(
+  "MEDIA-CAP-A2. create with one valid media entry is allowed",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-a2"),
+        safeProduct({ media: mediaList(1) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-A3. create with exactly 20 valid media entries is allowed",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-a3"),
+        safeProduct({ media: mediaList(20) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-A4. create with exactly 21 media entries is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-a4"),
+        safeProduct({ media: mediaList(21) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-A5. create with 25 media entries (well above the cap) is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-a5"),
+        safeProduct({ media: mediaList(25) })
+      )
+    );
+  }
+);
+
+rulesTest("MEDIA-CAP-A6. create with media missing entirely is denied", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  const payload = safeProduct();
+  delete payload.media;
+  await assertFails(
+    setDoc(doc(db, "businesses/biz-1/products/media-a6"), payload)
+  );
+});
+
+rulesTest("MEDIA-CAP-A7. create with media: null is denied", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/media-a7"),
+      safeProduct({ media: null })
+    )
+  );
+});
+
+rulesTest("MEDIA-CAP-A8. create with media as a string is denied", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/media-a8"),
+      safeProduct({ media: "not-a-list" })
+    )
+  );
+});
+
+rulesTest("MEDIA-CAP-A9. create with media as a map is denied", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/media-a9"),
+      safeProduct({ media: { type: "image" } })
+    )
+  );
+});
+
+rulesTest("MEDIA-CAP-A10. create with media as a number is denied", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/media-a10"),
+      safeProduct({ media: 5 })
+    )
+  );
+});
+
+rulesTest(
+  "MEDIA-CAP-A11. create with media as a boolean is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-a11"),
+        safeProduct({ media: true })
+      )
+    );
+  }
+);
+
+// ---------------------------------------------------------------------
+// B. UPDATE / resubmission — isSafeProductResubmission()
+// ---------------------------------------------------------------------
+
+async function seedMediaProduct(productId, media) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+      safeProduct({ media })
+    );
+  });
+  return productId;
+}
+
+rulesTest(
+  "MEDIA-CAP-B1. resubmission with incoming media: [] is allowed",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b1", mediaList(3));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: [] })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B2. resubmission with one incoming media entry is allowed",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b2", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: mediaList(1) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B3. resubmission with exactly 20 incoming media entries is allowed",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b3", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: mediaList(20) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B4. resubmission with exactly 21 incoming media entries is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b4", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: mediaList(21) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B5. a full-replacement resubmission whose payload omits media entirely is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b5", mediaList(2));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    const payload = safeProduct({ price: 42 });
+    delete payload.media;
+    await assertFails(
+      setDoc(doc(db, `businesses/biz-1/products/${productId}`), payload)
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B6. resubmission with incoming media: null is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b6", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: null })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B7. resubmission with incoming media as a string is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b7", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: "not-a-list" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B8. resubmission with incoming media as a map is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b8", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: { type: "image" } })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B9. resubmission with incoming media as a number is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b9", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: 5 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B10. resubmission with incoming media as a boolean is denied",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b10", []);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ media: true })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B11. an otherwise-unrelated merge update over a pre-existing, already-oversized media array is denied (the resulting incoming media remains oversized)",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b11", mediaList(25));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, `businesses/biz-1/products/${productId}`), {
+        price: 99,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B12. an otherwise-unrelated merge update over a pre-existing, already-malformed (non-list) media value is denied (the resulting incoming media remains malformed)",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b12", "not-a-list");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, `businesses/biz-1/products/${productId}`), {
+        price: 99,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-B13. an otherwise-unrelated merge update preserving exactly 20 pre-existing media entries remains allowed",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-b13", mediaList(20));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, `businesses/biz-1/products/${productId}`), {
+        price: 99,
+      })
+    );
+  }
+);
+
+// ---------------------------------------------------------------------
+// C. Regression/preservation — the media-cap predicate must not weaken
+// any pre-existing invariant, proven here in explicit combination with a
+// valid media boundary value rather than relying on the pre-existing
+// suite's own (now media-defaulted) fixtures alone.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "MEDIA-CAP-C1. unauthenticated creation is still denied even with otherwise-valid, ≤20-entry media",
+  async () => {
+    await resetSeed();
+    const db = (await env()).unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-c1"),
+        safeProduct({ media: mediaList(20) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-C2. SKU immutability is still enforced on an otherwise-valid resubmission carrying exactly 20 media entries",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const productId = "media-c2";
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+        safeProduct({ sku: "ORIGINAL-SKU", media: mediaList(20) })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `businesses/biz-1/products/${productId}`),
+        safeProduct({ sku: "CHANGED-SKU", media: mediaList(20) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-C3. an unlisted/unknown field is still rejected on create even with otherwise-valid media",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-c3"),
+        safeProduct({ media: mediaList(5), notARealField: "x" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-C4. the productInputRevision Phase A create contract (nonzero present value rejected) is still enforced with otherwise-valid media",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/media-c4"),
+        safeProduct({ media: mediaList(5), productInputRevision: 1 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-C5. direct client-SDK product deletion remains denied (allow delete: if false) regardless of the stored product's media",
+  async () => {
+    await resetSeed();
+    const productId = await seedMediaProduct("media-c5", mediaList(20));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      deleteDoc(doc(db, `businesses/biz-1/products/${productId}`))
+    );
+  }
+);
+
+rulesTest(
+  "MEDIA-CAP-C6. an ordinary, fully-valid product create/read round trip with 0-20 media still succeeds end to end",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    const ref = doc(db, "businesses/biz-1/products/media-c6");
+    await assertSucceeds(setDoc(ref, safeProduct({ media: mediaList(20) })));
+    const snap = await getDoc(ref);
+    assert.equal(snap.exists(), true);
+    assert.equal(snap.data().media.length, 20);
   }
 );

@@ -1330,7 +1330,17 @@ match /dogs/{dogId}/visits/{visitId} {
       && sellerCreateHasNoServerOwnedFields(data)
       && isValidTransitionalProductInputRevisionCreate(data)
       && isValidTransitionalSellerRelationshipCreate(data)
-      && data.keys().hasOnly(productAllowedFields());
+      && data.keys().hasOnly(productAllowedFields())
+      // Marketplace P1-A (docs/plans/marketplace_p1a_compliance_review_
+      // implementation_plan_2026-08-21.md §10.1 "Authoritative media-cap
+      // enforcement prerequisite", §17 step 21c): media must be a list of
+      // at most 20 entries. A missing key throws on the dotted access
+      // below and denies exactly like the existing required-field checks
+      // above (e.g. data.name); null/non-list values fail `is list`
+      // cleanly. Deploying this predicate is a separate, later-authorized
+      // step (§17 21d) — this Rules text alone performs no deployment.
+      && data.media is list
+      && data.media.size() <= 20;
   }
 
   function isSafeProductResubmission() {
@@ -1369,7 +1379,18 @@ match /dogs/{dogId}/visits/{visitId} {
       && !incoming.diff(existing).affectedKeys().hasAny([
         'businessId',
         'createdAt'
-      ]);
+      ])
+      // Marketplace P1-A (docs/plans/marketplace_p1a_compliance_review_
+      // implementation_plan_2026-08-21.md §10.1 "Authoritative media-cap
+      // enforcement prerequisite", §17 step 21c): the resulting incoming
+      // media must be a list of at most 20 entries — a resulting-absent
+      // key (including one deleted by this write) throws and denies
+      // exactly like the existing required-field checks above; null/
+      // non-list values fail `is list` cleanly. Deploying this predicate
+      // is a separate, later-authorized step (§17 21d) — this Rules text
+      // alone performs no deployment.
+      && incoming.media is list
+      && incoming.media.size() <= 20;
   }
 
   allow read: if isAdmin()
