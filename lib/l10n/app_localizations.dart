@@ -19190,6 +19190,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage advertising consent and privacy choices.'**
   String get adPrivacyOptionsSubtitle;
+
+  /// No description provided for @marketplaceSellerActivationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace selling is not active for this business yet. Please contact an administrator.'**
+  String get marketplaceSellerActivationRequired;
+
+  /// No description provided for @marketplaceSellerActivationSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace Seller Activation'**
+  String get marketplaceSellerActivationSectionTitle;
+
+  /// No description provided for @marketplaceSellerActivationStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active — this business may sell in the Marketplace'**
+  String get marketplaceSellerActivationStatusActive;
+
+  /// No description provided for @marketplaceSellerActivationStatusInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive — this business may not sell in the Marketplace'**
+  String get marketplaceSellerActivationStatusInactive;
+
+  /// No description provided for @marketplaceSellerActivationGrantAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant access'**
+  String get marketplaceSellerActivationGrantAction;
+
+  /// No description provided for @marketplaceSellerActivationRevokeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke access'**
+  String get marketplaceSellerActivationRevokeAction;
+
+  /// No description provided for @marketplaceSellerActivationGrantConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant Marketplace access?'**
+  String get marketplaceSellerActivationGrantConfirmTitle;
+
+  /// No description provided for @marketplaceSellerActivationGrantConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This allows the business to create and edit Marketplace products. It does not approve any product, verify documents, or confirm legal compliance.'**
+  String get marketplaceSellerActivationGrantConfirmMessage;
+
+  /// No description provided for @marketplaceSellerActivationRevokeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke Marketplace access?'**
+  String get marketplaceSellerActivationRevokeConfirmTitle;
+
+  /// No description provided for @marketplaceSellerActivationRevokeConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This blocks the business from creating or editing Marketplace products. Existing products are not deleted or hidden by this action.'**
+  String get marketplaceSellerActivationRevokeConfirmMessage;
+
+  /// No description provided for @marketplaceSellerActivationGrantSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace access granted.'**
+  String get marketplaceSellerActivationGrantSucceeded;
+
+  /// No description provided for @marketplaceSellerActivationRevokeSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace access revoked.'**
+  String get marketplaceSellerActivationRevokeSucceeded;
+
+  /// No description provided for @marketplaceSellerActivationPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have permission to perform this action.'**
+  String get marketplaceSellerActivationPermissionDenied;
+
+  /// No description provided for @marketplaceSellerActivationBusinessNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Business not found.'**
+  String get marketplaceSellerActivationBusinessNotFound;
+
+  /// No description provided for @marketplaceSellerActivationNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Please try again.'**
+  String get marketplaceSellerActivationNetworkError;
+
+  /// No description provided for @marketplaceSellerActivationGeneralError.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get marketplaceSellerActivationGeneralError;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

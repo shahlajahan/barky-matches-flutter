@@ -10223,4 +10223,52 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get adPrivacyOptionsSubtitle => 'رضایت تبلیغات و انتخاب‌های حریم خصوصی را مدیریت کنید.';
+
+  @override
+  String get marketplaceSellerActivationRequired => 'فروش در بازار برای این کسب‌وکار هنوز فعال نشده است. لطفاً با یک مدیر تماس بگیرید.';
+
+  @override
+  String get marketplaceSellerActivationSectionTitle => 'فعال‌سازی فروشنده بازار';
+
+  @override
+  String get marketplaceSellerActivationStatusActive => 'فعال — این کسب‌وکار می‌تواند در بازار بفروشد';
+
+  @override
+  String get marketplaceSellerActivationStatusInactive => 'غیرفعال — این کسب‌وکار نمی‌تواند در بازار بفروشد';
+
+  @override
+  String get marketplaceSellerActivationGrantAction => 'اعطای دسترسی';
+
+  @override
+  String get marketplaceSellerActivationRevokeAction => 'لغو دسترسی';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmTitle => 'دسترسی بازار اعطا شود؟';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmMessage => 'این کار به کسب‌وکار اجازه می‌دهد محصولات بازار را ایجاد و ویرایش کند. هیچ محصولی را تأیید نمی‌کند، مدارک را بررسی نمی‌کند و انطباق قانونی را تأیید نمی‌کند.';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmTitle => 'دسترسی بازار لغو شود؟';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmMessage => 'این کار کسب‌وکار را از ایجاد یا ویرایش محصولات بازار باز می‌دارد. محصولات موجود با این عمل حذف یا پنهان نمی‌شوند.';
+
+  @override
+  String get marketplaceSellerActivationGrantSucceeded => 'دسترسی بازار اعطا شد.';
+
+  @override
+  String get marketplaceSellerActivationRevokeSucceeded => 'دسترسی بازار لغو شد.';
+
+  @override
+  String get marketplaceSellerActivationPermissionDenied => 'شما اجازه انجام این کار را ندارید.';
+
+  @override
+  String get marketplaceSellerActivationBusinessNotFound => 'کسب‌وکار یافت نشد.';
+
+  @override
+  String get marketplaceSellerActivationNetworkError => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get marketplaceSellerActivationGeneralError => 'مشکلی پیش آمد. لطفاً دوباره تلاش کنید.';
 }

@@ -10225,4 +10225,52 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get adPrivacyOptionsSubtitle => 'Управляйте согласием на рекламу и настройками конфиденциальности.';
+
+  @override
+  String get marketplaceSellerActivationRequired => 'Продажи на Маркетплейсе для этого бизнеса ещё не активированы. Пожалуйста, свяжитесь с администратором.';
+
+  @override
+  String get marketplaceSellerActivationSectionTitle => 'Активация продавца Маркетплейса';
+
+  @override
+  String get marketplaceSellerActivationStatusActive => 'Активно — этот бизнес может продавать на Маркетплейсе';
+
+  @override
+  String get marketplaceSellerActivationStatusInactive => 'Неактивно — этот бизнес не может продавать на Маркетплейсе';
+
+  @override
+  String get marketplaceSellerActivationGrantAction => 'Предоставить доступ';
+
+  @override
+  String get marketplaceSellerActivationRevokeAction => 'Отозвать доступ';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmTitle => 'Предоставить доступ к Маркетплейсу?';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmMessage => 'Это позволит бизнесу создавать и редактировать товары Маркетплейса. Это не одобряет какой-либо товар, не проверяет документы и не подтверждает соответствие законодательству.';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmTitle => 'Отозвать доступ к Маркетплейсу?';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmMessage => 'Это заблокирует создание или редактирование товаров Маркетплейса этим бизнесом. Существующие товары не удаляются и не скрываются этим действием.';
+
+  @override
+  String get marketplaceSellerActivationGrantSucceeded => 'Доступ к Маркетплейсу предоставлен.';
+
+  @override
+  String get marketplaceSellerActivationRevokeSucceeded => 'Доступ к Маркетплейсу отозван.';
+
+  @override
+  String get marketplaceSellerActivationPermissionDenied => 'У вас нет разрешения на выполнение этого действия.';
+
+  @override
+  String get marketplaceSellerActivationBusinessNotFound => 'Бизнес не найден.';
+
+  @override
+  String get marketplaceSellerActivationNetworkError => 'Ошибка сети. Пожалуйста, попробуйте снова.';
+
+  @override
+  String get marketplaceSellerActivationGeneralError => 'Что-то пошло не так. Пожалуйста, попробуйте снова.';
 }

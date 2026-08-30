@@ -21,12 +21,14 @@ const {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   getDoc,
   getDocs,
   collection,
   collectionGroup,
   query,
   where,
+  serverTimestamp,
 } = require("firebase/firestore");
 
 const rules = fs.readFileSync(
@@ -70,12 +72,34 @@ async function resetSeed() {
       contact: { email: "seller1@example.com" },
       status: "approved",
       published: true,
+      // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_
+      // compliance_review_implementation_plan_2026-08-21.md §10.1
+      // "Marketplace seller-activation gate contract"): every
+      // pre-existing test in this file exercises something other than
+      // this gate itself, so both shared fixture businesses are seeded
+      // pre-activated here — the dedicated SELLER-ACTIVATION-* tests
+      // below override this explicitly to exercise the gate's own
+      // boundary, exactly mirroring how `media` is defaulted above.
+      marketplaceSellerActivation: {
+        active: true,
+        grantedAt: serverTimestamp(),
+        grantedBy: "admin-1",
+        revokedAt: null,
+        revokedBy: null,
+      },
     });
     await setDoc(doc(db, "businesses", "biz-2"), {
       ownerUid: "seller-2",
       contact: { email: "seller2@example.com" },
       status: "approved",
       published: true,
+      marketplaceSellerActivation: {
+        active: true,
+        grantedAt: serverTimestamp(),
+        grantedBy: "admin-1",
+        revokedAt: null,
+        revokedBy: null,
+      },
     });
     await setDoc(doc(db, "users", "admin-1"), { role: "admin" });
   });
@@ -3361,5 +3385,666 @@ rulesTest(
     const snap = await getDoc(ref);
     assert.equal(snap.exists(), true);
     assert.equal(snap.data().media.length, 20);
+  }
+);
+
+// =======================================================================
+// Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1 "Marketplace
+// seller-activation gate contract", §17 step 21c2, §15 items 679-701).
+//
+// These tests prove the frozen Rules boundary itself, through the real
+// Firestore emulator — never a static-source or regex substitute. They
+// are local, dormant, emulator-only proof: this file's own change is
+// not deployed by writing or running these tests, does not run the
+// separate, later-authorized §17 step 21a compatibility inventory, and
+// draws no conclusion about any real, currently-stored production
+// document. Per the plan's own explicit disposition for this state:
+// SELLER-ACTIVATION GATE REQUIRED — STEP 21D RULES DEPLOYMENT BLOCKED.
+// =======================================================================
+
+const ACTIVE_TRUE = Object.freeze({
+  active: true,
+  grantedAt: null,
+  grantedBy: "admin-1",
+  revokedAt: null,
+  revokedBy: null,
+});
+
+const REVOKED = Object.freeze({
+  active: false,
+  grantedAt: null,
+  grantedBy: "admin-1",
+  revokedAt: null,
+  revokedBy: "admin-1",
+});
+
+async function setBusinessActivation(businessId, activationValue) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    // `updateDoc` with a plain (non-dotted) key fully replaces that
+    // field's value — unlike `setDoc(..., {merge: true})`, which would
+    // deep-merge into the already-seeded nested map and silently leave
+    // stale sibling keys (e.g. a pre-seeded `active: true`) behind.
+    await updateDoc(doc(db, "businesses", businessId), {
+      marketplaceSellerActivation: activationValue === undefined ? deleteField() : activationValue,
+    });
+  });
+}
+
+// ---------------------------------------------------------------------
+// A. CREATE — every fail-closed shape.
+// ---------------------------------------------------------------------
+
+rulesTest("SELLER-ACTIVATION-A1. create with active:true is allowed (otherwise-valid payload)", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertSucceeds(setDoc(doc(db, "businesses/biz-1/products/act-a1"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A2. create with the activation object missing entirely is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", undefined);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a2"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A3. create with the activation object null is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", null);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a3"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A4. create with the activation object a string is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", "active");
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a4"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A5. create with the activation object a list is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", [true]);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a5"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A6. create with the activation object a boolean is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", true);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a6"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A7. create with active missing from an otherwise-present map is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", { grantedAt: null, grantedBy: "admin-1" });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a7"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A8. create with active:null is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: null });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a8"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A9. create with active as a string is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: "true" });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a9"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A10. create with active as a number is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: 1 });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a10"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A11. create with active as a map is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: { value: true } });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a11"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A12. create with active as a list is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: [true] });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a12"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A13. create with active:false is denied", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", REVOKED);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a13"), safeProduct()));
+});
+
+rulesTest("SELLER-ACTIVATION-A14. create against a business that does not exist at all is denied", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(doc(db, "businesses/biz-nonexistent/products/act-a14"), safeProduct({ businessId: "biz-nonexistent" }))
+  );
+});
+
+// ---------------------------------------------------------------------
+// B. UPDATE/RESUBMISSION — mirrors A exactly.
+// ---------------------------------------------------------------------
+
+rulesTest("SELLER-ACTIVATION-B1. resubmission with active:true is allowed", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b1", mediaList(1));
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertSucceeds(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B2. resubmission with the activation object missing entirely is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b2", mediaList(1));
+  await setBusinessActivation("biz-1", undefined);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B3. resubmission with the activation object null is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b3", mediaList(1));
+  await setBusinessActivation("biz-1", null);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B4. resubmission with the activation object a non-map value is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b4", mediaList(1));
+  await setBusinessActivation("biz-1", "active");
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B5. resubmission with active missing is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b5", mediaList(1));
+  await setBusinessActivation("biz-1", { grantedAt: null, grantedBy: "admin-1" });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B6. resubmission with active:null is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b6", mediaList(1));
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: null });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B7. resubmission with active as a string is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b7", mediaList(1));
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: "yes" });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B8. resubmission with active as a number is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b8", mediaList(1));
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: 1 });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B9. resubmission with active as a map/list is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b9", mediaList(1));
+  await setBusinessActivation("biz-1", { ...ACTIVE_TRUE, active: [true] });
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-B10. resubmission with active:false (revoked seller) is denied", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-b10", mediaList(1));
+  await setBusinessActivation("biz-1", REVOKED);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, `businesses/biz-1/products/${productId}`), { name: "Updated Name" })
+  );
+});
+
+// ---------------------------------------------------------------------
+// C. Sector selection is irrelevant — only activation controls.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "SELLER-ACTIVATION-C1. a business with a Petshop-aliased sector but no activation is still denied",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", undefined);
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "businesses", "biz-1"), { sectors: ["pet_shop"] }, { merge: true });
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-c1"), safeProduct()));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-C2. a business with a non-Petshop sector but active:true is still allowed",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "businesses", "biz-1"), { sectors: ["veterinary"] }, { merge: true });
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(setDoc(doc(db, "businesses/biz-1/products/act-c2"), safeProduct()));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-C3. a multi-sector business without activation is denied regardless of how many sectors it carries",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", undefined);
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses", "biz-1"),
+        { sectors: ["veterinary", "pet_shop", "groomer"] },
+        { merge: true }
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-c3"), safeProduct()));
+  }
+);
+
+// ---------------------------------------------------------------------
+// D. Client mutation of the activation object is always denied.
+// ---------------------------------------------------------------------
+
+rulesTest("SELLER-ACTIVATION-D1. the owning seller cannot directly overwrite the activation object", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: ACTIVE_TRUE })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-D2. the owning seller cannot merge-write only the active field", async () => {
+  await resetSeed();
+  await setBusinessActivation("biz-1", undefined);
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: ACTIVE_TRUE }, { merge: true })
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-D3. the owning seller cannot set a nested dotted-path active field", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  // Set to a genuinely *different* value than the already-seeded
+  // `active: true` — Rules' own `diff().affectedKeys()` only reports
+  // keys whose value actually changes, so writing the already-current
+  // value would be a false-negative test, not a true bypass proof.
+  await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { "marketplaceSellerActivation.active": false }));
+});
+
+rulesTest(
+  "SELLER-ACTIVATION-D4. the owning seller cannot alter only the audit-metadata sub-fields, leaving active untouched",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses", "biz-1"), { "marketplaceSellerActivation.grantedBy": "seller-1" })
+    );
+  }
+);
+
+rulesTest("SELLER-ACTIVATION-D5. the owning seller cannot delete the activation field", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: deleteField() }));
+});
+
+rulesTest(
+  "SELLER-ACTIVATION-D6. an unrelated authenticated user cannot write another business's activation object",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-2").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: ACTIVE_TRUE })
+    );
+  }
+);
+
+rulesTest("SELLER-ACTIVATION-D7. an unauthenticated write attempt is denied", async () => {
+  await resetSeed();
+  const db = (await env()).unauthenticatedContext().firestore();
+  await assertFails(
+    updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: ACTIVE_TRUE })
+  );
+});
+
+rulesTest(
+  "SELLER-ACTIVATION-D8. a direct product-path write forging active:true inline on the product document itself has no effect — the gate reads only the business document",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", undefined);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/act-d8"), safeProduct({ marketplaceSellerActivation: ACTIVE_TRUE }))
+    );
+  }
+);
+
+// ---------------------------------------------------------------------
+// E. Preservation — every already-frozen constraint composes correctly
+//    with the new predicate under an otherwise-active seller.
+// ---------------------------------------------------------------------
+
+rulesTest("SELLER-ACTIVATION-E1. media 20 allowed under an active seller", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertSucceeds(setDoc(doc(db, "businesses/biz-1/products/act-e1"), safeProduct({ media: mediaList(20) })));
+});
+
+rulesTest("SELLER-ACTIVATION-E2. media 21 denied under an active seller", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-e2"), safeProduct({ media: mediaList(21) })));
+});
+
+rulesTest("SELLER-ACTIVATION-E3. missing/non-list media denied under an active seller", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  const payload = safeProduct();
+  delete payload.media;
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-e3"), payload));
+});
+
+rulesTest("SELLER-ACTIVATION-E4. SKU immutability is still enforced under an active seller", async () => {
+  await resetSeed();
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "businesses/biz-1/products/act-e4"), safeProduct({ sku: "SKU-1" }));
+  });
+  const db = rulesEnv.authenticatedContext("seller-1").firestore();
+  await assertFails(updateDoc(doc(db, "businesses/biz-1/products/act-e4"), { sku: "SKU-2" }));
+});
+
+rulesTest("SELLER-ACTIVATION-E5. the productInputRevision Phase A create contract is still enforced under an active seller", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(doc(db, "businesses/biz-1/products/act-e5"), safeProduct({ productInputRevision: 1 }))
+  );
+});
+
+rulesTest("SELLER-ACTIVATION-E6. an unknown/unlisted field is still rejected under an active seller", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-e6"), safeProduct({ unlistedField: "x" })));
+});
+
+rulesTest(
+  "SELLER-ACTIVATION-E7. the moderation/isActive create-time constraints are still enforced under an active seller",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-e7"), safeProduct({ isActive: true })));
+  }
+);
+
+rulesTest("SELLER-ACTIVATION-E8. direct product deletion remains denied regardless of activation state", async () => {
+  await resetSeed();
+  const productId = await seedMediaProduct("act-e8", mediaList(1));
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(deleteDoc(doc(db, `businesses/biz-1/products/${productId}`)));
+});
+
+// =======================================================================
+// Marketplace P1-A Step 21c2 closing-audit correction (docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
+// §10.1 "Marketplace seller-activation gate contract"): a self-
+// registering user's own initial `businesses/{businessId}` create must
+// never be able to seed `marketplaceSellerActivation`, in any shape or
+// value — only the two authorized admin-only server operations may
+// ever write this key, on create or update alike. These tests prove
+// the corrected `allow create` predicate's own key-exclusion, through
+// the real Firestore emulator.
+// =======================================================================
+
+function validBusinessCreatePayload(overrides = {}) {
+  return {
+    ownerUid: "seller-new-1",
+    contact: { email: "seller-new-1@example.test" },
+    status: "pending",
+    published: false,
+    ...overrides,
+  };
+}
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-1. an ordinary, otherwise-valid business create without marketplaceSellerActivation still succeeds",
+  async () => {
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("seller-new-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses", "biz-new-1"), validBusinessCreatePayload())
+    );
+    // Precondition-safety: prove the document really was created and
+    // really carries no activation field, so later denial tests below
+    // cannot be mistaken for this same document already being blocked
+    // for an unrelated reason.
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-new-1"));
+      assert.equal(snap.exists(), true);
+      assert.equal(snap.data().marketplaceSellerActivation, undefined);
+    });
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-2. a forged complete active:true object is denied",
+  async () => {
+    const db = (await env()).authenticatedContext("seller-new-2").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-new-2"),
+        validBusinessCreatePayload({
+          ownerUid: "seller-new-2",
+          marketplaceSellerActivation: {
+            active: true,
+            grantedAt: null,
+            grantedBy: "seller-new-2",
+            revokedAt: null,
+            revokedBy: null,
+          },
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-3. a forged active:false object is also denied — key presence alone is prohibited, not merely a true value",
+  async () => {
+    const db = (await env()).authenticatedContext("seller-new-3").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-new-3"),
+        validBusinessCreatePayload({
+          ownerUid: "seller-new-3",
+          marketplaceSellerActivation: { active: false },
+        })
+      )
+    );
+  }
+);
+
+rulesTest("SELLER-ACTIVATION-CREATE-4. marketplaceSellerActivation: null is denied", async () => {
+  const db = (await env()).authenticatedContext("seller-new-4").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses", "biz-new-4"),
+      validBusinessCreatePayload({ ownerUid: "seller-new-4", marketplaceSellerActivation: null })
+    )
+  );
+});
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-5. an empty-map marketplaceSellerActivation is denied",
+  async () => {
+    const db = (await env()).authenticatedContext("seller-new-5").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-new-5"),
+        validBusinessCreatePayload({ ownerUid: "seller-new-5", marketplaceSellerActivation: {} })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-6. malformed non-map values (string/number/list/boolean) are all denied",
+  async () => {
+    const rulesEnv = await env();
+    const values = ["active", 1, [true], true];
+    for (let i = 0; i < values.length; i++) {
+      const db = rulesEnv.authenticatedContext(`seller-new-6-${i}`).firestore();
+      await assertFails(
+        setDoc(
+          doc(db, "businesses", `biz-new-6-${i}`),
+          validBusinessCreatePayload({
+            ownerUid: `seller-new-6-${i}`,
+            marketplaceSellerActivation: values[i],
+          })
+        )
+      );
+    }
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-7. a literal dotted-string field name is harmless even if not itself excluded — it can never satisfy hasActiveMarketplaceSellerActivation(), which reads only the exact nested marketplaceSellerActivation.active structure",
+  async () => {
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("seller-new-7").firestore();
+    // setDoc (create) has no dotted-path/nested-update syntax the way
+    // updateDoc does — a JS object key containing a literal dot is
+    // stored as one literal top-level field name, never a nested path.
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses", "biz-new-7"),
+        validBusinessCreatePayload({
+          ownerUid: "seller-new-7",
+          "marketplaceSellerActivation.active": true,
+        })
+      )
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-new-7"));
+      // The literal field exists, but the real nested structure does
+      // not — proving this vector cannot satisfy the activation gate.
+      assert.equal(snap.data()["marketplaceSellerActivation.active"], true);
+      assert.equal(snap.data().marketplaceSellerActivation, undefined);
+    });
+    // Direct proof this is inert: a product write against this
+    // business still fails the activation gate.
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-new-7/products/inert-1"), safeProduct({ businessId: "biz-new-7" }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-8. a serverTimestamp()/transform value inside the forged object is denied identically — transform sentinels do not affect key-presence detection",
+  async () => {
+    const db = (await env()).authenticatedContext("seller-new-8").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-new-8"),
+        validBusinessCreatePayload({
+          ownerUid: "seller-new-8",
+          marketplaceSellerActivation: {
+            active: true,
+            grantedAt: serverTimestamp(),
+            grantedBy: "seller-new-8",
+            revokedAt: null,
+            revokedBy: null,
+          },
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-9. sector selection and other legacy fields never substitute for admin activation — the created business remains gate-inactive",
+  async () => {
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("seller-new-9").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses", "biz-new-9"),
+        validBusinessCreatePayload({ ownerUid: "seller-new-9", sectors: ["pet_shop"] })
+      )
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-new-9"));
+      assert.equal(snap.exists(), true);
+      assert.equal(snap.data().marketplaceSellerActivation, undefined);
+    });
+    // Closes the loop end-to-end: a product write against this newly
+    // self-registered, sector-selected, but never-admin-activated
+    // business still fails the product-level activation gate.
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-new-9/products/inert-2"), safeProduct({ businessId: "biz-new-9" }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-CREATE-10. after a valid business create, an owner update attempt against marketplaceSellerActivation remains denied — the create-time and update-time protections compose correctly",
+  async () => {
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("seller-new-10").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses", "biz-new-10"), validBusinessCreatePayload({ ownerUid: "seller-new-10" }))
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses", "biz-new-10"), {
+        marketplaceSellerActivation: { active: true, grantedAt: null, grantedBy: "seller-new-10", revokedAt: null, revokedBy: null },
+      })
+    );
   }
 );

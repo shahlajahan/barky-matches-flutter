@@ -23,9 +23,27 @@ import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboa
 enum PetShopDashboardSection { overview, revenue }
 
 class PetShopDashboardPage extends StatefulWidget {
-  const PetShopDashboardPage({super.key, this.showRevenueTab = true});
+  const PetShopDashboardPage({
+    super.key,
+    this.showRevenueTab = true,
+    @visibleForTesting this.businessStreamOverride,
+  });
 
   final bool showRevenueTab;
+
+  // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md §10.1; closing-audit
+  // correction). Test-only seam, confined entirely to this file — a
+  // stream factory rather than a whole `FirebaseFirestore` override, so
+  // a test can inject any stream shape (including an error event, which
+  // `FakeFirebaseFirestore` has no built-in way to simulate). Defaults
+  // to null, so every production caller (which never passes it) gets
+  // exactly the real `FirebaseFirestore.instance` stream this widget
+  // already used before this correction. Used only by
+  // `_buildMarketplaceSellerActivationGate` below.
+  @visibleForTesting
+  final Stream<DocumentSnapshot> Function(String businessId)?
+  businessStreamOverride;
 
   @override
   State<PetShopDashboardPage> createState() => _PetShopDashboardPageState();
@@ -191,13 +209,21 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     debugPrint("================================");
     // final businessId = appState.businessId;
     if (businessSubPage == BusinessSubPage.addProduct) {
-      return AddProductPage(businessId: businessId!);
+      return _buildMarketplaceSellerActivationGate(
+        context,
+        businessId!,
+        child: AddProductPage(businessId: businessId),
+      );
     }
 
     if (businessSubPage == BusinessSubPage.editProduct) {
-      return AddProductPage(
-        businessId: businessId!,
-        existingProduct: context.read<AppState>().editingProduct,
+      return _buildMarketplaceSellerActivationGate(
+        context,
+        businessId!,
+        child: AddProductPage(
+          businessId: businessId,
+          existingProduct: context.read<AppState>().editingProduct,
+        ),
       );
     }
 
@@ -1250,6 +1276,59 @@ Widget _strengthBar(double value) {
           ],
         ),
       ),
+    );
+  }
+
+  // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md §10.1 "Marketplace
+  // seller-activation gate contract"): the Petshop dashboard must not
+  // render create/edit controls unless the business's
+  // `marketplaceSellerActivation.active` is `true`. This gate reads
+  // fresh, live business data on every rebuild (never a value cached at
+  // an earlier navigation) — a business revoked while this page is open
+  // is caught here on the next stream emission, before `AddProductPage`
+  // is ever built. This is defense-in-depth only: `AddProductPage`
+  // itself independently re-checks fresh state at its own real
+  // submission boundary, and the Firestore Rules predicate
+  // (`hasActiveMarketplaceSellerActivation`) remains the authoritative
+  // enforcement layer regardless of what this widget renders.
+  Widget _buildMarketplaceSellerActivationGate(
+    BuildContext context,
+    String businessId, {
+    required Widget child,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final stream = widget.businessStreamOverride?.call(businessId) ??
+        FirebaseFirestore.instance
+            .collection('businesses')
+            .doc(businessId)
+            .snapshots();
+    return StreamBuilder<DocumentSnapshot>(
+      stream: stream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: _emptyBox(l10n.errorOccurred(snapshot.error.toString())),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (!snapshot.data!.exists) {
+          return Scaffold(body: _emptyBox(l10n.businessNotFound));
+        }
+        final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+        final activation = data['marketplaceSellerActivation'];
+        final isActive = activation is Map && activation['active'] == true;
+        if (!isActive) {
+          return Scaffold(
+            body: _emptyBox(l10n.marketplaceSellerActivationRequired),
+          );
+        }
+        return child;
+      },
     );
   }
 

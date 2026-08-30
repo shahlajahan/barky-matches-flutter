@@ -324,6 +324,10 @@ const {
   deleteMarketplaceProduct,
 } = require("./src/marketplace/compliance/productDeletion");
 const {
+  grantMarketplaceSellerActivation,
+  revokeMarketplaceSellerActivation,
+} = require("./src/marketplace/compliance/marketplaceSellerActivation");
+const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
 } = require("./src/marketplace/publicCatalog/marketplaceListing");
@@ -20154,6 +20158,28 @@ exports.reviewProductModeration = onCall({ region: "europe-west3" }, async (requ
 // logic lives in functions/src/marketplace/compliance/productDeletion.js.
 exports.deleteMarketplaceProduct = onCall({ region: "europe-west3" }, async (request) =>
   deleteMarketplaceProduct({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
+// Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1/§13.1/§17) — the sole
+// admin-only paths that may grant/revoke Marketplace seller activation.
+// Thin exports.* wiring only, same convention as the callables above;
+// all business logic lives in
+// functions/src/marketplace/compliance/marketplaceSellerActivation.js.
+exports.grantMarketplaceSellerActivation = onCall({ region: "europe-west3" }, async (request) =>
+  grantMarketplaceSellerActivation({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
+exports.revokeMarketplaceSellerActivation = onCall({ region: "europe-west3" }, async (request) =>
+  revokeMarketplaceSellerActivation({
     db: admin.firestore(),
     auth: request.auth,
     data: request.data,

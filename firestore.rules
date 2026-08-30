@@ -109,8 +109,33 @@ service cloud.firestore {
           'trust',
           'riskFlags',
           'ownerUid',
-          'createdAt'
+          'createdAt',
+          // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_
+          // compliance_review_implementation_plan_2026-08-21.md §10.1
+          // "Marketplace seller-activation gate contract"): only the two
+          // authorized admin-only server operations (Admin SDK, bypasses
+          // Rules by construction) may ever write this key. A business
+          // owner, or any other authenticated client, may never create,
+          // replace, merge, update, delete, or otherwise transform it.
+          'marketplaceSellerActivation'
         ]);
+    }
+
+    // Marketplace P1-A Step 21c2 (§10.1 "Fail-closed Rules predicate,
+    // exact"): the one and only mechanism behind every fail-closed
+    // outcome this gate requires. Every clause below independently
+    // denies a distinct malformed/missing shape — a missing business
+    // document, a missing/malformed activation object, or a missing/
+    // null/non-boolean/false `active` value.
+    function hasActiveMarketplaceSellerActivation(businessId) {
+      return businessId is string
+        && exists(/databases/$(database)/documents/businesses/$(businessId))
+        && get(/databases/$(database)/documents/businesses/$(businessId))
+             .data.marketplaceSellerActivation is map
+        && get(/databases/$(database)/documents/businesses/$(businessId))
+             .data.marketplaceSellerActivation.active is bool
+        && get(/databases/$(database)/documents/businesses/$(businessId))
+             .data.marketplaceSellerActivation.active == true;
     }
 
     function isPublicBusiness(businessId) {
@@ -983,7 +1008,27 @@ match /dogs/{dogId}/visits/{visitId} {
           'verification',
           'trust',
           'riskFlags',
-          'createdAt'
+          'createdAt',
+          // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_
+          // compliance_review_implementation_plan_2026-08-21.md §10.1
+          // "Marketplace seller-activation gate contract" — closing-audit
+          // correction). `marketplaceSellerActivation` is server-
+          // controlled, exactly like `verification`/`trust`/`riskFlags`
+          // above: a client's initial business-document create must
+          // never be able to seed it, in any shape, any value included
+          // — only the two authorized admin-only server operations
+          // (`grantMarketplaceSellerActivation`/
+          // `revokeMarketplaceSellerActivation`) may ever write this key,
+          // on a create or an update alike. Without this exclusion here,
+          // a self-registering user could forge `active: true` directly
+          // into their own business document's initial write, bypassing
+          // the admin-grant gate entirely — this key's presence on
+          // create must be denied unconditionally, regardless of its
+          // value or shape, exactly like the three sibling keys above.
+          // Admin SDK/Functions bypass of this same check is separately
+          // governed by Step 21e, not protected by Rules — unchanged by
+          // this correction.
+          'marketplaceSellerActivation'
         ]) &&
         (
           !('legal' in request.resource.data)
@@ -1340,7 +1385,13 @@ match /dogs/{dogId}/visits/{visitId} {
       // cleanly. Deploying this predicate is a separate, later-authorized
       // step (§17 21d) — this Rules text alone performs no deployment.
       && data.media is list
-      && data.media.size() <= 20;
+      && data.media.size() <= 20
+      // Marketplace P1-A Step 21c2 (§10.1 "Marketplace seller-activation
+      // gate contract"): the owning business must be explicitly,
+      // server-admin-granted Marketplace seller activation. Sector
+      // selection, general business `status`/`published` approval, and
+      // identity/document verification never substitute for this.
+      && hasActiveMarketplaceSellerActivation(data.businessId);
   }
 
   function isSafeProductResubmission() {
@@ -1390,7 +1441,12 @@ match /dogs/{dogId}/visits/{visitId} {
       // is a separate, later-authorized step (§17 21d) — this Rules text
       // alone performs no deployment.
       && incoming.media is list
-      && incoming.media.size() <= 20;
+      && incoming.media.size() <= 20
+      // Marketplace P1-A Step 21c2 (§10.1 "Marketplace seller-activation
+      // gate contract"): applies identically to update/resubmission — a
+      // seller whose activation is later revoked can no longer edit
+      // their existing products either, not only create new ones.
+      && hasActiveMarketplaceSellerActivation(existing.businessId);
   }
 
   allow read: if isAdmin()
@@ -2234,6 +2290,27 @@ match /stories/{storyId} {
     match /productComplianceDecisions/{productId} {
       allow read: if isAdmin() ||
         (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
+      allow create, update, delete: if false;
+    }
+
+    // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_compliance_
+    // review_implementation_plan_2026-08-21.md §10.1 "Marketplace
+    // seller-activation gate contract"): the immutable audit log for the
+    // two authorized `grantMarketplaceSellerActivation`/
+    // `revokeMarketplaceSellerActivation` operations. Deliberately a
+    // narrow, dedicated collection — not `complianceReviewEvents`, whose
+    // own `targetType`/`action` enum vocabulary (§10.1's own file-scope
+    // inspection) is scoped to product-compliance-document review, a
+    // different domain than business-level Marketplace seller
+    // authorization; reusing it would require extending a shared,
+    // product-compliance-specific enum with business-activation-specific
+    // values, exactly the "overloading an existing field's meaning"
+    // pattern this whole gate's own source audit already rejected once.
+    // Mirrors `complianceReviewEvents`' own exact security posture:
+    // admin-read-only, no client write of any kind, Admin SDK writes it
+    // directly inside the same transaction as the state-object write.
+    match /marketplaceSellerActivationAuditEvents/{eventId} {
+      allow read: if isAdmin();
       allow create, update, delete: if false;
     }
   }

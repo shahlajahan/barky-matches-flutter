@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 
 import '../admin_detail_scaffold.dart';
 import '../business_admin_actions.dart';
+import '../business_marketplace_activation_section.dart';
 import '../pet_taxi_admin_review_panel.dart';
 
 import '../../business/business_profile_section.dart';
@@ -12,6 +14,7 @@ import '../../business/business_trust_section.dart';
 import '../../business/business_documents_section.dart';
 import '../../business/business_header.dart';
 import '../sections/business_audit_log_section.dart';
+import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessAdminDetailPage extends StatelessWidget {
@@ -78,6 +81,18 @@ class BusinessAdminDetailPage extends StatelessWidget {
                 BusinessTrustSection(
                   data: businessData,
                   businessId: businessId,
+                ),
+                BusinessMarketplaceActivationSection(
+                  data: businessData,
+                  businessId: businessId,
+                  // Marketplace P1-A Step 21c2 (closing-audit
+                  // correction): the real production admin-authority
+                  // value, read here from the already-existing
+                  // AppState.isAdmin getter — the section itself never
+                  // reads AppState internally.
+                  isAdmin: context.select<AppState, bool>(
+                    (state) => state.isAdmin,
+                  ),
                 ),
                 BusinessAuditLogSection(businessId: businessId),
               ],

@@ -1607,6 +1607,27 @@ class _AddProductPageState extends State<AddProductPage> {
         throw const ProductSubmitException('business-not-found');
       }
       final businessData = businessDoc.data() ?? <String, dynamic>{};
+
+      // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_
+      // compliance_review_implementation_plan_2026-08-21.md §10.1
+      // "Marketplace seller-activation gate contract"): read fresh, at
+      // the real submission boundary, off the same raw business map
+      // just fetched above — never a value cached from page load, which
+      // could be stale relative to a concurrent admin revoke. This is
+      // defense-in-depth only; the Firestore Rules predicate
+      // (`hasActiveMarketplaceSellerActivation`) remains the
+      // authoritative enforcement layer even if this check is somehow
+      // bypassed. Only a literal `active: true` on a well-formed map is
+      // treated as active — missing, null, malformed, non-boolean, and
+      // `false` are all treated identically as inactive, fail closed.
+      final marketplaceSellerActivation =
+          businessData['marketplaceSellerActivation'];
+      final isMarketplaceSellerActive = marketplaceSellerActivation is Map &&
+          marketplaceSellerActivation['active'] == true;
+      if (!isMarketplaceSellerActive) {
+        throw const ProductSubmitException('marketplace-seller-inactive');
+      }
+
       final ownerUid = businessData['ownerUid']?.toString().trim();
       final contact = businessData['contact'];
       final contactEmail = contact is Map
@@ -1872,6 +1893,7 @@ class _AddProductPageState extends State<AddProductPage> {
         'sku-collision' => l10n.productAlreadyExistsTitle,
         'original-product-missing' => l10n.businessNotFound,
         'sku-locked' => l10n.skuLockedAfterCreation,
+        'marketplace-seller-inactive' => l10n.marketplaceSellerActivationRequired,
         _ => l10n.somethingWentWrong,
       };
       _snack(message, isError: true);

@@ -10223,4 +10223,52 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get adPrivacyOptionsSubtitle => 'Reklam izni ve gizlilik tercihlerinizi yönetin.';
+
+  @override
+  String get marketplaceSellerActivationRequired => 'Bu işletme için Pazar yeri satışı henüz aktif değil. Lütfen bir yöneticiyle iletişime geçin.';
+
+  @override
+  String get marketplaceSellerActivationSectionTitle => 'Pazar Yeri Satıcı Aktivasyonu';
+
+  @override
+  String get marketplaceSellerActivationStatusActive => 'Aktif — bu işletme Pazar yerinde satış yapabilir';
+
+  @override
+  String get marketplaceSellerActivationStatusInactive => 'Pasif — bu işletme Pazar yerinde satış yapamaz';
+
+  @override
+  String get marketplaceSellerActivationGrantAction => 'Erişim ver';
+
+  @override
+  String get marketplaceSellerActivationRevokeAction => 'Erişimi iptal et';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmTitle => 'Pazar yeri erişimi verilsin mi?';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmMessage => 'Bu, işletmenin Pazar yeri ürünleri oluşturmasına ve düzenlemesine izin verir. Herhangi bir ürünü onaylamaz, belgeleri doğrulamaz veya yasal uyumluluğu teyit etmez.';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmTitle => 'Pazar yeri erişimi iptal edilsin mi?';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmMessage => 'Bu, işletmenin Pazar yeri ürünleri oluşturmasını veya düzenlemesini engeller. Mevcut ürünler bu işlemle silinmez veya gizlenmez.';
+
+  @override
+  String get marketplaceSellerActivationGrantSucceeded => 'Pazar yeri erişimi verildi.';
+
+  @override
+  String get marketplaceSellerActivationRevokeSucceeded => 'Pazar yeri erişimi iptal edildi.';
+
+  @override
+  String get marketplaceSellerActivationPermissionDenied => 'Bu işlemi gerçekleştirme izniniz yok.';
+
+  @override
+  String get marketplaceSellerActivationBusinessNotFound => 'İşletme bulunamadı.';
+
+  @override
+  String get marketplaceSellerActivationNetworkError => 'Ağ hatası. Lütfen tekrar deneyin.';
+
+  @override
+  String get marketplaceSellerActivationGeneralError => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.';
 }

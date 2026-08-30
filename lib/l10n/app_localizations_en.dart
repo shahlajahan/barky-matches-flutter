@@ -10223,4 +10223,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adPrivacyOptionsSubtitle => 'Manage advertising consent and privacy choices.';
+
+  @override
+  String get marketplaceSellerActivationRequired => 'Marketplace selling is not active for this business yet. Please contact an administrator.';
+
+  @override
+  String get marketplaceSellerActivationSectionTitle => 'Marketplace Seller Activation';
+
+  @override
+  String get marketplaceSellerActivationStatusActive => 'Active — this business may sell in the Marketplace';
+
+  @override
+  String get marketplaceSellerActivationStatusInactive => 'Inactive — this business may not sell in the Marketplace';
+
+  @override
+  String get marketplaceSellerActivationGrantAction => 'Grant access';
+
+  @override
+  String get marketplaceSellerActivationRevokeAction => 'Revoke access';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmTitle => 'Grant Marketplace access?';
+
+  @override
+  String get marketplaceSellerActivationGrantConfirmMessage => 'This allows the business to create and edit Marketplace products. It does not approve any product, verify documents, or confirm legal compliance.';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmTitle => 'Revoke Marketplace access?';
+
+  @override
+  String get marketplaceSellerActivationRevokeConfirmMessage => 'This blocks the business from creating or editing Marketplace products. Existing products are not deleted or hidden by this action.';
+
+  @override
+  String get marketplaceSellerActivationGrantSucceeded => 'Marketplace access granted.';
+
+  @override
+  String get marketplaceSellerActivationRevokeSucceeded => 'Marketplace access revoked.';
+
+  @override
+  String get marketplaceSellerActivationPermissionDenied => 'You do not have permission to perform this action.';
+
+  @override
+  String get marketplaceSellerActivationBusinessNotFound => 'Business not found.';
+
+  @override
+  String get marketplaceSellerActivationNetworkError => 'Network error. Please try again.';
+
+  @override
+  String get marketplaceSellerActivationGeneralError => 'Something went wrong. Please try again.';
 }
