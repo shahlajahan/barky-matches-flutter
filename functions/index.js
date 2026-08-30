@@ -12197,7 +12197,19 @@ function adoptionOwnerCandidateFromData(data = {}) {
   );
 }
 
-function mapAdoptionCenterToBusiness(oldData = {}) {
+function mapAdoptionCenterToBusiness(rawOldData = {}) {
+  // Marketplace P1-A Step 21e migration-writer correction: `marketplace
+  // SellerActivation` is server-controlled, exactly like the other admin-
+  // only fields this function's own callers already protect elsewhere —
+  // it must never be copied from a legacy adoption_centers source
+  // document, in any shape, any value included. Excluding it here, by
+  // key, before any spread or fallback use of the source object, means
+  // no value of this key (true, false, null, an empty/malformed map, a
+  // string, a number, a list, a boolean) can ever be promoted into the
+  // returned business shape, at the top level or nested under
+  // sectorData.adoption_center/adoptionCenter's own `oldData` fallback
+  // below.
+  const { marketplaceSellerActivation: _sourceActivationExcluded, ...oldData } = rawOldData;
   const displayName = firstNonEmptyString(
     oldData.profile?.displayName,
     oldData.displayName,
@@ -12681,11 +12693,20 @@ exports.migrateAdoptionCentersToBusinesses = onRequest(
         newBusinessData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
         if (!dryRun) {
+          // Marketplace P1-A Step 21e migration-writer correction: a full
+          // non-merge set() would delete any existing destination
+          // marketplaceSellerActivation (or any other destination-only
+          // field) even though the source-exclusion above already keeps
+          // it out of `newBusinessData` — merge semantics are what
+          // actually make this migration's write structurally incapable
+          // of touching a pre-existing destination value, without ever
+          // reading that value back to preserve it (which would itself
+          // make this migration a writer of the protected field).
           await admin
             .firestore()
             .collection("businesses")
             .doc(doc.id)
-            .set(newBusinessData);
+            .set(newBusinessData, { merge: true });
           migratedCount++;
         }
       }
