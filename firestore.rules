@@ -1343,6 +1343,65 @@ match /dogs/{dogId}/visits/{visitId} {
     return data.isActive == false && data.moderationStatus == 'pending_review';
   }
 
+  // Admin client-SDK product-identity closure (docs/plans/marketplace_
+  // p1a_compliance_review_implementation_plan_2026-08-21.md §0.17 Phase
+  // 4 decision 10, "No admin SKU override exists or is authorized — SKU
+  // immutability applies identically to every caller, with no admin
+  // bypass path", restated at the SKU implementation layer: "no Rules
+  // branch, no Admin SDK helper, and no callable in this revision's own
+  // scope ever permits a SKU value to change... for any caller"; and
+  // §10.1 "Product binding, exact", which requires
+  // `marketplaceBusinessGenerationId` to become "immutable after create
+  // exactly like SKU"). `isSafeProductResubmission()`'s own SKU/
+  // businessId/createdAt/marketplaceBusinessGenerationId diff-based
+  // immutability check is reached only through the non-admin branch of
+  // `allow update`'s `(isAdmin() || isSafeProductResubmission())` OR —
+  // an authenticated admin using the client SDK could therefore reassign
+  // a product to a different business, forge its `createdAt`, mutate or
+  // remove its `sku`, or mutate/remove its `marketplaceBusinessGenerationId`
+  // (silently defeating the "an old product from an earlier business
+  // generation cannot be approved" guarantee §10.1 itself names). This
+  // predicate is AND-ed onto `allow update`, outside the `isAdmin()` OR,
+  // so the identical immutability invariant applies to every client-SDK
+  // actor — exactly the plan's own explicitly-frozen requirement for
+  // these four fields specifically. Every other integrity concern
+  // currently reachable only through `isSafeProductResubmission()`'s
+  // non-admin branch (media cap, seller-activation gate, unknown-field
+  // rejection, `productInputRevision`/`sellerRelationship` validation,
+  // category safety, the pilot-approval bound-field content freeze) is
+  // deliberately NOT included here: the seller-activation gate and media
+  // cap are explicitly, textually confirmed elsewhere in this same plan
+  // (§10.1 "Admin bypass, stated accurately") as a known, accepted,
+  // pre-existing architectural fact — "not a defect this contract
+  // introduces or is expected to close" — governed instead by §17 step
+  // 21e's Admin/Functions writer audit (already performed and passed),
+  // never by a Rules change; the remaining items have no explicit
+  // admin-inclusive requirement anywhere in the plan and are left
+  // untouched rather than guessed at.
+  function preservesProductIdentityOnUpdate(incoming, existing) {
+    return !incoming.diff(existing).affectedKeys().hasAny([
+      'sku', 'businessId', 'createdAt', 'marketplaceBusinessGenerationId'
+    ]);
+  }
+
+  // Companion to preservesProductIdentityOnUpdate, above, for create:
+  // `isSafeNewProductSubmission()`'s own generation-match `get()`-based
+  // requirement (§10.1 "Product binding, exact") is likewise reached
+  // only through the non-admin branch of `allow create`'s
+  // `(isAdmin() || isSafeNewProductSubmission())` OR. An authenticated
+  // admin using the client SDK could therefore create a product bound to
+  // a missing, mistyped, or stale `marketplaceBusinessGenerationId` —
+  // the same "Rules protect the client path" guarantee §10.1 states with
+  // no seller-specific carve-out. AND-ed onto `allow create`, outside
+  // the `isAdmin()` OR, for the identical reason.
+  function hasValidProductGenerationBindingOnCreate(data) {
+    return data.businessId is string
+      && data.marketplaceBusinessGenerationId is string
+      && data.marketplaceBusinessGenerationId == get(
+        /databases/$(database)/documents/businesses/$(data.businessId)
+      ).data.marketplaceBusinessGenerationId;
+  }
+
   // Revision 28 (§10.1 "Frozen bound-field set, corrected"): the
   // exhaustive class-1 (approval-bound) `Product` field set, used
   // identically by the Rules-level structural predicate below and the
@@ -1657,11 +1716,13 @@ match /dogs/{dogId}/visits/{visitId} {
 
   allow create: if (isAdmin() || isSafeNewProductSubmission())
     && omitsPilotProductApprovalOnCreate(request.resource.data)
-    && hasUnpublishedProductPublicationState(request.resource.data);
+    && hasUnpublishedProductPublicationState(request.resource.data)
+    && hasValidProductGenerationBindingOnCreate(request.resource.data);
 
   allow update: if (isAdmin() || isSafeProductResubmission())
     && preservesPilotProductApprovalOnUpdate(request.resource.data, resource.data)
-    && hasUnpublishedProductPublicationState(request.resource.data);
+    && hasUnpublishedProductPublicationState(request.resource.data)
+    && preservesProductIdentityOnUpdate(request.resource.data, resource.data);
 
   // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
   // review_implementation_plan_2026-08-21.md §0.17 Phase 12, §9.E,

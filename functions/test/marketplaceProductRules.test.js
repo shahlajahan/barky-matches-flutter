@@ -5428,3 +5428,437 @@ test(
     assert.equal(closureCalls.length, 3, "hasUnpublishedProductPublicationState must be defined once and called exactly twice");
   }
 );
+
+// =======================================================================
+// Admin client-SDK product-identity closure: `isSafeProductResubmission()`'s
+// own SKU/businessId/createdAt/marketplaceBusinessGenerationId
+// immutability, and `isSafeNewProductSubmission()`'s own generation-match
+// requirement, were both reachable only through the non-admin branch of
+// the `(isAdmin() || ...)` OR — an authenticated admin using the client
+// SDK could reassign a product's business, forge its createdAt, mutate
+// or remove its SKU, or mutate/remove its marketplaceBusinessGenerationId.
+// `preservesProductIdentityOnUpdate()`/`hasValidProductGenerationBindingOnCreate()`
+// (new, firestore.rules) close this, AND-ed onto both `allow create`/
+// `allow update`, outside the `isAdmin()` OR — mirroring the identical
+// mechanism already used for pilotProductApproval/publication-state
+// above, and matching this contract's own explicitly frozen requirement
+// (docs/plans/marketplace_p1a_compliance_review_implementation_plan_
+// 2026-08-21.md §0.17 Phase 4 decision 10, §10.1 "Product binding,
+// exact") that SKU and marketplaceBusinessGenerationId immutability
+// apply to every caller, with no admin bypass path.
+//
+// Deliberately NOT included in this closure (confirmed by direct
+// re-reading of the same plan document, §10.1 "Admin bypass, stated
+// accurately"): the seller-activation gate and the media-cap predicate.
+// That section states, in its own words, that `isAdmin()` bypassing
+// both "is a pre-existing architectural fact, not a defect this
+// contract introduces or is expected to close" — enforcement for the
+// Admin-SDK/Functions side is explicitly assigned instead to §17 step
+// 21e's Admin/Functions writer audit (already performed and passed).
+// INTEGRITY-9 below is a regression lock proving this documented,
+// intentional gap is unchanged by this closure — not a new protection.
+// Unknown-field rejection, productInputRevision validation,
+// sellerRelationship validation, category safety, and the pilot-
+// approval bound-field content freeze have no explicit admin-inclusive
+// requirement anywhere in the plan and are left untouched rather than
+// guessed at — see the final report for this task, not this file, for
+// that unresolved-decision list.
+// =======================================================================
+
+rulesTest(
+  "INTEGRITY-1. a valid, safe admin draft creation still succeeds",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/int-1"), safeProduct())
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-2. an admin client-SDK create with a missing marketplaceBusinessGenerationId is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    const data = safeProduct();
+    delete data.marketplaceBusinessGenerationId;
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/int-2"), data)
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-3. an admin client-SDK create with a mismatched (stale/foreign) marketplaceBusinessGenerationId is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/int-3"),
+        safeProduct({ marketplaceBusinessGenerationId: BIZ_2_GENERATION_ID })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-4. an admin client-SDK create with a malformed (non-string) marketplaceBusinessGenerationId is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/int-4"),
+        safeProduct({ marketplaceBusinessGenerationId: 12345 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-5. an admin client-SDK SKU mutation on update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-5"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-5"), {
+        sku: "CHANGED-SKU",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-6. an admin client-SDK SKU removal (deleteField()) on update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-6"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-6"), {
+        sku: deleteField(),
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-7. an admin client-SDK marketplaceBusinessGenerationId mutation on update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-7"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-7"), {
+        marketplaceBusinessGenerationId: BIZ_2_GENERATION_ID,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-8. an admin client-SDK marketplaceBusinessGenerationId removal (deleteField()) on update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-8"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-8"), {
+        marketplaceBusinessGenerationId: deleteField(),
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-9. regression lock: the seller-activation gate and media cap remain admin-bypassable, unchanged and undisturbed by this closure — a documented, plan-frozen, intentional gap (§10.1 'Admin bypass, stated accurately'), not a new protection this task introduces",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "businesses", "biz-inactive"), {
+        ownerUid: "seller-inactive",
+        marketplaceSellerActivation: { active: false },
+        marketplaceBusinessGenerationId: "biz-inactive-generation",
+      });
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    // Inactive seller activation: still admin-creatable, unchanged.
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-inactive/products/int-9a"),
+        safeProduct({
+          businessId: "biz-inactive",
+          marketplaceBusinessGenerationId: "biz-inactive-generation",
+        })
+      )
+    );
+    // Oversized media (21 entries): still admin-creatable, unchanged —
+    // the media cap is explicitly the other named exception.
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/int-9b"),
+        safeProduct({ media: mediaList(21) })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-10. an admin client-SDK seller/business reassignment on update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-10"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-10"), {
+        businessId: "biz-2",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-11. an admin client-SDK createdAt forgery on update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-11"),
+        safeProduct({ createdAt: serverTimestamp() })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-11"), {
+        createdAt: serverTimestamp(),
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-12. a full-document replacement (setDoc, no merge) cannot bypass SKU immutability",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-12"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/int-12"),
+        safeProduct({ sku: "CHANGED-SKU" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-13. a merge-set (setDoc with merge: true) cannot bypass SKU immutability",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-13"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/int-13"),
+        { sku: "CHANGED-SKU" },
+        { merge: true }
+      )
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-14. a dotted/field-path-form update cannot bypass SKU immutability",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-14"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-14"), "sku", "CHANGED-SKU")
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-15. a simultaneous attempt to mutate sku, businessId, and marketplaceBusinessGenerationId together in one admin update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-15"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-15"), {
+        sku: "CHANGED-SKU",
+        businessId: "biz-2",
+        marketplaceBusinessGenerationId: BIZ_2_GENERATION_ID,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-16. a legacy document missing marketplaceBusinessGenerationId entirely cannot be 'normalized' by an admin update that adds a value — absence-to-presence is still a change, and is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const data = safeProduct();
+      delete data.marketplaceBusinessGenerationId;
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-16"),
+        data
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/int-16"), {
+        marketplaceBusinessGenerationId: BIZ_1_GENERATION_ID,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-17. seller resubmission that never touches sku/businessId/createdAt/marketplaceBusinessGenerationId remains valid, unaffected",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-17"),
+        safeProduct({ sku: "ORIGINAL-SKU" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/int-17"),
+        safeProduct({ sku: "ORIGINAL-SKU", name: "Updated Name" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "INTEGRITY-18. a safe admin content correction (brand) that never touches an identity field remains valid",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/int-18"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/int-18"), {
+        brand: "Corrected Brand",
+      })
+    );
+  }
+);
+
+test(
+  "INTEGRITY-19. (static) preservesProductIdentityOnUpdate/hasValidProductGenerationBindingOnCreate are AND-ed onto both product allow rules, structurally outside the isAdmin() OR",
+  () => {
+    const createMatch = rules.match(
+      /allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)\s*&&[\s\S]{0,400}?;/
+    );
+    const updateMatch = rules.match(
+      /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,400}?;/
+    );
+    assert.ok(createMatch, "product allow create rule not found in expected shape");
+    assert.ok(updateMatch, "product allow update rule not found in expected shape");
+    assert.ok(
+      createMatch[0].includes("hasValidProductGenerationBindingOnCreate(request.resource.data)"),
+      "create rule must AND hasValidProductGenerationBindingOnCreate outside the isAdmin() OR"
+    );
+    assert.ok(
+      updateMatch[0].includes("preservesProductIdentityOnUpdate(request.resource.data, resource.data)"),
+      "update rule must AND preservesProductIdentityOnUpdate outside the isAdmin() OR"
+    );
+    assert.ok(
+      /\)\s*&&[\s\S]*hasValidProductGenerationBindingOnCreate/.test(createMatch[0])
+    );
+    assert.ok(
+      /\)\s*&&[\s\S]*preservesProductIdentityOnUpdate/.test(updateMatch[0])
+    );
+  }
+);
+
+test(
+  "INTEGRITY-20. (static) exactly one products allow-create and one products allow-update rule exist, each calling its new integrity guard exactly once — no alternate path bypasses the closure",
+  () => {
+    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
+    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    const generationBindingCalls = rules.match(/hasValidProductGenerationBindingOnCreate\(/g) || [];
+    const identityCalls = rules.match(/preservesProductIdentityOnUpdate\(/g) || [];
+    assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
+    assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
+    assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
+    // Once in the function definition itself, once in the create rule.
+    assert.equal(generationBindingCalls.length, 2, "hasValidProductGenerationBindingOnCreate must be defined once and called exactly once");
+    // Once in the function definition itself, once in the update rule.
+    assert.equal(identityCalls.length, 2, "preservesProductIdentityOnUpdate must be defined once and called exactly once");
+  }
+);
