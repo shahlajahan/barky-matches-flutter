@@ -4048,3 +4048,493 @@ rulesTest(
     );
   }
 );
+
+// =======================================================================
+// Marketplace seller-activation admin client-SDK Rules hotfix (docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
+// §10.1, Revision 28 closing reviews): the `allow create`/`allow update`
+// rules on `match /businesses/{businessId}` historically OR'd `isAdmin()`
+// against a narrower, owner-only branch that alone carried the
+// `marketplaceSellerActivation` protection — an authenticated admin
+// using the Firebase client SDK (never the Admin SDK, which bypasses
+// Rules by construction) could forge or overwrite this field directly,
+// and could delete a business document while its activation was still
+// genuinely active. These tests prove the corrected, actor-agnostic
+// `omitsMarketplaceSellerActivationOnCreate()`,
+// `preservesMarketplaceSellerActivationOnUpdate()`, and
+// `businessHasNoActiveMarketplaceSellerActivation()` predicates, through
+// the real Firestore emulator, for both the admin and owner client-SDK
+// paths. This hotfix does not touch, and these tests do not exercise,
+// the deployed `grantMarketplaceSellerActivation`/
+// `revokeMarketplaceSellerActivation` Admin SDK Functions themselves —
+// Admin SDK writes bypass Rules entirely, by design, and are governed
+// instead by their own source, tests, and the Step-21e-style writer
+// audit, never by anything in this file.
+// =======================================================================
+
+function adminBusinessCreatePayload(overrides = {}) {
+  return {
+    ownerUid: "seller-hotfix-owned",
+    contact: { email: "seller-hotfix-owned@example.test" },
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------
+// CREATE — admin client SDK.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-1. an ordinary admin business create without marketplaceSellerActivation still succeeds",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-1"), adminBusinessCreatePayload())
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-hotfix-admin-1"));
+      assert.equal(snap.exists(), true);
+      assert.equal(snap.data().marketplaceSellerActivation, undefined);
+    });
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-2. admin create with active:true is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-hotfix-admin-2"),
+        adminBusinessCreatePayload({
+          marketplaceSellerActivation: { active: true, grantedAt: null, grantedBy: "admin-1", revokedAt: null, revokedBy: null },
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-3. admin create with active:false is denied — key presence alone is prohibited, not merely a true value",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-hotfix-admin-3"),
+        adminBusinessCreatePayload({
+          marketplaceSellerActivation: { active: false, grantedAt: null, grantedBy: "admin-1", revokedAt: null, revokedBy: "admin-1" },
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-4. admin create with marketplaceSellerActivation:null is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-4"), adminBusinessCreatePayload({ marketplaceSellerActivation: null }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-5. admin create with an empty-map marketplaceSellerActivation is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-5"), adminBusinessCreatePayload({ marketplaceSellerActivation: {} }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-6. admin create with a malformed map (present but not a well-formed activation shape) is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-hotfix-admin-6"),
+        adminBusinessCreatePayload({ marketplaceSellerActivation: { active: "yes", note: "not a bool" } })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-7. admin create with marketplaceSellerActivation as a string is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-7"), adminBusinessCreatePayload({ marketplaceSellerActivation: "active" }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-8. admin create with marketplaceSellerActivation as a number is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-8"), adminBusinessCreatePayload({ marketplaceSellerActivation: 1 }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-9. admin create with marketplaceSellerActivation as a list is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-9"), adminBusinessCreatePayload({ marketplaceSellerActivation: [true] }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-10. admin create with marketplaceSellerActivation as a boolean is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses", "biz-hotfix-admin-10"), adminBusinessCreatePayload({ marketplaceSellerActivation: true }))
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-ADMIN-11. admin create with a serverTimestamp()-bearing activation object is denied identically — transform sentinels do not affect key-presence detection",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses", "biz-hotfix-admin-11"),
+        adminBusinessCreatePayload({
+          marketplaceSellerActivation: { active: true, grantedAt: serverTimestamp(), grantedBy: "admin-1", revokedAt: null, revokedBy: null },
+        })
+      )
+    );
+  }
+);
+
+// ---------------------------------------------------------------------
+// CREATE — owner client SDK preservation (the pre-existing
+// SELLER-ACTIVATION-CREATE-1..10 series above already proves this
+// exhaustively; these two confirm it composes correctly alongside the
+// hotfix's own shared, actor-agnostic helper).
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-OWNER-12. an ordinary owner business create without activation still succeeds under the corrected shared predicate",
+  async () => {
+    const db = (await env()).authenticatedContext("seller-hotfix-owner-12").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses", "biz-hotfix-owner-12"),
+        validBusinessCreatePayload({ ownerUid: "seller-hotfix-owner-12" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-CREATE-OWNER-13. owner create is denied across representative activation value shapes under the corrected shared predicate",
+  async () => {
+    const rulesEnv = await env();
+    const shapes = [
+      { active: true, grantedAt: null, grantedBy: "x", revokedAt: null, revokedBy: null },
+      { active: false, grantedAt: null, grantedBy: "x", revokedAt: null, revokedBy: null },
+      null,
+      {},
+      "active",
+      1,
+      [true],
+      true,
+    ];
+    for (let i = 0; i < shapes.length; i++) {
+      const uid = `seller-hotfix-owner-13-${i}`;
+      const db = rulesEnv.authenticatedContext(uid).firestore();
+      await assertFails(
+        setDoc(
+          doc(db, "businesses", `biz-hotfix-owner-13-${i}`),
+          validBusinessCreatePayload({ ownerUid: uid, marketplaceSellerActivation: shapes[i] })
+        )
+      );
+    }
+  }
+);
+
+// ---------------------------------------------------------------------
+// UPDATE — admin client SDK.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-14. an ordinary admin update unrelated to activation still succeeds",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(updateDoc(doc(db, "businesses", "biz-1"), { status: "suspended" }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-15. admin adding activation to a document where it was absent is denied",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", undefined);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: ACTIVE_TRUE }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-16. admin changing active false to true is denied",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", REVOKED);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { "marketplaceSellerActivation.active": true }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-17. admin changing active true to false is denied — only the designated revoke operation may do this",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { "marketplaceSellerActivation.active": false }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-18. admin replacing the whole activation map is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses", "biz-1"), {
+        marketplaceSellerActivation: { active: true, grantedAt: null, grantedBy: "admin-1", revokedAt: null, revokedBy: null },
+      })
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-19. admin removing activation is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: deleteField() }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-20. admin mutating one nested provenance field is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { "marketplaceSellerActivation.grantedBy": "admin-99" }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-21. admin combining an activation mutation with an otherwise-valid update denies the entire write, atomically",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses", "biz-1"), {
+        status: "suspended",
+        "marketplaceSellerActivation.active": false,
+      })
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-1"));
+      // Neither half of the combined write took effect — proving this
+      // is a single atomic denial, never a partial-field allowance.
+      assert.equal(snap.data().status, "approved");
+      assert.equal(snap.data().marketplaceSellerActivation.active, true);
+    });
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-ADMIN-22. admin update preserving activation byte-for-byte while changing an allowed field succeeds",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertSucceeds(updateDoc(doc(db, "businesses", "biz-1"), { status: "suspended" }));
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-1"));
+      assert.equal(snap.data().status, "suspended");
+      assert.equal(snap.data().marketplaceSellerActivation.active, true);
+      assert.equal(snap.data().marketplaceSellerActivation.grantedBy, "admin-1");
+    });
+  }
+);
+
+// ---------------------------------------------------------------------
+// UPDATE — owner client SDK.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-OWNER-23. an ordinary owner update unrelated to activation still succeeds",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses", "biz-1"), { contact: { email: "updated@example.test" } })
+    );
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-OWNER-24. owner adding activation to a document where it was absent is denied",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", undefined);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: ACTIVE_TRUE }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-OWNER-25. owner mutating the activation object is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { "marketplaceSellerActivation.active": false }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-OWNER-26. owner removing activation is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses", "biz-1"), { marketplaceSellerActivation: deleteField() }));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-UPDATE-OWNER-27. owner update preserving activation byte-for-byte while making an otherwise-allowed change succeeds",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses", "biz-1"), { contact: { email: "preserved-check@example.test" } })
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), "businesses", "biz-1"));
+      assert.equal(snap.data().contact.email, "preserved-check@example.test");
+      assert.equal(snap.data().marketplaceSellerActivation.active, true);
+    });
+  }
+);
+
+// ---------------------------------------------------------------------
+// DELETE — the zero-active-activation predicate, both client-SDK
+// authorization branches.
+// ---------------------------------------------------------------------
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-28. owner delete with activation missing is allowed under the existing authorized delete contract",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", undefined);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-29. admin client delete with activation missing is allowed under the existing authorized delete contract",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-2", undefined);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(deleteDoc(doc(db, "businesses", "biz-2")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-30. owner delete with a valid inactive activation is allowed",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", REVOKED);
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-31. admin client delete with a valid inactive activation is allowed",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-2", REVOKED);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(deleteDoc(doc(db, "businesses", "biz-2")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-32. owner delete with a valid active activation is denied — the designated revoke operation must run first",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-33. admin client delete with a valid active activation is denied — this is the BLOCKING gap this hotfix closes",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-34. owner delete with a malformed activation is denied — fails closed",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-1", { active: "yes" });
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-35. admin client delete with a malformed activation is denied — fails closed",
+  async () => {
+    await resetSeed();
+    await setBusinessActivation("biz-2", "not-a-map");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-2")));
+  }
+);
+
+rulesTest(
+  "SELLER-ACTIVATION-HOTFIX-DELETE-36. unauthenticated delete is denied regardless of activation state",
+  async () => {
+    await resetSeed();
+    const db = (await env()).unauthenticatedContext().firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);

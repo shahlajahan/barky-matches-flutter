@@ -121,6 +121,54 @@ service cloud.firestore {
         ]);
     }
 
+    // Marketplace seller-activation admin client-SDK hotfix (docs/plans/
+    // marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
+    // §10.1 "Rules responsibility boundary", closing reviews): the
+    // create/update rules below historically OR'd `isAdmin()` against a
+    // narrower, owner-only branch that alone carried the
+    // `marketplaceSellerActivation` protection (`!keys().hasAny([...])`
+    // on create, `canOwnerUpdateBusinessDocument()` on update) — an
+    // authenticated admin using the Firebase client SDK (never the
+    // Admin SDK, which bypasses Rules by construction) could forge or
+    // overwrite this field directly. The three helpers below are AND-ed
+    // onto the FULL create/update/delete rules, outside the `isAdmin()`/
+    // owner authorization OR, so they apply identically to every
+    // Firebase client-SDK actor, admin included. Only the two
+    // authorized admin-only server operations
+    // (`grantMarketplaceSellerActivation`/`revokeMarketplaceSellerActivation`,
+    // Admin SDK, unaffected by any Rules change) may ever write this
+    // field; this hotfix does not, and cannot, change that.
+    function omitsMarketplaceSellerActivationOnCreate(data) {
+      return !('marketplaceSellerActivation' in data);
+    }
+
+    function preservesMarketplaceSellerActivationOnUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'marketplaceSellerActivation'
+      ]);
+    }
+
+    // Delete safety, exact: `resource.data` is the business document
+    // about to be deleted (Rules evaluate `delete` against the
+    // pre-existing document; no separate `get()` needed). Exactly
+    // three shapes: the key is absent (deletable); a well-formed map
+    // with `active` a literal bool equal to `false` (deletable — a
+    // valid, currently-inactive activation); or anything else present
+    // that is not that exact well-formed-inactive shape — including a
+    // valid `active: true` map, or any malformed/mistyped value — which
+    // fails closed and denies deletion. A currently-active business
+    // must be revoked first, through the designated backend operation,
+    // before its document may be deleted by any Firebase client SDK
+    // actor, owner or admin alike.
+    function businessHasNoActiveMarketplaceSellerActivation() {
+      return !('marketplaceSellerActivation' in resource.data)
+        || (
+          resource.data.marketplaceSellerActivation is map
+          && resource.data.marketplaceSellerActivation.active is bool
+          && resource.data.marketplaceSellerActivation.active == false
+        );
+    }
+
     // Marketplace P1-A Step 21c2 (§10.1 "Fail-closed Rules predicate,
     // exact"): the one and only mechanism behind every fail-closed
     // outcome this gate requires. Every clause below independently
@@ -999,44 +1047,34 @@ match /dogs/{dogId}/visits/{visitId} {
    }
     match /businesses/{businessId} {
       allow read: if isBusinessDocumentOwner(resource.data) || isAdmin();
-      allow create: if isAdmin() || (
-        isSignedIn() &&
-        request.resource.data.ownerUid == request.auth.uid &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.published == false &&
-        !request.resource.data.keys().hasAny([
-          'verification',
-          'trust',
-          'riskFlags',
-          'createdAt',
-          // Marketplace P1-A Step 21c2 (docs/plans/marketplace_p1a_
-          // compliance_review_implementation_plan_2026-08-21.md §10.1
-          // "Marketplace seller-activation gate contract" — closing-audit
-          // correction). `marketplaceSellerActivation` is server-
-          // controlled, exactly like `verification`/`trust`/`riskFlags`
-          // above: a client's initial business-document create must
-          // never be able to seed it, in any shape, any value included
-          // — only the two authorized admin-only server operations
-          // (`grantMarketplaceSellerActivation`/
-          // `revokeMarketplaceSellerActivation`) may ever write this key,
-          // on a create or an update alike. Without this exclusion here,
-          // a self-registering user could forge `active: true` directly
-          // into their own business document's initial write, bypassing
-          // the admin-grant gate entirely — this key's presence on
-          // create must be denied unconditionally, regardless of its
-          // value or shape, exactly like the three sibling keys above.
-          // Admin SDK/Functions bypass of this same check is separately
-          // governed by Step 21e, not protected by Rules — unchanged by
-          // this correction.
-          'marketplaceSellerActivation'
-        ]) &&
-        (
-          !('legal' in request.resource.data)
-          || isValidOrAbsentCompanyType(request.resource.data.legal)
+      allow create: if (
+        isAdmin() || (
+          isSignedIn() &&
+          request.resource.data.ownerUid == request.auth.uid &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.published == false &&
+          !request.resource.data.keys().hasAny([
+            'verification',
+            'trust',
+            'riskFlags',
+            'createdAt'
+            // `marketplaceSellerActivation` removed from this
+            // owner-only exclusion list — it is now enforced
+            // unconditionally, for every actor including `isAdmin()`,
+            // by `omitsMarketplaceSellerActivationOnCreate()` below.
+          ]) &&
+          (
+            !('legal' in request.resource.data)
+            || isValidOrAbsentCompanyType(request.resource.data.legal)
+          )
         )
-      );
-      allow update: if isAdmin() || canOwnerUpdateBusinessDocument(businessId);
-      allow delete: if isAdmin() || isCanonicalBusinessOwner(businessId);
+      ) && omitsMarketplaceSellerActivationOnCreate(request.resource.data);
+      allow update: if (
+        isAdmin() || canOwnerUpdateBusinessDocument(businessId)
+      ) && preservesMarketplaceSellerActivationOnUpdate();
+      allow delete: if (
+        isAdmin() || isCanonicalBusinessOwner(businessId)
+      ) && businessHasNoActiveMarketplaceSellerActivation();
 
       // Marketplace product compliance audit, P0 remediation (docs/audits/
       // marketplace_add_product_compliance_audit_2026-08-20.md): this
