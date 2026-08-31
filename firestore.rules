@@ -1310,6 +1310,39 @@ match /dogs/{dogId}/visits/{visitId} {
     return !incoming.diff(existing).affectedKeys().hasAny(['pilotProductApproval']);
   }
 
+  // Product publication admin client-SDK closure: the product
+  // `allow create`/`allow update` rules OR `isAdmin()` against
+  // `isSafeNewProductSubmission()`/`isSafeProductResubmission()` — the
+  // only place either function's own unconditional
+  // `data.isActive == false && data.moderationStatus == 'pending_review'`
+  // requirement is enforced. An authenticated admin using the Firebase
+  // client SDK could therefore set `isActive: true` and/or
+  // `moderationStatus: 'approved'` directly on any product — publishing
+  // it to public read (`allow read`'s
+  // `moderationStatus == 'approved' && isActive == true` branch) without
+  // ever going through the admin-only `approvePilotProduct` Function
+  // (no fingerprint check, no seller-activation check, no active-pilot-
+  // count limit, no audit event) — while `pilotProductApproval` itself
+  // (already closed above) stays untouched, leaving the product visibly
+  // "published" with no corresponding approval record at all. This
+  // predicate is AND-ed onto the full create/update rules, outside the
+  // `isAdmin()` OR, mirroring `omitsPilotProductApprovalOnCreate`/
+  // `preservesPilotProductApprovalOnUpdate`'s exact mechanism above: the
+  // sole legitimate resulting publication state for ANY client-SDK
+  // write, create or update, admin included, is the unpublished one —
+  // `isActive: true`/`moderationStatus: 'approved'` is reachable only
+  // via the Admin-SDK-only `approvePilotProduct` Function, which
+  // bypasses Rules entirely and is therefore wholly unaffected by this
+  // predicate. `request.resource.data` is always the complete resulting
+  // document on both create and update (this file's own P0.1 history,
+  // above), so the identical check applies unchanged to both — one
+  // function, not two. Every other server-owned product field's own
+  // pre-existing admin-bypass behavior is unrelated to and unchanged by
+  // this predicate.
+  function hasUnpublishedProductPublicationState(data) {
+    return data.isActive == false && data.moderationStatus == 'pending_review';
+  }
+
   // Revision 28 (§10.1 "Frozen bound-field set, corrected"): the
   // exhaustive class-1 (approval-bound) `Product` field set, used
   // identically by the Rules-level structural predicate below and the
@@ -1623,10 +1656,12 @@ match /dogs/{dogId}/visits/{visitId} {
     );
 
   allow create: if (isAdmin() || isSafeNewProductSubmission())
-    && omitsPilotProductApprovalOnCreate(request.resource.data);
+    && omitsPilotProductApprovalOnCreate(request.resource.data)
+    && hasUnpublishedProductPublicationState(request.resource.data);
 
   allow update: if (isAdmin() || isSafeProductResubmission())
-    && preservesPilotProductApprovalOnUpdate(request.resource.data, resource.data);
+    && preservesPilotProductApprovalOnUpdate(request.resource.data, resource.data)
+    && hasUnpublishedProductPublicationState(request.resource.data);
 
   // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
   // review_implementation_plan_2026-08-21.md §0.17 Phase 12, §9.E,

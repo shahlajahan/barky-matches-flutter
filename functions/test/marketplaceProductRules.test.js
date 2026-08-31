@@ -671,7 +671,19 @@ rulesTest("published + approved products are publicly readable", async () => {
 });
 
 rulesTest(
-  "admin can approve and publish (established admin pattern still works)",
+  // Product publication admin client-SDK closure: this test previously
+  // asserted (and, until that closure, correctly proved) that an
+  // authenticated admin could directly set isActive:true/
+  // moderationStatus:'approved' via the client SDK — exactly the
+  // bypass PUBLICATION-3/PUBLICATION-7 above now close. That was never
+  // a legitimate "established admin pattern" going forward: the sole
+  // legitimate publication path is the Admin-SDK-only
+  // `approvePilotProduct` Function (bypasses Rules entirely, not
+  // exercised here — see PUBLICATION-* above for the closure itself).
+  // Renamed and flipped to assertFails to reflect the corrected,
+  // intended security posture, rather than deleted, so this exact
+  // scenario remains permanently regression-tested.
+  "admin can no longer approve and publish directly via the client SDK — publication is Admin-SDK-Function-only",
   async () => {
     await resetSeed();
     const rulesEnv = await env();
@@ -682,7 +694,7 @@ rulesTest(
       );
     });
     const db = rulesEnv.authenticatedContext("admin-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, "businesses/biz-1/products/p1"), {
         isActive: true,
         moderationStatus: "approved",
@@ -4856,5 +4868,563 @@ rulesTest(
     await assertFails(getDoc(doc(sellerDb, "pilotProductApprovalAuditEvents", "evt-1")));
     await assertFails(setDoc(doc(adminDb, "pilotProductApprovalAuditEvents", "evt-2"), { businessId: "biz-1" }));
     await assertFails(deleteDoc(doc(adminDb, "pilotProductApprovalAuditEvents", "evt-1")));
+  }
+);
+
+// =======================================================================
+// Product publication admin client-SDK closure: the product `allow
+// create`/`allow update` rules OR `isAdmin()` against
+// `isSafeNewProductSubmission()`/`isSafeProductResubmission()` — the
+// only place either function's own unconditional
+// `isActive == false && moderationStatus == 'pending_review'`
+// requirement was enforced. An authenticated admin using the Firebase
+// client SDK could therefore set `isActive: true`/
+// `moderationStatus: 'approved'` directly on any product, publishing it
+// to public read without ever going through the admin-only
+// `approvePilotProduct` Function — while `pilotProductApproval` itself
+// stayed untouched, leaving a "published" product with no corresponding
+// approval record. `hasUnpublishedProductPublicationState()` (new,
+// firestore.rules) closes this: AND-ed onto both `allow create`/`allow
+// update`, outside the `isAdmin()` OR, so the identical publication-
+// state invariant applies to every client-SDK actor. Every other
+// server-owned product field's own pre-existing, unrelated admin-bypass
+// behavior (media cap, SKU/generation immutability, seller-activation
+// gate, unknown-field rejection — all still inside
+// `isSafeNewProductSubmission()`/`isSafeProductResubmission()`, which
+// admin still ORs around) is unchanged and out of this narrow scope.
+// =======================================================================
+
+rulesTest(
+  "PUBLICATION-1. a valid seller draft creation still succeeds, unaffected",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/pub-1"), safeProduct())
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-2. an admin client-SDK creation with the exact legitimate safe draft values still succeeds",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/pub-2"), safeProduct())
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-3. an admin client-SDK create with isActive: true is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pub-3"),
+        safeProduct({ isActive: true })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-4. an admin client-SDK create with moderationStatus: 'approved' is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pub-4"),
+        safeProduct({ moderationStatus: "approved" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-5. an admin client-SDK create with an arbitrary unsafe moderationStatus value (not just 'approved') is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pub-5"),
+        safeProduct({ moderationStatus: "live" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-6. an admin client-SDK create with isActive/moderationStatus missing, null, or the wrong type is denied in every case",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    const cases = [
+      (data) => delete data.isActive,
+      (data) => (data.isActive = null),
+      (data) => (data.isActive = "true"),
+      (data) => delete data.moderationStatus,
+      (data) => (data.moderationStatus = null),
+      (data) => (data.moderationStatus = 42),
+    ];
+    for (let i = 0; i < cases.length; i++) {
+      const data = safeProduct();
+      cases[i](data);
+      await assertFails(
+        setDoc(doc(db, "businesses/biz-1/products", `pub-6-${i}`), data)
+      );
+    }
+  }
+);
+
+rulesTest(
+  "PUBLICATION-7. an admin client-SDK false-to-true isActive update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-7"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-7"), { isActive: true })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-8. an admin client-SDK full-document replacement (setDoc, no merge) that sets isActive: true is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-8"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pub-8"),
+        safeProduct({ isActive: true })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-9. an admin client-SDK merge-set (setDoc with merge: true) that sets isActive: true is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-9"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pub-9"),
+        { isActive: true },
+        { merge: true }
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-10. an admin client-SDK dotted/field-path-form update (updateDoc(ref, \"isActive\", true)) is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-10"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-10"), "isActive", true)
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-11. an admin client-SDK removal of isActive (deleteField()) is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-11"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-11"), {
+        isActive: deleteField(),
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-12a. an admin client-SDK mutation of moderationStatus to 'approved' via update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-12a"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-12a"), {
+        moderationStatus: "approved",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-12b. an admin client-SDK removal of moderationStatus (deleteField()) is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-12b"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-12b"), {
+        moderationStatus: deleteField(),
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-13. an admin client-SDK cannot republish a product whose pilotProductApproval is currently revoked, by setting isActive: true alone",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-13"),
+        safeProduct({
+          pilotProductApproval: {
+            schemaVersion: 1,
+            active: false,
+            approvedAt: serverTimestamp(),
+            approvedBy: "admin-1",
+            revokedAt: serverTimestamp(),
+            revokedBy: "admin-1",
+            revokedByKind: "admin",
+            allowedPilotCategory: "food",
+            reviewedContentFingerprint: "fixture-fingerprint",
+            reviewedProductRevision: 0,
+            reasonCode: "pilot_revoked_admin_manual",
+          },
+        })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-13"), {
+        isActive: true,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-14. an admin client-SDK cannot republish a product whose pilotProductApproval is entirely missing, by setting isActive: true alone",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-14"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-14"), {
+        isActive: true,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-15. an admin client-SDK cannot republish a product whose pilotProductApproval is malformed (a string, not a map), by setting isActive: true alone",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-15"),
+        safeProduct({ pilotProductApproval: "not-a-map" })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-15"), {
+        isActive: true,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-16. a legacy product missing moderationStatus entirely still denies an admin update that touches only isActive — the resulting document's moderationStatus stays absent, never 'pending_review'",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const data = safeProduct();
+      delete data.moderationStatus;
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-16"),
+        data
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-16"), {
+        isActive: true,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-17. seller resubmission (an unrelated content edit, isActive/moderationStatus left at false/pending_review) remains valid",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-17"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pub-17"),
+        safeProduct({ name: "Updated Name" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-18. material-edit self-revocation behavior remains valid: after an (Admin-SDK-simulated) unpublish-for-revision, the seller's ordinary content edit still succeeds",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      // Simulates exactly what the real unpublishPilotProductForRevision
+      // Function does (Admin SDK, bypasses Rules) — never invoked here.
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-18"),
+        safeProduct({
+          isActive: false,
+          moderationStatus: "pending_review",
+          pilotProductApproval: {
+            schemaVersion: 1,
+            active: false,
+            approvedAt: serverTimestamp(),
+            approvedBy: "admin-1",
+            revokedAt: serverTimestamp(),
+            revokedBy: null,
+            revokedByKind: "seller_self_revision",
+            allowedPilotCategory: "food",
+            reviewedContentFingerprint: "fixture-fingerprint",
+            reviewedProductRevision: 0,
+            reasonCode: "pilot_revoked_content_changed",
+          },
+        })
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-18"), {
+        name: "Revised After Unpublish",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-19. a safe, unrelated admin content edit on a still-pending product (never touching isActive/moderationStatus) remains valid",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-19"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-19"), {
+        brand: "Corrected Brand",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-20. direct client-SDK product deletion remains denied for admin — unaffected by this change",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-20"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses/biz-1/products/pub-20")));
+  }
+);
+
+rulesTest(
+  "PUBLICATION-21. an owner who is also flagged admin (role overlap) still cannot publish directly via client SDK",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "seller-1"), {
+        role: "admin",
+      });
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-21"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-21"), {
+        isActive: true,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-22. a simultaneous attempt to set both isActive: true and pilotProductApproval.active: true in one admin update is denied",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-22"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-22"), {
+        isActive: true,
+        "pilotProductApproval.active": true,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PUBLICATION-22b. adding an unrelated/decoy extra field alongside isActive: true cannot sneak the publication mutation past hasUnpublishedProductPublicationState — it is an unconditional value check, not a key-pattern check",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/pub-22b"),
+        safeProduct()
+      );
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pub-22b"), {
+        isActive: true,
+        reviewedBy: "admin-1",
+        someDecoyField: "harmless-looking-value",
+      })
+    );
+  }
+);
+
+// --- Static-source proofs (below): these read the already-loaded `rules`
+// string directly and need no emulator — plain test(), not rulesTest(),
+// exactly mirroring "4.2r7-static-36" above. ---
+
+test(
+  "PUBLICATION-23. (static) hasUnpublishedProductPublicationState is AND-ed onto both product allow rules, structurally outside the isAdmin() OR",
+  () => {
+    const createMatch = rules.match(
+      /allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)\s*&&[\s\S]{0,300}?;/
+    );
+    const updateMatch = rules.match(
+      /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,300}?;/
+    );
+    assert.ok(createMatch, "product allow create rule not found in expected shape");
+    assert.ok(updateMatch, "product allow update rule not found in expected shape");
+    assert.ok(
+      createMatch[0].includes("hasUnpublishedProductPublicationState(request.resource.data)"),
+      "create rule must AND hasUnpublishedProductPublicationState outside the isAdmin() OR"
+    );
+    assert.ok(
+      updateMatch[0].includes("hasUnpublishedProductPublicationState(request.resource.data)"),
+      "update rule must AND hasUnpublishedProductPublicationState outside the isAdmin() OR"
+    );
+    // The parenthesized (isAdmin() || ...) group closes before the &&
+    // that introduces hasUnpublishedProductPublicationState — proving
+    // the predicate sits outside, not inside, the actor-authorization OR.
+    assert.ok(
+      /\)\s*&&[\s\S]*hasUnpublishedProductPublicationState/.test(createMatch[0])
+    );
+    assert.ok(
+      /\)\s*&&[\s\S]*hasUnpublishedProductPublicationState/.test(updateMatch[0])
+    );
+  }
+);
+
+test(
+  "PUBLICATION-24. (static) exactly one products allow-create and one products allow-update rule exist — no alternate path bypasses the closure",
+  () => {
+    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
+    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    const closureCalls = rules.match(/hasUnpublishedProductPublicationState\(/g) || [];
+    assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
+    assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
+    assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
+    // Once in the function definition itself, once in create, once in
+    // update.
+    assert.equal(closureCalls.length, 3, "hasUnpublishedProductPublicationState must be defined once and called exactly twice");
   }
 );
