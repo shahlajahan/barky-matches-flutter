@@ -1402,6 +1402,90 @@ match /dogs/{dogId}/visits/{visitId} {
       ).data.marketplaceBusinessGenerationId;
   }
 
+  // Revision 29 (docs/plans/marketplace_p1a_compliance_review_
+  // implementation_plan_2026-08-21.md §0.27 "Actor-independent Marketplace
+  // product-integrity contract" — no-exception correction): every
+  // Firebase client-SDK product create, admin included, must satisfy the
+  // identical schema/media/seller-activation/business-existence/
+  // productInputRevision/sellerRelationship/category contract a seller
+  // already does — previously reachable only through the non-admin
+  // branch of `allow create`'s `(isAdmin() || isSafeNewProductSubmission())`
+  // OR. AND-ed onto `allow create`, outside that OR, alongside the four
+  // already-closed predicates above (pilotProductApproval, publication
+  // state, generation binding, and — on update — identity immutability).
+  // `businessId is string` is checked once here (also implicitly required
+  // by `hasActiveMarketplaceSellerActivation`'s own first clause) so this
+  // function is safe to evaluate standalone, independent of evaluation
+  // order. Superseded, not reaffirmed: the seller-activation gate here
+  // reuses the identical `hasActiveMarketplaceSellerActivation` helper
+  // already used by `isSafeNewProductSubmission()` — the §10.1 "Admin
+  // bypass, stated accurately" carve-out this helper's own bypass once
+  // stood behind is closed by this revision (§0.27 C); this is that
+  // closure. Deliberately excluded, matching every seller-side create
+  // predicate exactly: name/price/stock value-level validity (never a
+  // named Revision 29 gap — a seller can already submit any of these via
+  // the identical unenforced-for-admin path today, unaffected by this
+  // revision) and the four predicates already independently AND-ed
+  // elsewhere on this same rule (pilotProductApproval, publication state,
+  // generation match, and — update-only — identity immutability), never
+  // duplicated here.
+  function hasSafeProductIntegrityOnCreate(data) {
+    return data.category is string
+      && isKnownSafeProductCategory(data.category)
+      && sellerCreateHasNoServerOwnedFields(data)
+      && isValidTransitionalProductInputRevisionCreate(data)
+      && isValidTransitionalSellerRelationshipCreate(data)
+      && data.keys().hasOnly(productAllowedFields())
+      && data.media is list
+      && data.media.size() <= 20
+      && hasActiveMarketplaceSellerActivation(data.businessId);
+  }
+
+  // Revision 29 (§0.27), update-side companion to
+  // hasSafeProductIntegrityOnCreate, above — every Firebase client-SDK
+  // product update, admin included, must satisfy the identical schema/
+  // media/seller-activation/productInputRevision/sellerRelationship/
+  // category contract a seller already does, AND, no-exception (§0.27 D,
+  // the single highest-severity closed item), the approved-product
+  // bound-field content freeze: while the existing product carries an
+  // active `pilotProductApproval`, no client-SDK actor — admin included —
+  // may touch any field `pilotApprovalBoundFields()` names, re-derived
+  // here byte-identical to the seller-side predicate immediately below
+  // and to the server-side fingerprint input inside `approvePilotProduct`'s
+  // own transaction (§10.1 "Frozen bound-field set, corrected"), never
+  // re-guessed. A malformed existing `pilotProductApproval` (wrong type,
+  // non-boolean `active`) is treated identically to absent/inactive —
+  // fails open on this specific freeze only because an admin who cannot
+  // prove the product is actively approved gains no special content-edit
+  // privilege either way; every *other* integrity predicate in this
+  // function, and every already-closed predicate elsewhere on this rule,
+  // still applies unconditionally regardless of this field's shape. The
+  // authorized path back to an editable state remains exactly
+  // `revokePilotProductApproval`/`unpublishPilotProductForRevision`
+  // (Admin SDK, unaffected by and unreachable from this Rules-only
+  // correction) — once either commits, the existing document's own
+  // `isActive`/`moderationStatus` are already `false`/`'pending_review'`
+  // and `pilotProductApproval.active` is already `false`, so the
+  // following client edit's own bound-field check passes trivially, with
+  // no separate Rules exception required.
+  function hasSafeProductIntegrityOnUpdate(incoming, existing) {
+    return incoming.category is string
+      && isKnownSafeProductCategory(incoming.category)
+      && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
+      && isValidTransitionalProductInputRevisionUpdate(incoming, existing)
+      && isValidTransitionalSellerRelationshipUpdate(incoming, existing)
+      && incoming.keys().hasOnly(productAllowedFields())
+      && incoming.media is list
+      && incoming.media.size() <= 20
+      && hasActiveMarketplaceSellerActivation(existing.businessId)
+      && (
+        !('pilotProductApproval' in existing)
+        || !(existing.pilotProductApproval is map)
+        || existing.pilotProductApproval.active != true
+        || !incoming.diff(existing).affectedKeys().hasAny(pilotApprovalBoundFields())
+      );
+  }
+
   // Revision 28 (§10.1 "Frozen bound-field set, corrected"): the
   // exhaustive class-1 (approval-bound) `Product` field set, used
   // identically by the Rules-level structural predicate below and the
@@ -1582,52 +1666,65 @@ match /dogs/{dogId}/visits/{visitId} {
       );
   }
 
+  // Revision 29 (§0.27) expression-budget consolidation, exact and
+  // deliberate — not a weakening. Every check below that duplicated a
+  // predicate now separately AND-ed onto `allow create` outside the
+  // authorization OR (`hasSafeProductIntegrityOnCreate`, and the already-
+  // existing `hasUnpublishedProductPublicationState`/
+  // `hasValidProductGenerationBindingOnCreate`) has been removed from
+  // this function — category safety, schema/unknown-field closure, media
+  // shape/cap, seller activation, `productInputRevision`,
+  // `sellerRelationship`, and publication state. Evaluating each of these
+  // twice per write (once here for the seller path, once more in the
+  // actor-independent predicate every write already pays regardless of
+  // which authorization branch matched) is not merely wasteful: Firestore
+  // Rules enforces a hard per-request expression-evaluation ceiling, and
+  // the two most expensive checks here — `productAllowedFields()`'s
+  // ~65-element list construction/`hasOnly()` comparison, and
+  // `hasActiveMarketplaceSellerActivation()`'s three chained
+  // cross-document field reads — duplicated across both the seller-only and the new
+  // actor-independent predicate, reproducibly exceeded that ceiling
+  // during this revision's own real emulator testing ("Unable to
+  // evaluate the expression as the maximum of 1000 expressions to
+  // evaluate has been reached"), for both seller and admin writes alike.
+  // This function now checks only what is genuinely unique to the seller
+  // authorization path: ownership, and the two scalar fields
+  // (`name`/`price`/`stock`) no Revision 29 predicate names as an
+  // admin-inclusive gap (§0.27's own governing decision does not list
+  // them). Every check removed here is still enforced, exactly once,
+  // for every actor, by the actor-independent predicates on `allow
+  // create` itself — nothing named by any prior revision as a
+  // requirement is weakened, skipped, or made actor-dependent again.
   function isSafeNewProductSubmission() {
     let data = request.resource.data;
     return data.businessId is string
       && isBusinessOwner(data.businessId)
       && data.name is string && data.name.size() > 0
       && data.price is number && data.price > 0
-      && data.stock is int && data.stock >= 1
-      && data.category is string
-      && isKnownSafeProductCategory(data.category)
-      && data.isActive == false
-      && data.moderationStatus == 'pending_review'
-      && sellerCreateHasNoServerOwnedFields(data)
-      && isValidTransitionalProductInputRevisionCreate(data)
-      && isValidTransitionalSellerRelationshipCreate(data)
-      && data.keys().hasOnly(productAllowedFields())
-      // Marketplace P1-A (docs/plans/marketplace_p1a_compliance_review_
-      // implementation_plan_2026-08-21.md §10.1 "Authoritative media-cap
-      // enforcement prerequisite", §17 step 21c): media must be a list of
-      // at most 20 entries. A missing key throws on the dotted access
-      // below and denies exactly like the existing required-field checks
-      // above (e.g. data.name); null/non-list values fail `is list`
-      // cleanly. Deploying this predicate is a separate, later-authorized
-      // step (§17 21d) — this Rules text alone performs no deployment.
-      && data.media is list
-      && data.media.size() <= 20
-      // Marketplace P1-A Step 21c2 (§10.1 "Marketplace seller-activation
-      // gate contract"): the owning business must be explicitly,
-      // server-admin-granted Marketplace seller activation. Sector
-      // selection, general business `status`/`published` approval, and
-      // identity/document verification never substitute for this.
-      && hasActiveMarketplaceSellerActivation(data.businessId)
-      // Revision 28 (§10.1 "Product binding, exact"): the submitted
-      // generation value must exactly match the owning business's own
-      // current value — a `get()`-based cross-document read, the same
-      // already-proven technique `isCanonicalBusinessOwner` itself uses
-      // on this exact collection. Denies any create whose value is
-      // missing, mistyped, or stale relative to the business document's
-      // own live value — including a legacy/not-yet-granted business,
-      // whose value is still absent (no client-submitted value can ever
-      // equal an absent one).
-      && data.marketplaceBusinessGenerationId is string
-      && data.marketplaceBusinessGenerationId == get(
-        /databases/$(database)/documents/businesses/$(data.businessId)
-      ).data.marketplaceBusinessGenerationId;
+      && data.stock is int && data.stock >= 1;
   }
 
+  // Revision 29 (§0.27) expression-budget consolidation — the identical
+  // reasoning as isSafeNewProductSubmission's own comment, immediately
+  // above, applied to update/resubmission. Every check that duplicated a
+  // predicate now separately AND-ed onto `allow update` outside the
+  // authorization OR (`hasSafeProductIntegrityOnUpdate`, and the already-
+  // existing `hasUnpublishedProductPublicationState`/
+  // `preservesProductIdentityOnUpdate`/`preservesPilotProductApprovalOnUpdate`)
+  // has been removed: category safety, schema/unknown-field closure,
+  // media shape/cap, seller activation, `productInputRevision`,
+  // `sellerRelationship`, publication state, SKU/`businessId`/
+  // `createdAt`/`marketplaceBusinessGenerationId` immutability (already
+  // fully covered by `preservesProductIdentityOnUpdate`'s own diff-based
+  // check against exactly these four fields), and the approved-product
+  // bound-field content freeze. This function now checks only what is
+  // genuinely unique to the seller authorization path: ownership
+  // (`incoming.businessId == existing.businessId` establishes which
+  // business's ownership `isBusinessOwner` must verify), and the two
+  // scalar fields no Revision 29 predicate names as an admin-inclusive
+  // gap. Every check removed here is still enforced, exactly once, for
+  // every actor, by the actor-independent predicates on `allow update`
+  // itself.
   function isSafeProductResubmission() {
     let incoming = request.resource.data;
     let existing = resource.data;
@@ -1635,73 +1732,7 @@ match /dogs/{dogId}/visits/{visitId} {
       && isBusinessOwner(existing.businessId)
       && incoming.name is string && incoming.name.size() > 0
       && incoming.price is number && incoming.price > 0
-      && incoming.stock is int && incoming.stock >= 1
-      && incoming.category is string
-      && isKnownSafeProductCategory(incoming.category)
-      && incoming.isActive == false
-      && incoming.moderationStatus == 'pending_review'
-      && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
-      && isValidTransitionalProductInputRevisionUpdate(incoming, existing)
-      && isValidTransitionalSellerRelationshipUpdate(incoming, existing)
-      // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_
-      // compliance_review_implementation_plan_2026-08-21.md §0.17 Phase
-      // 12, §9.E, committed Revision 19): SKU immutability, exact raw
-      // equality — deliberately stronger than any normalized-identifier
-      // comparison this codebase uses elsewhere for candidate matching.
-      // A same-characters-different-case, different-whitespace, or
-      // different-punctuation "edit" to sku is rejected exactly as a
-      // genuinely different SKU would be. Expressed via
-      // diff().affectedKeys(), this rule's own already-established,
-      // absent-key-safe idiom (see productInputRevisionMatchingFieldsChanged
-      // above) rather than a bare incoming.sku == existing.sku access,
-      // which would throw (denying via evaluation error rather than a
-      // controlled false) if either side genuinely lacks the key —
-      // mechanically equivalent raw-equality semantics, since any
-      // sku change of any kind (including absent<->present) always
-      // appears in affectedKeys, but never throws.
-      && !incoming.diff(existing).affectedKeys().hasAny(['sku'])
-      && incoming.keys().hasOnly(productAllowedFields())
-      && !incoming.diff(existing).affectedKeys().hasAny([
-        'businessId',
-        'createdAt',
-        // Revision 28 (§10.1 "Product binding, exact"): immutable after
-        // create, exactly like `sku` above — no client edit, including
-        // one that also attempts to change `pilotProductApproval`
-        // itself, may ever change this field.
-        'marketplaceBusinessGenerationId'
-      ])
-      // Revision 28 (§10.1 "Critical technical constraint... structural,
-      // not a hash comparison"): if the existing product currently has
-      // an active pilot approval, any client edit touching a bound
-      // (approval-relevant) field is denied unconditionally — never
-      // permitted, by any client-submitted shape, including one that
-      // also attempts to self-revoke `pilotProductApproval.active`
-      // itself (closing correction, plan §10.1: `serverOwnedProductFields()`
-      // above already denies that unconditionally on its own). The
-      // seller must instead call the seller-authorized
-      // `unpublishPilotProductForRevision` first.
-      && (
-        !('pilotProductApproval' in existing)
-        || !(existing.pilotProductApproval is map)
-        || existing.pilotProductApproval.active != true
-        || !incoming.diff(existing).affectedKeys().hasAny(pilotApprovalBoundFields())
-      )
-      // Marketplace P1-A (docs/plans/marketplace_p1a_compliance_review_
-      // implementation_plan_2026-08-21.md §10.1 "Authoritative media-cap
-      // enforcement prerequisite", §17 step 21c): the resulting incoming
-      // media must be a list of at most 20 entries — a resulting-absent
-      // key (including one deleted by this write) throws and denies
-      // exactly like the existing required-field checks above; null/
-      // non-list values fail `is list` cleanly. Deploying this predicate
-      // is a separate, later-authorized step (§17 21d) — this Rules text
-      // alone performs no deployment.
-      && incoming.media is list
-      && incoming.media.size() <= 20
-      // Marketplace P1-A Step 21c2 (§10.1 "Marketplace seller-activation
-      // gate contract"): applies identically to update/resubmission — a
-      // seller whose activation is later revoked can no longer edit
-      // their existing products either, not only create new ones.
-      && hasActiveMarketplaceSellerActivation(existing.businessId);
+      && incoming.stock is int && incoming.stock >= 1;
   }
 
   allow read: if isAdmin()
@@ -1717,12 +1748,14 @@ match /dogs/{dogId}/visits/{visitId} {
   allow create: if (isAdmin() || isSafeNewProductSubmission())
     && omitsPilotProductApprovalOnCreate(request.resource.data)
     && hasUnpublishedProductPublicationState(request.resource.data)
-    && hasValidProductGenerationBindingOnCreate(request.resource.data);
+    && hasValidProductGenerationBindingOnCreate(request.resource.data)
+    && hasSafeProductIntegrityOnCreate(request.resource.data);
 
   allow update: if (isAdmin() || isSafeProductResubmission())
     && preservesPilotProductApprovalOnUpdate(request.resource.data, resource.data)
     && hasUnpublishedProductPublicationState(request.resource.data)
-    && preservesProductIdentityOnUpdate(request.resource.data, resource.data);
+    && preservesProductIdentityOnUpdate(request.resource.data, resource.data)
+    && hasSafeProductIntegrityOnUpdate(request.resource.data, resource.data);
 
   // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
   // review_implementation_plan_2026-08-21.md §0.17 Phase 12, §9.E,
