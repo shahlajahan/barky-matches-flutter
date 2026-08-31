@@ -6822,3 +6822,708 @@ test(
     );
   }
 );
+
+// =======================================================================
+// Revision 29 residual correction (commit bf620f8's own two findings,
+// corrected here without amending it): 48 new tests, named REV29R-1
+// through REV29R-48 (R for "residual"), grouped exactly as the
+// correction itself is scoped —
+//   REV29R-1..20:  Finding 1 — name/price/stock moved into the shared,
+//                  actor-independent create/update integrity predicates,
+//                  closing the residual admin bypass while leaving
+//                  seller-path enforcement unaffected.
+//   REV29R-21..38: Finding 2 — a malformed existing pilotProductApproval
+//                  (present, but not a well-formed {active: bool} map)
+//                  now fails closed for the entire update, unconditionally,
+//                  not merely for the bound-field freeze.
+//   REV29R-39..48: structural/preservation — the "move, never duplicate"
+//                  discipline held (source-level checks), the expression-
+//                  budget regression from the immediately-prior commit
+//                  does not reappear, and every previously-closed range
+//                  (PUBLICATION-*/INTEGRITY-*/PILOT-*/REV29-*) remains
+//                  unaffected by this correction.
+// =======================================================================
+
+// Seeds a draft product (never approved, no pilotProductApproval field at
+// all) directly via the Admin SDK, bypassing Rules — used by the
+// REV29R-13..16 update-side name/price/stock tests, which need an
+// existing document to mutate.
+async function seedDraftProduct(productId, overrides = {}) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "businesses/biz-1/products", productId),
+      safeProduct(overrides)
+    );
+  });
+}
+
+// Seeds a product whose pilotProductApproval field is deliberately
+// malformed — present, but not a well-formed {active: bool} map — via the
+// Admin SDK, bypassing Rules (a client-SDK actor can never write this
+// field at all, well-formed or not, per the pre-existing
+// preservesPilotProductApprovalOnUpdate/omitsPilotProductApprovalOnCreate
+// predicates, so an Admin-SDK seed is the only way such a document could
+// ever come to exist — e.g. a legacy write predating this field, or a
+// direct Admin SDK/console correction gone wrong).
+async function seedMalformedApprovalProduct(productId, malformedApproval) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "businesses/biz-1/products", productId),
+      safeProduct({ pilotProductApproval: malformedApproval })
+    );
+  });
+}
+
+// --- REV29R-1..20: Finding 1, name/price/stock actor-independence -----
+
+rulesTest(
+  "REV29R-1 (residual correction, Finding 1). an admin client-SDK create missing the name field entirely is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    const data = safeProduct();
+    delete data.name;
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/rev29r-1"), data));
+  }
+);
+
+rulesTest(
+  "REV29R-2 (residual correction, Finding 1). an admin client-SDK create with name not a string is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-2"), safeProduct({ name: 123 }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-3 (residual correction, Finding 1). an admin client-SDK create with an empty-string name is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-3"), safeProduct({ name: "" }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-4 (residual correction, Finding 1). an admin client-SDK create missing the price field entirely is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    const data = safeProduct();
+    delete data.price;
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/rev29r-4"), data));
+  }
+);
+
+rulesTest(
+  "REV29R-5 (residual correction, Finding 1). an admin client-SDK create with price not a number is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-5"), safeProduct({ price: "9.99" }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-6 (residual correction, Finding 1). an admin client-SDK create with price == 0 is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-6"), safeProduct({ price: 0 }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-7 (residual correction, Finding 1). an admin client-SDK create with a negative price is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-7"), safeProduct({ price: -5 }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-8 (residual correction, Finding 1). an admin client-SDK create missing the stock field entirely is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    const data = safeProduct();
+    delete data.stock;
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/rev29r-8"), data));
+  }
+);
+
+rulesTest(
+  "REV29R-9 (residual correction, Finding 1). an admin client-SDK create with stock not an int (a float) is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-9"), safeProduct({ stock: 1.5 }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-10 (residual correction, Finding 1). an admin client-SDK create with stock == 0 is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-10"), safeProduct({ stock: 0 }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-11 (residual correction, Finding 1). an admin client-SDK create with negative stock is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-11"), safeProduct({ stock: -1 }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-12 (residual correction, Finding 1). an admin client-SDK create at the exact boundary (1-char name, smallest positive price, stock == 1) succeeds",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/rev29r-12"),
+        safeProduct({ name: "A", price: 0.01, stock: 1 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-13 (residual correction, Finding 1). an admin client-SDK update setting name to an empty string on an ordinary draft is denied",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-13");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-13"), { name: "" })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-14 (residual correction, Finding 1). an admin client-SDK update setting price to 0 on an ordinary draft is denied",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-14");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-14"), { price: 0 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-15 (residual correction, Finding 1). an admin client-SDK update setting stock to a non-int value on an ordinary draft is denied",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-15");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-15"), { stock: "five" })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-16 (residual correction, Finding 1). an admin client-SDK update simultaneously invalidating name, price, and stock together is denied in one evaluation",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-16");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-16"), {
+        name: "",
+        price: 0,
+        stock: -1,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-17 (residual correction, Finding 1). a seller client-SDK create with an empty-string name remains denied, unaffected by moving this check out of isSafeNewProductSubmission",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-17"), safeProduct({ name: "" }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-18 (residual correction, Finding 1). a seller client-SDK create with a non-number price remains denied, unaffected by moving this check out of isSafeNewProductSubmission",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-18"), safeProduct({ price: "ten" }))
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-19 (residual correction, Finding 1). a seller client-SDK update introducing a non-int stock remains denied, unaffected by moving this check out of isSafeProductResubmission",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-19");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-19"), { stock: 2.5 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-20 (residual correction, Finding 1). ordinary seller create/update with valid boundary name/price/stock values still succeeds, unaffected by relocating the check into the shared predicate",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/rev29r-20"),
+        safeProduct({ name: "A", price: 0.01, stock: 1 })
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-20"), { stock: 2 })
+    );
+  }
+);
+
+// --- REV29R-21..38: Finding 2, malformed-approval fail-closed ---------
+
+rulesTest(
+  "REV29R-21 (residual correction, Finding 2). state A — pilotProductApproval absent entirely — an ordinary harmless edit succeeds",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-21");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-21"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-22 (residual correction, Finding 2). state B — well-formed pilotProductApproval with active: false — an ordinary harmless edit succeeds",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-22", { active: false });
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-22"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-23 (residual correction, Finding 2). state C — well-formed pilotProductApproval with active: true — even a non-bound-field harmless edit is denied, because hasUnpublishedProductPublicationState's own pre-existing, unconditional incoming.isActive == false requirement fires first, independent of both the bound-field freeze and this correction's own malformed-approval predicate (mirrors PILOT-7's identical finding for the seller path)",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("rev29r-23");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-23"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-24 (residual correction, Finding 2). state C — well-formed pilotProductApproval with active: true — a bound-field edit is still denied (freeze regression guard, alongside REV29-21)",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("rev29r-24");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-24"), { name: "Changed Name" })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-25 (residual correction, Finding 2). state D — pilotProductApproval is null — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-25", null);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-25"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-26 (residual correction, Finding 2). state D — pilotProductApproval is a string, not a map — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-26", "approved");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-26"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-27 (residual correction, Finding 2). state D — pilotProductApproval is a number — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-27", 1);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-27"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-28 (residual correction, Finding 2). state D — pilotProductApproval is a list — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-28", []);
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-28"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-29 (residual correction, Finding 2). state D — pilotProductApproval is an empty map, missing active — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-29", {});
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-29"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-30 (residual correction, Finding 2). state D — pilotProductApproval.active is null — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-30", { active: null });
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-30"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-31 (residual correction, Finding 2). state D — pilotProductApproval.active is the string \"true\", not a boolean — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-31", { active: "true" });
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-31"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-32 (residual correction, Finding 2). state D — pilotProductApproval.active is the number 1, not a boolean — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-32", { active: 1 });
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-32"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-33 (residual correction, Finding 2). state D — pilotProductApproval is otherwise fully populated but missing only the active key — a harmless edit is denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-33", {
+      schemaVersion: 1,
+      approvedAt: serverTimestamp(),
+      approvedBy: "admin-1",
+      allowedPilotCategory: "food",
+      reviewedContentFingerprint: "fixture-fingerprint",
+      reviewedProductRevision: 0,
+      reasonCode: "pilot_approved",
+    });
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-33"), { stock: 9 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-34 (residual correction, Finding 2). state D — a bound-field edit is ALSO denied, not merely a harmless one, confirming the malformed-approval denial is unconditional for the whole update",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-34", {});
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-34"), { name: "Changed Name" })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-35 (residual correction, Finding 2). state D — attempting to \"normalize\" the malformed field to a well-formed value in the same write that also edits content is still denied — no client-SDK escape hatch",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-35", {});
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-35"), {
+        stock: 9,
+        "pilotProductApproval.active": false,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-36 (residual correction, Finding 2). state D — attempting to remove the malformed field outright via deleteField() in the same write that also edits content is still denied — no removal escape hatch",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-36", {});
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-36"), {
+        stock: 9,
+        pilotProductApproval: deleteField(),
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-37 (residual correction, Finding 2). state D — a dotted/field-path-form update touching only a harmless field is still denied",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-37", {});
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-37"), "stock", 9)
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-38 (residual correction, Finding 2). state D — the only remediation path is Admin SDK: after an Admin-SDK-simulated correction replaces the malformed field with a well-formed one, the identical client-SDK edit that was denied before now succeeds",
+  async () => {
+    await resetSeed();
+    await seedMalformedApprovalProduct("rev29r-38", {});
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-38"), { stock: 9 })
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(
+        doc(context.firestore(), "businesses/biz-1/products/rev29r-38"),
+        { pilotProductApproval: { active: false } }
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-38"), { stock: 9 })
+    );
+  }
+);
+
+// --- REV29R-39..48: structural/preservation ----------------------------
+
+test(
+  "REV29R-39 (residual correction). hasWellFormedPilotProductApprovalIfPresent is defined exactly once and called exactly once",
+  () => {
+    const definitions = rules.match(/function hasWellFormedPilotProductApprovalIfPresent\(/g) || [];
+    const calls = rules.match(/hasWellFormedPilotProductApprovalIfPresent\(/g) || [];
+    assert.equal(definitions.length, 1, "hasWellFormedPilotProductApprovalIfPresent must be defined exactly once");
+    // Once in the function definition itself, once as a call inside
+    // hasSafeProductIntegrityOnUpdate.
+    assert.equal(calls.length, 2, "hasWellFormedPilotProductApprovalIfPresent must be defined once and called exactly once");
+  }
+);
+
+test(
+  "REV29R-40 (residual correction). name/price/stock checks now live in hasSafeProductIntegrityOnCreate, and have been removed from isSafeNewProductSubmission (moved, not duplicated)",
+  () => {
+    const createIntegrityMatch = rules.match(
+      /function hasSafeProductIntegrityOnCreate\(data\) \{[\s\S]*?\n  \}/
+    );
+    const sellerCreateMatch = rules.match(
+      /function isSafeNewProductSubmission\(\) \{[\s\S]*?\n  \}/
+    );
+    assert.ok(createIntegrityMatch, "hasSafeProductIntegrityOnCreate not found");
+    assert.ok(sellerCreateMatch, "isSafeNewProductSubmission not found");
+    for (const needle of ["data.name is string", "data.price is number", "data.stock is int"]) {
+      assert.ok(
+        createIntegrityMatch[0].includes(needle),
+        `hasSafeProductIntegrityOnCreate must contain '${needle}'`
+      );
+      assert.ok(
+        !sellerCreateMatch[0].includes(needle),
+        `isSafeNewProductSubmission must no longer contain '${needle}' — moved, not duplicated`
+      );
+    }
+  }
+);
+
+test(
+  "REV29R-41 (residual correction). name/price/stock checks now live in hasSafeProductIntegrityOnUpdate, and have been removed from isSafeProductResubmission (moved, not duplicated)",
+  () => {
+    const updateIntegrityMatch = rules.match(
+      /function hasSafeProductIntegrityOnUpdate\(incoming, existing\) \{[\s\S]*?\n  \}/
+    );
+    const sellerUpdateMatch = rules.match(
+      /function isSafeProductResubmission\(\) \{[\s\S]*?\n  \}/
+    );
+    assert.ok(updateIntegrityMatch, "hasSafeProductIntegrityOnUpdate not found");
+    assert.ok(sellerUpdateMatch, "isSafeProductResubmission not found");
+    for (const needle of ["incoming.name is string", "incoming.price is number", "incoming.stock is int"]) {
+      assert.ok(
+        updateIntegrityMatch[0].includes(needle),
+        `hasSafeProductIntegrityOnUpdate must contain '${needle}'`
+      );
+      assert.ok(
+        !sellerUpdateMatch[0].includes(needle),
+        `isSafeProductResubmission must no longer contain '${needle}' — moved, not duplicated`
+      );
+    }
+  }
+);
+
+test(
+  "REV29R-42 (residual correction). the name/price/stock validity checks each appear exactly twice file-wide (once per shared create/update predicate) — an expression-budget duplication regression guard",
+  () => {
+    const nameChecks = rules.match(/\.name is string && \S+\.name\.size\(\) > 0/g) || [];
+    const priceChecks = rules.match(/\.price is number && \S+\.price > 0/g) || [];
+    const stockChecks = rules.match(/\.stock is int && \S+\.stock >= 1/g) || [];
+    assert.equal(nameChecks.length, 2, "name validity must appear exactly twice (create + update), never duplicated further");
+    assert.equal(priceChecks.length, 2, "price validity must appear exactly twice (create + update), never duplicated further");
+    assert.equal(stockChecks.length, 2, "stock validity must appear exactly twice (create + update), never duplicated further");
+  }
+);
+
+test(
+  "REV29R-43 (residual correction). exactly one products allow-create and one products allow-update rule still exist post-correction, re-affirming REV29-45's invariant",
+  () => {
+    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
+    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
+    assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
+    assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
+  }
+);
+
+rulesTest(
+  "REV29R-44 (residual correction). the PUBLICATION-* range (commit affc328) remains unaffected by this correction — a direct spot-check: an admin client-SDK false-to-true isActive update on a never-approved product is still denied",
+  async () => {
+    await resetSeed();
+    await seedDraftProduct("rev29r-44");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-44"), { isActive: true })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-45 (residual correction). ordinary seller product creation and resubmission remain valid end-to-end, unaffected by relocating name/price/stock validation into the shared predicates",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/rev29r-45"), safeProduct())
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-45"), { stock: 42 })
+    );
+  }
+);
+
+rulesTest(
+  "REV29R-46 (residual correction). a user simultaneously the product's own business owner and flagged role: admin still cannot bypass the new name/price/stock or malformed-approval predicates through either authorization branch",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "seller-1"), { role: "admin" });
+    });
+    await seedMalformedApprovalProduct("rev29r-46", {});
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-46"), { stock: 9 })
+    );
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/rev29r-46b"),
+        safeProduct({ name: "" })
+      )
+    );
+  }
+);
+
+test(
+  "REV29R-47 (residual correction). pilotApprovalBoundFields()'s frozen 11-field set is byte-for-byte unchanged by this correction",
+  () => {
+    const match = rules.match(/function pilotApprovalBoundFields\(\) \{[\s\S]*?\n  \}/);
+    assert.ok(match, "pilotApprovalBoundFields not found");
+    assert.equal(
+      match[0],
+      "function pilotApprovalBoundFields() {\n" +
+        "    return [\n" +
+        "      'name', 'description', 'price', 'currency', 'media',\n" +
+        "      'category', 'brand', 'barcode', 'salePrice', 'kdvRate',\n" +
+        "      'sellerRelationship'\n" +
+        "    ];\n" +
+        "  }",
+      "pilotApprovalBoundFields() must remain byte-identical to the frozen 11-field set — this correction must never touch the fingerprint-bound field list"
+    );
+  }
+);
+
+test(
+  "REV29R-48 (residual correction). the complete set of git-changed files remains exactly the two authorized files, re-affirmed after the residual correction's own edits",
+  () => {
+    const { execSync } = require("node:child_process");
+    const diffOutput = execSync(
+      "git -C " + path.resolve(__dirname, "../..") + " diff --name-only HEAD",
+      { encoding: "utf8" }
+    );
+    const changedFiles = diffOutput.split("\n").filter(Boolean);
+    assert.deepEqual(
+      changedFiles.sort(),
+      ["firestore.rules", "functions/test/marketplaceProductRules.test.js"].sort(),
+      "exactly the two authorized files must be the only changed files"
+    );
+  }
+);

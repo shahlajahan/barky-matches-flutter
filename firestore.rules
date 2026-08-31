@@ -1421,16 +1421,26 @@ match /dogs/{dogId}/visits/{visitId} {
   // already used by `isSafeNewProductSubmission()` — the §10.1 "Admin
   // bypass, stated accurately" carve-out this helper's own bypass once
   // stood behind is closed by this revision (§0.27 C); this is that
-  // closure. Deliberately excluded, matching every seller-side create
-  // predicate exactly: name/price/stock value-level validity (never a
-  // named Revision 29 gap — a seller can already submit any of these via
-  // the identical unenforced-for-admin path today, unaffected by this
-  // revision) and the four predicates already independently AND-ed
-  // elsewhere on this same rule (pilotProductApproval, publication state,
-  // generation match, and — update-only — identity immutability), never
-  // duplicated here.
+  // closure. Deliberately excluded: only the four predicates already
+  // independently AND-ed elsewhere on this same rule (pilotProductApproval,
+  // publication state, generation match, and — update-only — identity
+  // immutability), never duplicated here.
+  // Revision 29 (§0.27) residual correction: `name`/`price`/`stock`
+  // validity is product-document integrity, not actor authorization —
+  // it was originally left inside `isSafeNewProductSubmission()` only
+  // (never duplicated here) on the mistaken premise that a check absent
+  // from the plan's own enumerated gap list needed no admin-inclusive
+  // closure. Revision 29's own governing principle is broader than that
+  // enumerated list: every client-SDK actor, admin included, must
+  // satisfy every product-integrity predicate, named or not. Moved here
+  // (removed from `isSafeNewProductSubmission()`, not duplicated) so it
+  // is enforced exactly once, for every actor, matching this function's
+  // own established consolidation reasoning for every other check below.
   function hasSafeProductIntegrityOnCreate(data) {
-    return data.category is string
+    return data.name is string && data.name.size() > 0
+      && data.price is number && data.price > 0
+      && data.stock is int && data.stock >= 1
+      && data.category is string
       && isKnownSafeProductCategory(data.category)
       && sellerCreateHasNoServerOwnedFields(data)
       && isValidTransitionalProductInputRevisionCreate(data)
@@ -1439,6 +1449,37 @@ match /dogs/{dogId}/visits/{visitId} {
       && data.media is list
       && data.media.size() <= 20
       && hasActiveMarketplaceSellerActivation(data.businessId);
+  }
+
+  // Revision 29 (§0.27) residual correction: an existing `pilotProductApproval`
+  // must be structurally well-formed enough for Rules to determine its
+  // `active` state before any client-SDK update may proceed at all — not
+  // merely before the bound-field freeze specifically applies. A prior
+  // draft of `hasSafeProductIntegrityOnUpdate` (below) treated a
+  // malformed `pilotProductApproval` (wrong type, missing/non-boolean
+  // `active`) as equivalent to "inactive" for the bound-field freeze
+  // only, which correctly denied bound-field edits but incorrectly
+  // allowed every *other* edit to proceed against a document whose
+  // approval state Rules cannot actually prove is inactive — a fail-open
+  // gap, not the fail-closed posture Revision 29 requires. `true`
+  // (absent) is the only case in which no approval-state fact is being
+  // claimed at all — an ordinary, never-approved draft. Every other case
+  // (present and well-formed, or present and malformed) requires an
+  // explicit, provable shape before Rules will reason about it further;
+  // a malformed shape proves nothing safely and is therefore denied
+  // outright, unconditionally, for the whole update — not normalized,
+  // not removed, not replaced, by any client-SDK actor, admin included.
+  // The authorized remediation path remains exactly what it already is
+  // for a well-formed active approval: an Admin-SDK-only operation
+  // (Revision 28, unaffected by and unreachable from this Rules-only
+  // correction) — no new remediation mechanism is introduced or implied.
+  function hasWellFormedPilotProductApprovalIfPresent(data) {
+    return !('pilotProductApproval' in data)
+      || (
+        data.pilotProductApproval is map
+        && 'active' in data.pilotProductApproval
+        && data.pilotProductApproval.active is bool
+      );
   }
 
   // Revision 29 (§0.27), update-side companion to
@@ -1453,23 +1494,31 @@ match /dogs/{dogId}/visits/{visitId} {
   // here byte-identical to the seller-side predicate immediately below
   // and to the server-side fingerprint input inside `approvePilotProduct`'s
   // own transaction (§10.1 "Frozen bound-field set, corrected"), never
-  // re-guessed. A malformed existing `pilotProductApproval` (wrong type,
-  // non-boolean `active`) is treated identically to absent/inactive —
-  // fails open on this specific freeze only because an admin who cannot
-  // prove the product is actively approved gains no special content-edit
-  // privilege either way; every *other* integrity predicate in this
-  // function, and every already-closed predicate elsewhere on this rule,
-  // still applies unconditionally regardless of this field's shape. The
-  // authorized path back to an editable state remains exactly
+  // re-guessed. A well-formed existing `pilotProductApproval` with
+  // `active == false`, or its outright absence, is an ordinary editable
+  // draft — the freeze OR-clause below passes trivially and no other
+  // predicate here treats it specially. A malformed existing
+  // `pilotProductApproval` (wrong type, missing/non-boolean `active`) is
+  // NOT treated as equivalent to inactive: `hasWellFormedPilotProductApprovalIfPresent`,
+  // AND-ed below, denies the entire update outright the moment the shape
+  // cannot be proven — see that function's own comment for the fail-open
+  // gap this residual correction closes and why silent normalization is
+  // never acceptable. The authorized path back to an editable state, for
+  // a genuinely well-formed active approval, remains exactly
   // `revokePilotProductApproval`/`unpublishPilotProductForRevision`
   // (Admin SDK, unaffected by and unreachable from this Rules-only
   // correction) — once either commits, the existing document's own
   // `isActive`/`moderationStatus` are already `false`/`'pending_review'`
   // and `pilotProductApproval.active` is already `false`, so the
   // following client edit's own bound-field check passes trivially, with
-  // no separate Rules exception required.
+  // no separate Rules exception required. A malformed approval has no
+  // such client-SDK remediation path at all — only direct Admin SDK
+  // correction of the document restores client-SDK editability.
   function hasSafeProductIntegrityOnUpdate(incoming, existing) {
-    return incoming.category is string
+    return incoming.name is string && incoming.name.size() > 0
+      && incoming.price is number && incoming.price > 0
+      && incoming.stock is int && incoming.stock >= 1
+      && incoming.category is string
       && isKnownSafeProductCategory(incoming.category)
       && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
       && isValidTransitionalProductInputRevisionUpdate(incoming, existing)
@@ -1478,9 +1527,12 @@ match /dogs/{dogId}/visits/{visitId} {
       && incoming.media is list
       && incoming.media.size() <= 20
       && hasActiveMarketplaceSellerActivation(existing.businessId)
+      // Fail-closed on a malformed existing approval, unconditionally,
+      // for the entire update — see hasWellFormedPilotProductApprovalIfPresent's
+      // own comment, above, for the exact reasoning.
+      && hasWellFormedPilotProductApprovalIfPresent(existing)
       && (
         !('pilotProductApproval' in existing)
-        || !(existing.pilotProductApproval is map)
         || existing.pilotProductApproval.active != true
         || !incoming.diff(existing).affectedKeys().hasAny(pilotApprovalBoundFields())
       );
@@ -1674,34 +1726,37 @@ match /dogs/{dogId}/visits/{visitId} {
   // `hasValidProductGenerationBindingOnCreate`) has been removed from
   // this function — category safety, schema/unknown-field closure, media
   // shape/cap, seller activation, `productInputRevision`,
-  // `sellerRelationship`, and publication state. Evaluating each of these
-  // twice per write (once here for the seller path, once more in the
-  // actor-independent predicate every write already pays regardless of
-  // which authorization branch matched) is not merely wasteful: Firestore
-  // Rules enforces a hard per-request expression-evaluation ceiling, and
-  // the two most expensive checks here — `productAllowedFields()`'s
-  // ~65-element list construction/`hasOnly()` comparison, and
-  // `hasActiveMarketplaceSellerActivation()`'s three chained
-  // cross-document field reads — duplicated across both the seller-only and the new
-  // actor-independent predicate, reproducibly exceeded that ceiling
-  // during this revision's own real emulator testing ("Unable to
-  // evaluate the expression as the maximum of 1000 expressions to
-  // evaluate has been reached"), for both seller and admin writes alike.
-  // This function now checks only what is genuinely unique to the seller
-  // authorization path: ownership, and the two scalar fields
-  // (`name`/`price`/`stock`) no Revision 29 predicate names as an
-  // admin-inclusive gap (§0.27's own governing decision does not list
-  // them). Every check removed here is still enforced, exactly once,
-  // for every actor, by the actor-independent predicates on `allow
-  // create` itself — nothing named by any prior revision as a
-  // requirement is weakened, skipped, or made actor-dependent again.
+  // `sellerRelationship`, publication state, and, **residual correction**,
+  // `name`/`price`/`stock` validity (moved into
+  // `hasSafeProductIntegrityOnCreate` itself — an earlier draft of this
+  // consolidation left these three inside this function only, on the
+  // mistaken premise that a check absent from the plan's own enumerated
+  // gap list needed no admin-inclusive closure; Revision 29's own
+  // governing principle is broader than that list — every product-
+  // integrity predicate, named or not, applies to every client-SDK
+  // actor). Evaluating each of these twice per write (once here for the
+  // seller path, once more in the actor-independent predicate every
+  // write already pays regardless of which authorization branch
+  // matched) is not merely wasteful: Firestore Rules enforces a hard
+  // per-request expression-evaluation ceiling, and the two most
+  // expensive checks here — `productAllowedFields()`'s ~65-element list
+  // construction/`hasOnly()` comparison, and
+  // `hasActiveMarketplaceSellerActivation()`'s three chained cross-
+  // document field reads — duplicated across both the seller-only and
+  // the new actor-independent predicate, reproducibly exceeded that
+  // ceiling during this revision's own real emulator testing ("Unable
+  // to evaluate the expression as the maximum of 1000 expressions to
+  // evaluate has been reached"), for both seller and admin writes
+  // alike. This function now checks only what is genuinely unique to
+  // the seller authorization path: ownership. Every check removed here
+  // is still enforced, exactly once, for every actor, by the actor-
+  // independent predicates on `allow create` itself — nothing named by
+  // any prior revision as a requirement is weakened, skipped, or made
+  // actor-dependent again.
   function isSafeNewProductSubmission() {
     let data = request.resource.data;
     return data.businessId is string
-      && isBusinessOwner(data.businessId)
-      && data.name is string && data.name.size() > 0
-      && data.price is number && data.price > 0
-      && data.stock is int && data.stock >= 1;
+      && isBusinessOwner(data.businessId);
   }
 
   // Revision 29 (§0.27) expression-budget consolidation — the identical
@@ -1716,23 +1771,22 @@ match /dogs/{dogId}/visits/{visitId} {
   // `sellerRelationship`, publication state, SKU/`businessId`/
   // `createdAt`/`marketplaceBusinessGenerationId` immutability (already
   // fully covered by `preservesProductIdentityOnUpdate`'s own diff-based
-  // check against exactly these four fields), and the approved-product
-  // bound-field content freeze. This function now checks only what is
-  // genuinely unique to the seller authorization path: ownership
-  // (`incoming.businessId == existing.businessId` establishes which
-  // business's ownership `isBusinessOwner` must verify), and the two
-  // scalar fields no Revision 29 predicate names as an admin-inclusive
-  // gap. Every check removed here is still enforced, exactly once, for
-  // every actor, by the actor-independent predicates on `allow update`
-  // itself.
+  // check against exactly these four fields), the approved-product
+  // bound-field content freeze, and, **residual correction**,
+  // `name`/`price`/`stock` validity (moved into
+  // `hasSafeProductIntegrityOnUpdate` itself, identical reasoning as
+  // `isSafeNewProductSubmission`'s own comment above). This function now
+  // checks only what is genuinely unique to the seller authorization
+  // path: ownership (`incoming.businessId == existing.businessId`
+  // establishes which business's ownership `isBusinessOwner` must
+  // verify). Every check removed here is still enforced, exactly once,
+  // for every actor, by the actor-independent predicates on `allow
+  // update` itself.
   function isSafeProductResubmission() {
     let incoming = request.resource.data;
     let existing = resource.data;
     return incoming.businessId == existing.businessId
-      && isBusinessOwner(existing.businessId)
-      && incoming.name is string && incoming.name.size() > 0
-      && incoming.price is number && incoming.price > 0
-      && incoming.stock is int && incoming.stock >= 1;
+      && isBusinessOwner(existing.businessId);
   }
 
   allow read: if isAdmin()
