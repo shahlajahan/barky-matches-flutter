@@ -10273,4 +10273,115 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get marketplaceSellerActivationGeneralError => 'Что-то пошло не так. Пожалуйста, попробуйте снова.';
+
+  @override
+  String get pilotUnpublishForRevisionTitle => 'Снять с публикации для доработки?';
+
+  @override
+  String get pilotUnpublishForRevisionMessage => 'Редактирование этого товара снимет его с публикации. Он не будет виден клиентам, пока администратор не проверит и не одобрит его снова.';
+
+  @override
+  String get pilotUnpublishForRevisionConfirm => 'Снять и редактировать';
+
+  @override
+  String get pilotStatusPendingReview => 'На рассмотрении';
+
+  @override
+  String get pilotStatusApproved => 'Одобрено (пилот)';
+
+  @override
+  String get pilotStatusRevoked => 'Отменено — требуется повторное одобрение';
+
+  @override
+  String get adminHubPilotProductApprovalsTitle => 'Одобрения пилотных товаров';
+
+  @override
+  String get adminHubPilotProductApprovalsSubtitle => 'Просмотр и одобрение пилотных объявлений';
+
+  @override
+  String get pilotAdminListTitle => 'Одобрения пилотных товаров';
+
+  @override
+  String get pilotAdminListEmpty => 'Нет товаров, ожидающих пилотной проверки';
+
+  @override
+  String get pilotAdminDetailTitle => 'Пилотная проверка товара';
+
+  @override
+  String get pilotAdminCategoryLabel => 'Пилотная категория';
+
+  @override
+  String get pilotAdminCategoryFood => 'Корм';
+
+  @override
+  String get pilotAdminCategoryTreats => 'Лакомства';
+
+  @override
+  String get pilotAdminCategoryLitter => 'Наполнитель';
+
+  @override
+  String get pilotAdminCategoryToys => 'Игрушки';
+
+  @override
+  String get pilotAdminCategoryCollarsLeads => 'Ошейники и поводки';
+
+  @override
+  String get pilotAdminCategoryBeds => 'Лежаки';
+
+  @override
+  String get pilotAdminCategoryBowls => 'Миски';
+
+  @override
+  String get pilotAdminCategoryGroomingTools => 'Средства для груминга';
+
+  @override
+  String get pilotAdminAttestationLabel => 'Я подтверждаю, что в этом объявлении нет запрещённых заявлений о здоровье, медицинских или терапевтических свойствах.';
+
+  @override
+  String get pilotAdminApproveButton => 'Одобрить';
+
+  @override
+  String get pilotAdminRevokeButton => 'Отменить';
+
+  @override
+  String get pilotAdminApproveConfirmTitle => 'Одобрить этот товар?';
+
+  @override
+  String get pilotAdminApproveConfirmMessage => 'Этот товар станет виден клиентам немедленно.';
+
+  @override
+  String get pilotAdminRevokeConfirmTitle => 'Отменить одобрение?';
+
+  @override
+  String get pilotAdminRevokeConfirmMessage => 'Этот товар будет немедленно скрыт от клиентов.';
+
+  @override
+  String get pilotAdminStaleContentWarning => 'Этот товар изменился с момента последней проверки. Обновите перед одобрением.';
+
+  @override
+  String get pilotAdminOperationalClassificationNote => 'Это одобрение является только операционной пилотной классификацией. Это не юридическое, нормативное или комплаенс-одобрение.';
+
+  @override
+  String get pilotAdminErrorGeneric => 'Что-то пошло не так. Пожалуйста, попробуйте ещё раз.';
+
+  @override
+  String get pilotAdminErrorNotFound => 'Этот товар или бизнес не найден.';
+
+  @override
+  String get pilotAdminErrorLimitExceeded => 'Этот продавец достиг максимального числа активных пилотных товаров.';
+
+  @override
+  String get pilotAdminErrorStaleContent => 'Содержимое товара изменилось. Обновите и попробуйте снова.';
+
+  @override
+  String get pilotAdminErrorStaleGeneration => 'Запись бизнеса этого товара изменилась. Обновите и попробуйте снова.';
+
+  @override
+  String get pilotAdminErrorSellerNotActive => 'Активация Marketplace для этого продавца в данный момент неактивна.';
+
+  @override
+  String get pilotAdminRevokeReasonManual => 'Решение администратора';
+
+  @override
+  String get pilotAdminRevokeReasonContentChanged => 'Содержимое изменилось';
 }

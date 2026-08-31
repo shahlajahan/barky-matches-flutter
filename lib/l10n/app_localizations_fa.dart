@@ -10271,4 +10271,115 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get marketplaceSellerActivationGeneralError => 'مشکلی پیش آمد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get pilotUnpublishForRevisionTitle => 'لغو انتشار برای بازنگری؟';
+
+  @override
+  String get pilotUnpublishForRevisionMessage => 'ویرایش این محصول انتشار آن را لغو می‌کند. تا زمانی که یک ادمین دوباره بررسی و تایید نکند، برای مشتریان قابل مشاهده نخواهد بود.';
+
+  @override
+  String get pilotUnpublishForRevisionConfirm => 'لغو و ویرایش';
+
+  @override
+  String get pilotStatusPendingReview => 'در انتظار بررسی';
+
+  @override
+  String get pilotStatusApproved => 'تایید‌شده (آزمایشی)';
+
+  @override
+  String get pilotStatusRevoked => 'لغو‌شده — نیاز به تایید مجدد';
+
+  @override
+  String get adminHubPilotProductApprovalsTitle => 'تاییدات محصول آزمایشی';
+
+  @override
+  String get adminHubPilotProductApprovalsSubtitle => 'بررسی و تایید فهرست‌های آزمایشی';
+
+  @override
+  String get pilotAdminListTitle => 'تاییدات محصول آزمایشی';
+
+  @override
+  String get pilotAdminListEmpty => 'هیچ محصولی در انتظار بررسی آزمایشی نیست';
+
+  @override
+  String get pilotAdminDetailTitle => 'بررسی محصول آزمایشی';
+
+  @override
+  String get pilotAdminCategoryLabel => 'دسته‌بندی آزمایشی';
+
+  @override
+  String get pilotAdminCategoryFood => 'غذا';
+
+  @override
+  String get pilotAdminCategoryTreats => 'تشویقی';
+
+  @override
+  String get pilotAdminCategoryLitter => 'خاک بهداشت';
+
+  @override
+  String get pilotAdminCategoryToys => 'اسباب‌بازی';
+
+  @override
+  String get pilotAdminCategoryCollarsLeads => 'قلاده و بند';
+
+  @override
+  String get pilotAdminCategoryBeds => 'تخت‌خواب';
+
+  @override
+  String get pilotAdminCategoryBowls => 'ظرف';
+
+  @override
+  String get pilotAdminCategoryGroomingTools => 'ابزار آرایش';
+
+  @override
+  String get pilotAdminAttestationLabel => 'تایید می‌کنم که این فهرست فاقد هرگونه ادعای ممنوع سلامتی، پزشکی یا درمانی است.';
+
+  @override
+  String get pilotAdminApproveButton => 'تایید';
+
+  @override
+  String get pilotAdminRevokeButton => 'لغو';
+
+  @override
+  String get pilotAdminApproveConfirmTitle => 'این محصول تایید شود؟';
+
+  @override
+  String get pilotAdminApproveConfirmMessage => 'این محصول فوراً برای مشتریان قابل مشاهده خواهد شد.';
+
+  @override
+  String get pilotAdminRevokeConfirmTitle => 'تایید لغو شود؟';
+
+  @override
+  String get pilotAdminRevokeConfirmMessage => 'این محصول فوراً از دید مشتریان پنهان خواهد شد.';
+
+  @override
+  String get pilotAdminStaleContentWarning => 'این محصول از زمان آخرین بررسی تغییر کرده است. پیش از تایید، به‌روزرسانی کنید.';
+
+  @override
+  String get pilotAdminOperationalClassificationNote => 'این تایید فقط یک دسته‌بندی عملیاتی آزمایشی است. این یک تایید قانونی، نظارتی یا انطباقی نیست.';
+
+  @override
+  String get pilotAdminErrorGeneric => 'مشکلی پیش آمد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get pilotAdminErrorNotFound => 'این محصول یا کسب‌وکار یافت نشد.';
+
+  @override
+  String get pilotAdminErrorLimitExceeded => 'این فروشنده به حداکثر تعداد محصولات آزمایشی فعال رسیده است.';
+
+  @override
+  String get pilotAdminErrorStaleContent => 'محتوای محصول تغییر کرده است. لطفاً به‌روزرسانی کنید و دوباره تلاش کنید.';
+
+  @override
+  String get pilotAdminErrorStaleGeneration => 'رکورد کسب‌وکار این محصول تغییر کرده است. لطفاً به‌روزرسانی کنید و دوباره تلاش کنید.';
+
+  @override
+  String get pilotAdminErrorSellerNotActive => 'فعال‌سازی آزمایشی این فروشنده در حال حاضر فعال نیست.';
+
+  @override
+  String get pilotAdminRevokeReasonManual => 'تصمیم ادمین';
+
+  @override
+  String get pilotAdminRevokeReasonContentChanged => 'محتوا تغییر کرده است';
 }

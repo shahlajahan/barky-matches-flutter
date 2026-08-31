@@ -10271,4 +10271,115 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get marketplaceSellerActivationGeneralError => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.';
+
+  @override
+  String get pilotUnpublishForRevisionTitle => 'Revizyon için yayından kaldırılsın mı?';
+
+  @override
+  String get pilotUnpublishForRevisionMessage => 'Bu ürünü düzenlemek onu yayından kaldıracaktır. Bir yönetici tekrar inceleyip onaylayana kadar müşterilere görünmeyecektir.';
+
+  @override
+  String get pilotUnpublishForRevisionConfirm => 'Yayından kaldır ve düzenle';
+
+  @override
+  String get pilotStatusPendingReview => 'İnceleme bekliyor';
+
+  @override
+  String get pilotStatusApproved => 'Onaylandı (pilot)';
+
+  @override
+  String get pilotStatusRevoked => 'İptal edildi — yeniden onay gerekli';
+
+  @override
+  String get adminHubPilotProductApprovalsTitle => 'Pilot Ürün Onayları';
+
+  @override
+  String get adminHubPilotProductApprovalsSubtitle => 'Pilot listelemeleri inceleyin ve onaylayın';
+
+  @override
+  String get pilotAdminListTitle => 'Pilot Ürün Onayları';
+
+  @override
+  String get pilotAdminListEmpty => 'Pilot incelemesi bekleyen ürün yok';
+
+  @override
+  String get pilotAdminDetailTitle => 'Pilot Ürün İncelemesi';
+
+  @override
+  String get pilotAdminCategoryLabel => 'Pilot kategori';
+
+  @override
+  String get pilotAdminCategoryFood => 'Yem';
+
+  @override
+  String get pilotAdminCategoryTreats => 'Ödül maması';
+
+  @override
+  String get pilotAdminCategoryLitter => 'Kum';
+
+  @override
+  String get pilotAdminCategoryToys => 'Oyuncaklar';
+
+  @override
+  String get pilotAdminCategoryCollarsLeads => 'Tasma ve gördü';
+
+  @override
+  String get pilotAdminCategoryBeds => 'Yataklar';
+
+  @override
+  String get pilotAdminCategoryBowls => 'Mama kapları';
+
+  @override
+  String get pilotAdminCategoryGroomingTools => 'Bakım araçları';
+
+  @override
+  String get pilotAdminAttestationLabel => 'Bu listelemenin yasak sağlık, tıbbi veya terapatik iddialar içermediğini onaylıyorum.';
+
+  @override
+  String get pilotAdminApproveButton => 'Onayla';
+
+  @override
+  String get pilotAdminRevokeButton => 'İptal et';
+
+  @override
+  String get pilotAdminApproveConfirmTitle => 'Bu ürün onaylansın mı?';
+
+  @override
+  String get pilotAdminApproveConfirmMessage => 'Bu ürün hemen müşterilere görünür olacaktır.';
+
+  @override
+  String get pilotAdminRevokeConfirmTitle => 'Onay iptal edilsin mi?';
+
+  @override
+  String get pilotAdminRevokeConfirmMessage => 'Bu ürün müşterilerden hemen gizlenecektir.';
+
+  @override
+  String get pilotAdminStaleContentWarning => 'Bu ürün son incelemeden bu yana değişti. Onaylamadan önce yenileyin.';
+
+  @override
+  String get pilotAdminOperationalClassificationNote => 'Bu onay yalnızca operasyonel bir pilot sınıflandırmasıdır. Yasal, düzenleyici veya uyumluluk onayı değildir.';
+
+  @override
+  String get pilotAdminErrorGeneric => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.';
+
+  @override
+  String get pilotAdminErrorNotFound => 'Bu ürün veya işletme bulunamadı.';
+
+  @override
+  String get pilotAdminErrorLimitExceeded => 'Bu satıcı maksimum aktif pilot ürün sayısına ulaştı.';
+
+  @override
+  String get pilotAdminErrorStaleContent => 'Ürün içeriği değişti. Lütfen yenileyip tekrar deneyin.';
+
+  @override
+  String get pilotAdminErrorStaleGeneration => 'Bu ürünün işletme kaydı değişti. Lütfen yenileyip tekrar deneyin.';
+
+  @override
+  String get pilotAdminErrorSellerNotActive => 'Bu satıcının Marketplace aktivasyonu şu anda aktif değil.';
+
+  @override
+  String get pilotAdminRevokeReasonManual => 'Yönetici kararı';
+
+  @override
+  String get pilotAdminRevokeReasonContentChanged => 'İçerik değişti';
 }

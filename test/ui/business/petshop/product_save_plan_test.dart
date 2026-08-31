@@ -1126,6 +1126,10 @@ void main() {
       'updatedAt',
       'productInputRevision',
       'sellerRelationship',
+      // Revision 28 (marketplace_p1a_compliance_review_implementation_
+      // plan_2026-08-21.md §10.1 "Product binding, exact") — seller-
+      // submitted once, at create, then immutable exactly like `sku`.
+      'marketplaceBusinessGenerationId',
     };
 
     const reservedNames = [
@@ -1139,6 +1143,7 @@ void main() {
     group('item 409: media array length/order/values (0/1/20)', () {
       test('zero media saves with an empty media array', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: productWithMedia(const []),
           productInputRevision: 0,
         );
@@ -1148,6 +1153,7 @@ void main() {
       test('one media entry saves with exactly that one entry, values '
           'retained', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: productWithMedia([media('https://example.com/1.jpg')]),
           productInputRevision: 0,
         );
@@ -1163,6 +1169,7 @@ void main() {
           (i) => media('https://example.com/$i.jpg'),
         );
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: productWithMedia(entries),
           productInputRevision: 0,
         );
@@ -1186,6 +1193,7 @@ void main() {
           media('https://example.com/2.jpg'),
         ];
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: productWithMedia(remaining),
           productInputRevision: 1,
         );
@@ -1203,6 +1211,7 @@ void main() {
           media('https://example.com/1.jpg'),
         ];
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: productWithMedia(reordered),
           productInputRevision: 1,
         );
@@ -1219,6 +1228,7 @@ void main() {
       test('removal/reorder does not affect reserved-field absence or '
           'revision correctness — the two concerns are independent', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: productWithMedia([media('https://example.com/0.jpg')]),
           productInputRevision: computeProductInputRevision(
             existingRevision: 5,
@@ -1243,6 +1253,7 @@ void main() {
         );
         expect(
           () => buildProductWritePayload(
+            marketplaceBusinessGenerationId: 'gen-1',
             product: productWithMedia(entries),
             productInputRevision: 0,
           ),
@@ -1260,6 +1271,7 @@ void main() {
         Object? caught;
         try {
           payload = buildProductWritePayload(
+            marketplaceBusinessGenerationId: 'gen-1',
             product: productWithMedia(entries),
             productInputRevision: 0,
           );
@@ -1278,6 +1290,7 @@ void main() {
         );
         expect(
           () => buildProductWritePayload(
+            marketplaceBusinessGenerationId: 'gen-1',
             product: productWithMedia(entries),
             productInputRevision: 0,
           ),
@@ -1293,6 +1306,7 @@ void main() {
         );
         try {
           final payload = buildProductWritePayload(
+            marketplaceBusinessGenerationId: 'gen-1',
             product: productWithMedia(entries),
             productInputRevision: 0,
           );
@@ -1336,6 +1350,7 @@ void main() {
       test('a create-shaped payload (productInputRevision: 0) contains '
           'exactly the frozen allowlist keys — no more, no fewer', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: fullyPopulatedProduct(asEdit: false),
           productInputRevision: 0,
         );
@@ -1346,6 +1361,7 @@ void main() {
           'matches the exact allowlist — the key set never changes with '
           'the revision value', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: fullyPopulatedProduct(asEdit: true),
           productInputRevision: 4,
         );
@@ -1356,6 +1372,7 @@ void main() {
       test('none of the five reserved names is present in a real, '
           'runtime-constructed payload, at any value including null', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: fullyPopulatedProduct(asEdit: false),
           productInputRevision: 0,
         );
@@ -1366,11 +1383,77 @@ void main() {
 
       test('no key beyond the frozen allowlist is ever present', () {
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: fullyPopulatedProduct(asEdit: false),
           productInputRevision: 0,
         );
         expect(payload.keys.toSet().difference(frozenAllowlistKeys), isEmpty);
       });
+    });
+  });
+
+  // Revision 28 (marketplace_p1a_compliance_review_implementation_plan_
+  // 2026-08-21.md §10.1 "Product binding, exact") — the new required
+  // `marketplaceBusinessGenerationId` payload parameter round-trips
+  // unmodified through the real production `buildProductWritePayload`,
+  // exactly like `sellerRelationship` is separately proven to (items
+  // 407/408, below).
+  group('marketplaceBusinessGenerationId round-trip (Revision 28 §10.1)', () {
+    Product productFor(String generationId) => Product(
+      id: 'business-1_FOOD-001',
+      businessId: 'business-1',
+      name: 'Test food',
+      description: 'Description',
+      price: 100,
+      currency: 'TRY',
+      media: const [],
+      stock: 2,
+      category: 'Food > Dry Food',
+      isActive: true,
+      sellerRelationship: 'manufacturer',
+    );
+
+    test('a create-shaped payload carries exactly the supplied '
+        'generation ID, unmodified', () {
+      final payload = buildProductWritePayload(
+        marketplaceBusinessGenerationId: 'biz-1-generation-abc',
+        product: productFor('biz-1-generation-abc'),
+        productInputRevision: 0,
+      );
+      expect(
+        payload['marketplaceBusinessGenerationId'],
+        'biz-1-generation-abc',
+      );
+    });
+
+    test('an edit-shaped (nonzero revision) payload carries the same '
+        'unmodified value — the field is not revision-dependent', () {
+      final payload = buildProductWritePayload(
+        marketplaceBusinessGenerationId: 'biz-1-generation-xyz',
+        product: productFor('biz-1-generation-xyz'),
+        productInputRevision: 3,
+      );
+      expect(
+        payload['marketplaceBusinessGenerationId'],
+        'biz-1-generation-xyz',
+      );
+    });
+
+    test('a different generation ID for the same product produces a '
+        'payload carrying exactly that new value — the builder never '
+        'substitutes or caches a prior generation ID', () {
+      final first = buildProductWritePayload(
+        marketplaceBusinessGenerationId: 'generation-1',
+        product: productFor('generation-1'),
+        productInputRevision: 0,
+      );
+      final second = buildProductWritePayload(
+        marketplaceBusinessGenerationId: 'generation-2',
+        product: productFor('generation-2'),
+        productInputRevision: 1,
+      );
+      expect(first['marketplaceBusinessGenerationId'], 'generation-1');
+      expect(second['marketplaceBusinessGenerationId'], 'generation-2');
     });
   });
 
@@ -1460,6 +1543,7 @@ void main() {
           sellerRelationship: value,
         );
         final payload = buildProductWritePayload(
+          marketplaceBusinessGenerationId: 'gen-1',
           product: product,
           productInputRevision: 0,
         );
@@ -1524,6 +1608,7 @@ void main() {
         sellerRelationship: null,
       );
       final payload = buildProductWritePayload(
+        marketplaceBusinessGenerationId: 'gen-1',
         product: product,
         productInputRevision: 0,
       );
@@ -2032,6 +2117,11 @@ void main() {
         // seller. The dedicated activation tests below exercise that
         // boundary itself.
         'marketplaceSellerActivation': {'active': true},
+        // Revision 28 (§10.1) — the real _submit() flow now also
+        // independently checks this field at the same submission
+        // boundary; seeded here for the identical reason as
+        // marketplaceSellerActivation above.
+        'marketplaceBusinessGenerationId': 'generation-business-1',
       });
       final originalDocRef = fakeFirestore
           .collection('businesses')

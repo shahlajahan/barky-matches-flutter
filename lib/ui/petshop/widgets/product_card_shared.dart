@@ -204,6 +204,8 @@ class ProductCardShared extends StatelessWidget {
               if (hasDiscount) _badge(l10n.dealBadge, Colors.orange),
 
               if (product.stock <= 3) _badge(l10n.lowStockBadge, Colors.red),
+
+              _pilotStatusBadge(l10n, product),
             ],
           ),
 
@@ -720,6 +722,20 @@ class ProductCardShared extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Revision 28 pilot product approval contract — a seller-facing status
+  // badge derived entirely from the pre-existing modeled `isActive`/
+  // `moderationStatus` fields (§13.1 "Models/helpers: None new" keeps
+  // `pilotProductApproval` itself off the `Product` model, so this
+  // cannot distinguish "never submitted for pilot review" from "revoked
+  // and back in the queue" — both read as pending review, which is
+  // accurate either way).
+  Widget _pilotStatusBadge(AppLocalizations l10n, Product p) {
+    if (p.isActive && p.moderationStatus == 'approved') {
+      return _badge(l10n.pilotStatusApproved, Colors.green);
+    }
+    return _badge(l10n.pilotStatusPendingReview, Colors.grey);
   }
 
   Widget _chip(String text) {

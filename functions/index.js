@@ -11,6 +11,7 @@ const {
   onDocumentCreated,
   onDocumentWritten,
   onDocumentUpdated,
+  onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { logger } = require("firebase-functions/v2");
@@ -327,6 +328,13 @@ const {
   grantMarketplaceSellerActivation,
   revokeMarketplaceSellerActivation,
 } = require("./src/marketplace/compliance/marketplaceSellerActivation");
+const {
+  approvePilotProduct,
+  revokePilotProductApproval,
+  unpublishPilotProductForRevision,
+  deactivateAllPilotProducts,
+  REASON_CODE: PILOT_PRODUCT_APPROVAL_REASON_CODE,
+} = require("./src/marketplace/compliance/pilotProductApproval");
 const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
@@ -665,6 +673,31 @@ exports.syncUserPublicProjectionTrigger = onDocumentWritten(
 exports.syncBusinessPublicProjectionTrigger = onDocumentWritten(
   { document: "businesses/{businessId}", region: "europe-west1" },
   (event) => synchronizeBusinessPublicProjection(event, db)
+);
+
+// Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1 "Business/account-
+// deletion cascade, exact"): a safety-net trigger, mirroring this exact
+// file's own `businesses/{businessId}` registration pattern — runs for
+// *every* business-document deletion, regardless of path (this file's
+// own merged `deleteUserAccount` transaction, a direct owner/admin
+// client-SDK self-delete now Rules-gated to require a zero pilot-product
+// counter, or any future admin-initiated delete not yet named). Honest
+// boundary: a Firestore trigger fires *after* the deletion has already
+// committed — this is eventual, near-real-time defense-in-depth, never
+// the primary immediate-safety mechanism (that role belongs to the
+// Rules-level zero-counter delete precondition and, for this file's own
+// account-deletion path, the merged transaction above).
+exports.deactivatePilotProductsOnBusinessDeleted = onDocumentDeleted(
+  { document: "businesses/{businessId}", region: "europe-west1" },
+  async (event) => {
+    const businessId = event.params.businessId;
+    await db.runTransaction((tx) =>
+      deactivateAllPilotProducts(tx, db, businessId, {
+        reasonCode: PILOT_PRODUCT_APPROVAL_REASON_CODE.REVOKED_BUSINESS_DELETED,
+      })
+    );
+  }
 );
 
 exports.syncBusinessPublicProjectionServiceTrigger = onDocumentWritten(
@@ -11913,6 +11946,14 @@ exports.registerBusiness = onCall(
         status: hasPetTaxiSector ? "pending_review" : "pending",
         isActive: hasPetTaxiSector ? false : true,
         published: hasPetTaxiSector ? false : true,
+        // Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_
+        // compliance_review_implementation_plan_2026-08-21.md §10.1
+        // "Business-generation architecture"): the one known server-side
+        // creation path — stamped unconditionally, immediately, and
+        // exactly once. A fresh, random, collision-resistant value,
+        // reusing Firestore's own auto-ID generator purely as a
+        // random-string source (no document created at that path).
+        marketplaceBusinessGenerationId: db.collection("businesses").doc().id,
 
         verification: {
           level: "basic",
@@ -12198,18 +12239,24 @@ function adoptionOwnerCandidateFromData(data = {}) {
 }
 
 function mapAdoptionCenterToBusiness(rawOldData = {}) {
-  // Marketplace P1-A Step 21e migration-writer correction: `marketplace
-  // SellerActivation` is server-controlled, exactly like the other admin-
-  // only fields this function's own callers already protect elsewhere —
-  // it must never be copied from a legacy adoption_centers source
-  // document, in any shape, any value included. Excluding it here, by
-  // key, before any spread or fallback use of the source object, means
-  // no value of this key (true, false, null, an empty/malformed map, a
-  // string, a number, a list, a boolean) can ever be promoted into the
-  // returned business shape, at the top level or nested under
-  // sectorData.adoption_center/adoptionCenter's own `oldData` fallback
-  // below.
-  const { marketplaceSellerActivation: _sourceActivationExcluded, ...oldData } = rawOldData;
+  // Marketplace P1-A Step 21e migration-writer correction, extended by
+  // Revision 28 (§10.1 "Migration preservation, extended"):
+  // `marketplaceSellerActivation`/`pilotActiveProductCount`/
+  // `marketplaceBusinessGenerationId` are all server-controlled, exactly
+  // like the other admin-only fields this function's own callers already
+  // protect elsewhere — none may ever be copied from a legacy
+  // adoption_centers source document, in any shape, any value included.
+  // Excluding them here, by key, before any spread or fallback use of the
+  // source object, means no value of any of these three keys can ever be
+  // promoted into the returned business shape, at the top level or nested
+  // under sectorData.adoption_center/adoptionCenter's own `oldData`
+  // fallback below.
+  const {
+    marketplaceSellerActivation: _sourceActivationExcluded,
+    pilotActiveProductCount: _sourcePilotCounterExcluded,
+    marketplaceBusinessGenerationId: _sourceGenerationIdExcluded,
+    ...oldData
+  } = rawOldData;
   const displayName = firstNonEmptyString(
     oldData.profile?.displayName,
     oldData.displayName,
@@ -20207,6 +20254,37 @@ exports.revokeMarketplaceSellerActivation = onCall({ region: "europe-west3" }, a
   })
 );
 
+// Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1 "Pilot Product Approval
+// contract", §17 step 21d2) — the admin-only `approvePilotProduct`/
+// `revokePilotProductApproval` and seller-authorized
+// `unpublishPilotProductForRevision` paths. Thin exports.* wiring only,
+// same convention as the two callables above; all business logic lives
+// in functions/src/marketplace/compliance/pilotProductApproval.js.
+exports.approvePilotProduct = onCall({ region: "europe-west3" }, async (request) =>
+  approvePilotProduct({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
+exports.revokePilotProductApproval = onCall({ region: "europe-west3" }, async (request) =>
+  revokePilotProductApproval({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
+exports.unpublishPilotProductForRevision = onCall({ region: "europe-west3" }, async (request) =>
+  unpublishPilotProductForRevision({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
 // Marketplace P1-A Slice 4.5 (docs/plans/marketplace_p1a_compliance_
 // review_implementation_plan_2026-08-21.md §8/§10.1/§16/§17) — exported,
 // behind the single shared MARKETPLACE_LISTING_ENABLED flag (disabled by
@@ -20742,7 +20820,27 @@ exports.deleteUserAccount = onCall(
           db.collection("reviews").where("businessId", "==", businessId)
         );
 
-        await db.collection("businesses").doc(businessId).delete();
+        // Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_
+        // compliance_review_implementation_plan_2026-08-21.md §10.1
+        // "Business/account-deletion cascade, exact"): the bare
+        // `.delete()` this replaced left a genuine race window between
+        // pilot-product deactivation and business deletion as two
+        // separate steps — corrected by folding both into one bounded
+        // Firestore transaction, so a concurrent `approvePilotProduct`
+        // either lands entirely before this transaction commits (its own
+        // freshly-approved product is then included in this same
+        // transaction's own deactivation query) or fails closed on retry
+        // via the already-established business-existence guard (the
+        // business document is simply gone). No new schema field; the
+        // counter-reset sub-step of `deactivateAllPilotProducts` becomes
+        // redundant, not incorrect, once this same transaction also
+        // deletes the whole business document.
+        await db.runTransaction(async (tx) => {
+          await deactivateAllPilotProducts(tx, db, businessId, {
+            reasonCode: PILOT_PRODUCT_APPROVAL_REASON_CODE.REVOKED_BUSINESS_DELETED,
+          });
+          tx.delete(db.collection("businesses").doc(businessId));
+        });
 
         // try deleting business folder patterns in storage
         await deleteFilesByPrefix(bucket, `business_sector_docs/${uid}/`);

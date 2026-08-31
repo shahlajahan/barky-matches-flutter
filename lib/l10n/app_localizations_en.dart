@@ -10271,4 +10271,115 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get marketplaceSellerActivationGeneralError => 'Something went wrong. Please try again.';
+
+  @override
+  String get pilotUnpublishForRevisionTitle => 'Unpublish for revision?';
+
+  @override
+  String get pilotUnpublishForRevisionMessage => 'Editing this product will unpublish it. It will not be visible to customers again until an admin reviews and approves it.';
+
+  @override
+  String get pilotUnpublishForRevisionConfirm => 'Unpublish and edit';
+
+  @override
+  String get pilotStatusPendingReview => 'Pending review';
+
+  @override
+  String get pilotStatusApproved => 'Approved (pilot)';
+
+  @override
+  String get pilotStatusRevoked => 'Revoked — needs re-approval';
+
+  @override
+  String get adminHubPilotProductApprovalsTitle => 'Pilot Product Approvals';
+
+  @override
+  String get adminHubPilotProductApprovalsSubtitle => 'Review and approve pilot listings';
+
+  @override
+  String get pilotAdminListTitle => 'Pilot Product Approvals';
+
+  @override
+  String get pilotAdminListEmpty => 'No products pending pilot review';
+
+  @override
+  String get pilotAdminDetailTitle => 'Pilot Product Review';
+
+  @override
+  String get pilotAdminCategoryLabel => 'Pilot category';
+
+  @override
+  String get pilotAdminCategoryFood => 'Food';
+
+  @override
+  String get pilotAdminCategoryTreats => 'Treats';
+
+  @override
+  String get pilotAdminCategoryLitter => 'Litter';
+
+  @override
+  String get pilotAdminCategoryToys => 'Toys';
+
+  @override
+  String get pilotAdminCategoryCollarsLeads => 'Collars & leads';
+
+  @override
+  String get pilotAdminCategoryBeds => 'Beds';
+
+  @override
+  String get pilotAdminCategoryBowls => 'Bowls';
+
+  @override
+  String get pilotAdminCategoryGroomingTools => 'Grooming tools';
+
+  @override
+  String get pilotAdminAttestationLabel => 'I confirm this listing makes no prohibited health, medical, or therapeutic claims.';
+
+  @override
+  String get pilotAdminApproveButton => 'Approve';
+
+  @override
+  String get pilotAdminRevokeButton => 'Revoke';
+
+  @override
+  String get pilotAdminApproveConfirmTitle => 'Approve this product?';
+
+  @override
+  String get pilotAdminApproveConfirmMessage => 'This product will become visible to customers immediately.';
+
+  @override
+  String get pilotAdminRevokeConfirmTitle => 'Revoke approval?';
+
+  @override
+  String get pilotAdminRevokeConfirmMessage => 'This product will be hidden from customers immediately.';
+
+  @override
+  String get pilotAdminStaleContentWarning => 'This product has changed since it was last reviewed. Refresh before approving.';
+
+  @override
+  String get pilotAdminOperationalClassificationNote => 'This approval is an operational pilot classification only. It is not a legal, regulatory, or compliance approval.';
+
+  @override
+  String get pilotAdminErrorGeneric => 'Something went wrong. Please try again.';
+
+  @override
+  String get pilotAdminErrorNotFound => 'This product or business could not be found.';
+
+  @override
+  String get pilotAdminErrorLimitExceeded => 'This seller has reached the maximum number of active pilot products.';
+
+  @override
+  String get pilotAdminErrorStaleContent => 'The product content has changed. Please refresh and try again.';
+
+  @override
+  String get pilotAdminErrorStaleGeneration => 'This product\'s business record has changed. Please refresh and try again.';
+
+  @override
+  String get pilotAdminErrorSellerNotActive => 'This seller\'s Marketplace activation is not currently active.';
+
+  @override
+  String get pilotAdminRevokeReasonManual => 'Admin decision';
+
+  @override
+  String get pilotAdminRevokeReasonContentChanged => 'Content changed';
 }

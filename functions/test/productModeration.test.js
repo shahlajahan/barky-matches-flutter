@@ -1410,3 +1410,58 @@ test("M1. two genuinely concurrent approval attempts: exactly one real transitio
   assert.equal(reviewEvents(store).length, 1);
   assert.equal(getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID).moderationStatus, "approved");
 });
+
+// =======================================================================
+// N. Revision 28 (docs/plans/marketplace_p1a_compliance_review_
+// implementation_plan_2026-08-21.md §10.1 "Pilot Product Approval
+// contract", header-comment-only change to productModeration.js itself)
+// — pilot-isolation proof: a real, successful general-launch approval
+// through this file's own unmodified code path never touches isActive,
+// pilotProductApproval, or pilotActiveProductCount, and cannot
+// republish a product a pilot operation has already revoked.
+// =======================================================================
+
+test("N1. a real general-moderation approval never changes isActive and never creates pilotProductApproval on the product document", async () => {
+  const store = createStore();
+  seedAdmin(store);
+  const db = await seedEligibleProduct(store);
+  const before = getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID);
+  const isActiveBefore = before.isActive;
+  assert.equal(Object.prototype.hasOwnProperty.call(before, "pilotProductApproval"), false, "precondition: no pilot field seeded");
+
+  await reviewProductModeration({ db, auth: { uid: ADMIN_UID }, data: baseRequest(), nowFactory: () => NOW, featureEnabled: true });
+
+  const after = getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID);
+  assert.equal(after.isActive, isActiveBefore, "isActive is completely unchanged by this function");
+  assert.equal(Object.prototype.hasOwnProperty.call(after, "pilotProductApproval"), false, "this function never creates the pilot field");
+  assert.equal(after.moderationStatus, "approved");
+});
+
+test("N2. a real general-moderation approval never writes pilotActiveProductCount on the business document", async () => {
+  const store = createStore();
+  seedAdmin(store);
+  const db = await seedEligibleProduct(store);
+  await reviewProductModeration({ db, auth: { uid: ADMIN_UID }, data: baseRequest(), nowFactory: () => NOW, featureEnabled: true });
+  const business = getRawDoc(store, "businesses", BUSINESS_ID);
+  assert.equal(Object.prototype.hasOwnProperty.call(business || {}, "pilotActiveProductCount"), false);
+});
+
+test("N3. general-moderation approval on a product whose pilot approval was already revoked (isActive:false, moderationStatus reset by the pilot path) does not republish it — it only ever sets moderationStatus, never isActive", async () => {
+  const store = createStore();
+  seedAdmin(store);
+  const db = await seedEligibleProduct(store, {
+    isActive: false,
+    pilotProductApproval: { active: false, revokedByKind: "admin", reasonCode: "pilot_revoked_admin_manual" },
+  });
+  await reviewProductModeration({ db, auth: { uid: ADMIN_UID }, data: baseRequest(), nowFactory: () => NOW, featureEnabled: true });
+  const product = getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID);
+  // moderationStatus is this function's own, general-launch-path field —
+  // proven elsewhere in this file to become "approved" here. The point
+  // of this test is narrower: isActive (the sole field the customer
+  // query's own visibility actually gates on) is never touched by this
+  // function, so a pilot-revoked product's own isActive:false — the
+  // state that actually keeps it non-visible — survives a general
+  // moderation approval unchanged, never flipped back to true.
+  assert.equal(product.isActive, false, "isActive remains exactly as the pilot revocation left it — untouched by this function");
+  assert.equal(product.pilotProductApproval.active, false, "the pilot revocation itself is untouched by this function");
+});

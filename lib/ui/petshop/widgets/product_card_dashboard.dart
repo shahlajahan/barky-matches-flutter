@@ -170,6 +170,8 @@ class ProductCardDashboard extends StatelessWidget {
               if (hasDiscount) _badge("💸 Deal", Colors.orange),
 
               if (p.media.length >= 3) _badge("📸 Rich", Colors.blue),
+
+              _pilotStatusBadge(l10n, p),
             ],
           ),
 
@@ -444,5 +446,17 @@ class ProductCardDashboard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Revision 28 pilot product approval contract — mirrors
+  // `product_card_shared.dart`'s own `_pilotStatusBadge`: derived from
+  // the pre-existing modeled `isActive`/`moderationStatus` fields only,
+  // since `pilotProductApproval` itself is deliberately not on the
+  // `Product` model (§13.1).
+  Widget _pilotStatusBadge(AppLocalizations l10n, Product p) {
+    if (p.isActive && p.moderationStatus == 'approved') {
+      return _badge(l10n.pilotStatusApproved, Colors.green);
+    }
+    return _badge(l10n.pilotStatusPendingReview, Colors.grey);
   }
 }

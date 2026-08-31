@@ -21,6 +21,7 @@ import '../user_satisfaction/admin_user_satisfaction_page.dart';
 import 'package:barky_matches_fixed/ui/admin/payments/admin_payouts_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'admin_return_disputes_page.dart';
+import 'pilot_product_approval_list_page.dart';
 
 class AdminHubPage extends StatelessWidget {
   const AdminHubPage({super.key});
@@ -105,6 +106,12 @@ class AdminHubPage extends StatelessWidget {
             title: l10n.adminReturnDisputesTitle,
             subtitle: l10n.adminReturnDisputesSubtitle,
             pageBuilder: () => const AdminReturnDisputesPage(),
+          ),
+          _AdminItem(
+            icon: Icons.fact_check_outlined,
+            title: l10n.adminHubPilotProductApprovalsTitle,
+            subtitle: l10n.adminHubPilotProductApprovalsSubtitle,
+            pageBuilder: () => const PilotProductApprovalListPage(),
           ),
 
           const SizedBox(height: 18),

@@ -117,35 +117,52 @@ service cloud.firestore {
           // Rules by construction) may ever write this key. A business
           // owner, or any other authenticated client, may never create,
           // replace, merge, update, delete, or otherwise transform it.
-          'marketplaceSellerActivation'
+          'marketplaceSellerActivation',
+          // Revision 28 (§10.1 "Pilot Product Approval contract" /
+          // "Business-generation architecture"): both server-owned,
+          // written only by the pilot-approval operations/
+          // `grantMarketplaceSellerActivation`/`CREATE BUSINESS
+          // (PENDING)` — never by an owner client write, by any means.
+          'pilotActiveProductCount',
+          'marketplaceBusinessGenerationId'
         ]);
     }
 
     // Marketplace seller-activation admin client-SDK hotfix (docs/plans/
     // marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
-    // §10.1 "Rules responsibility boundary", closing reviews): the
-    // create/update rules below historically OR'd `isAdmin()` against a
-    // narrower, owner-only branch that alone carried the
-    // `marketplaceSellerActivation` protection (`!keys().hasAny([...])`
-    // on create, `canOwnerUpdateBusinessDocument()` on update) — an
-    // authenticated admin using the Firebase client SDK (never the
-    // Admin SDK, which bypasses Rules by construction) could forge or
-    // overwrite this field directly. The three helpers below are AND-ed
+    // §10.1 "Rules responsibility boundary", closing reviews), extended by
+    // Revision 28 to cover this contract's own two new server-owned
+    // business fields (`pilotActiveProductCount`,
+    // `marketplaceBusinessGenerationId`) identically: the create/update
+    // rules below historically OR'd `isAdmin()` against a narrower,
+    // owner-only branch that alone carried this protection — an
+    // authenticated admin using the Firebase client SDK (never the Admin
+    // SDK, which bypasses Rules by construction) could forge or overwrite
+    // any of these three fields directly. The helpers below are AND-ed
     // onto the FULL create/update/delete rules, outside the `isAdmin()`/
-    // owner authorization OR, so they apply identically to every
-    // Firebase client-SDK actor, admin included. Only the two
-    // authorized admin-only server operations
-    // (`grantMarketplaceSellerActivation`/`revokeMarketplaceSellerActivation`,
-    // Admin SDK, unaffected by any Rules change) may ever write this
-    // field; this hotfix does not, and cannot, change that.
+    // owner authorization OR, so they apply identically to every Firebase
+    // client-SDK actor, admin included. Only the designated admin-only
+    // server operations (`grantMarketplaceSellerActivation`/
+    // `revokeMarketplaceSellerActivation`, `approvePilotProduct`/
+    // `revokePilotProductApproval`, the shared `deactivateAllPilotProducts`
+    // helper's call sites, and the `CREATE BUSINESS (PENDING)` call site —
+    // all Admin SDK, unaffected by any Rules change) may ever write any of
+    // these three fields.
+    function marketplacePilotServerOwnedBusinessFields() {
+      return [
+        'marketplaceSellerActivation',
+        'pilotActiveProductCount',
+        'marketplaceBusinessGenerationId'
+      ];
+    }
+
     function omitsMarketplaceSellerActivationOnCreate(data) {
-      return !('marketplaceSellerActivation' in data);
+      return !data.keys().hasAny(marketplacePilotServerOwnedBusinessFields());
     }
 
     function preservesMarketplaceSellerActivationOnUpdate() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'marketplaceSellerActivation'
-      ]);
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(marketplacePilotServerOwnedBusinessFields());
     }
 
     // Delete safety, exact: `resource.data` is the business document
@@ -166,6 +183,24 @@ service cloud.firestore {
           resource.data.marketplaceSellerActivation is map
           && resource.data.marketplaceSellerActivation.active is bool
           && resource.data.marketplaceSellerActivation.active == false
+        );
+    }
+
+    // Revision 28 (§10.1 "New, narrowest-possible Rules-level
+    // immediate-safety precondition on direct client business
+    // deletion"), extending the delete-safety pattern above to the
+    // pilot-product counter: absent is treated as `0` (Option A — no
+    // pilot approval can exist without this counter having first been
+    // incremented by `approvePilotProduct`'s own transaction, so an
+    // absent counter is structurally proven to mean zero, not merely
+    // assumed); an exact, typed `== 0` integer match is deletable;
+    // anything else (a positive integer, or a malformed/mistyped value)
+    // fails closed and denies deletion.
+    function businessHasNoActivePilotProducts() {
+      return !('pilotActiveProductCount' in resource.data)
+        || (
+          resource.data.pilotActiveProductCount is int
+          && resource.data.pilotActiveProductCount == 0
         );
     }
 
@@ -1074,7 +1109,8 @@ match /dogs/{dogId}/visits/{visitId} {
       ) && preservesMarketplaceSellerActivationOnUpdate();
       allow delete: if (
         isAdmin() || isCanonicalBusinessOwner(businessId)
-      ) && businessHasNoActiveMarketplaceSellerActivation();
+      ) && businessHasNoActiveMarketplaceSellerActivation()
+        && businessHasNoActivePilotProducts();
 
       // Marketplace product compliance audit, P0 remediation (docs/audits/
       // marketplace_add_product_compliance_audit_2026-08-20.md): this
@@ -1173,7 +1209,16 @@ match /dogs/{dogId}/visits/{visitId} {
       'reviewedBy',
       'reviewedAt',
       'rejectionReason',
-      'complianceStatus'
+      'complianceStatus',
+      // Revision 28 (§10.1 "Rules responsibility boundary"): a client
+      // can never create, alter, activate, approve, revoke, or delete
+      // this field by any write Rules permit — including a client-
+      // submitted "self-revoking" shape (closing correction, plan
+      // §10.1). Only `approvePilotProduct`/`revokePilotProductApproval`/
+      // `unpublishPilotProductForRevision` and the shared
+      // `deactivateAllPilotProducts` helper's call sites (Admin SDK,
+      // unaffected by Rules) may ever write it.
+      'pilotProductApproval'
     ].concat(complianceServerOwnedProductFields());
   }
 
@@ -1224,6 +1269,12 @@ match /dogs/{dogId}/visits/{visitId} {
       'hasContractedReturnCarrier', 'hasSmartPricing', 'heightCm', 'isActive',
       'isFragile', 'isOversize', 'isPerishable', 'isShippable', 'kdvRate',
       'lengthCm', 'marginPercent', 'markupPercent', 'maxDeliveryDays', 'media',
+      // Revision 28 (§10.1 "Product binding, exact"): seller-submitted
+      // once, at create, then immutable exactly like `sku` (below) — not
+      // a `serverOwnedProductFields()` entry, since the client legitimately
+      // submits it on create; its value is verified server-side (Rules
+      // `get()`) against the owning business's own current value, below.
+      'marketplaceBusinessGenerationId',
       'minStock', 'moderationStatus', 'name', 'originCity', 'preparationDays',
       'price', 'pricePosition', 'productId', 'productInputRevision',
       'returnCarrierCode',
@@ -1233,6 +1284,46 @@ match /dogs/{dogId}/visits/{visitId} {
       'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
       'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm'
     ].concat(serverOwnedProductFields());
+  }
+
+  // Revision 28 admin client-SDK closure (§10.1 "Rules responsibility
+  // boundary" — "a client can never create, alter, activate, approve,
+  // revoke, or delete this field by any write Rules permit"): the
+  // product `allow create`/`allow update` rules below historically OR'd
+  // `isAdmin()` against `isSafeNewProductSubmission()`/
+  // `isSafeProductResubmission()` — the only place
+  // `serverOwnedProductFields()`'s own protection (which already covers
+  // `pilotProductApproval`, above) is enforced. An authenticated admin
+  // using the Firebase client SDK could therefore forge or overwrite
+  // `pilotProductApproval` directly, bypassing the admin-only
+  // `approvePilotProduct`/`revokePilotProductApproval` operations
+  // entirely. These two helpers are AND-ed onto the full create/update
+  // rules, outside the `isAdmin()` OR, mirroring the identical business-
+  // level fix (above) — narrowly scoped to this one field only; every
+  // other server-owned product field's own pre-existing admin-bypass
+  // behavior is unrelated to and unchanged by this contract.
+  function omitsPilotProductApprovalOnCreate(data) {
+    return !('pilotProductApproval' in data);
+  }
+
+  function preservesPilotProductApprovalOnUpdate(incoming, existing) {
+    return !incoming.diff(existing).affectedKeys().hasAny(['pilotProductApproval']);
+  }
+
+  // Revision 28 (§10.1 "Frozen bound-field set, corrected"): the
+  // exhaustive class-1 (approval-bound) `Product` field set, used
+  // identically by the Rules-level structural predicate below and the
+  // server-side fingerprint input inside `approvePilotProduct`'s own
+  // transaction — exact correspondence, per the plan's own requirement.
+  // `sku`/`businessId`/`createdAt` are deliberately excluded: each is
+  // already immutable via its own separate, pre-existing predicate, so
+  // no bound-field protection could ever fire for them in practice.
+  function pilotApprovalBoundFields() {
+    return [
+      'name', 'description', 'price', 'currency', 'media',
+      'category', 'brand', 'barcode', 'salePrice', 'kdvRate',
+      'sellerRelationship'
+    ];
   }
 
   function isKnownSafeProductCategory(category) {
@@ -1429,7 +1520,20 @@ match /dogs/{dogId}/visits/{visitId} {
       // server-admin-granted Marketplace seller activation. Sector
       // selection, general business `status`/`published` approval, and
       // identity/document verification never substitute for this.
-      && hasActiveMarketplaceSellerActivation(data.businessId);
+      && hasActiveMarketplaceSellerActivation(data.businessId)
+      // Revision 28 (§10.1 "Product binding, exact"): the submitted
+      // generation value must exactly match the owning business's own
+      // current value — a `get()`-based cross-document read, the same
+      // already-proven technique `isCanonicalBusinessOwner` itself uses
+      // on this exact collection. Denies any create whose value is
+      // missing, mistyped, or stale relative to the business document's
+      // own live value — including a legacy/not-yet-granted business,
+      // whose value is still absent (no client-submitted value can ever
+      // equal an absent one).
+      && data.marketplaceBusinessGenerationId is string
+      && data.marketplaceBusinessGenerationId == get(
+        /databases/$(database)/documents/businesses/$(data.businessId)
+      ).data.marketplaceBusinessGenerationId;
   }
 
   function isSafeProductResubmission() {
@@ -1467,8 +1571,29 @@ match /dogs/{dogId}/visits/{visitId} {
       && incoming.keys().hasOnly(productAllowedFields())
       && !incoming.diff(existing).affectedKeys().hasAny([
         'businessId',
-        'createdAt'
+        'createdAt',
+        // Revision 28 (§10.1 "Product binding, exact"): immutable after
+        // create, exactly like `sku` above — no client edit, including
+        // one that also attempts to change `pilotProductApproval`
+        // itself, may ever change this field.
+        'marketplaceBusinessGenerationId'
       ])
+      // Revision 28 (§10.1 "Critical technical constraint... structural,
+      // not a hash comparison"): if the existing product currently has
+      // an active pilot approval, any client edit touching a bound
+      // (approval-relevant) field is denied unconditionally — never
+      // permitted, by any client-submitted shape, including one that
+      // also attempts to self-revoke `pilotProductApproval.active`
+      // itself (closing correction, plan §10.1: `serverOwnedProductFields()`
+      // above already denies that unconditionally on its own). The
+      // seller must instead call the seller-authorized
+      // `unpublishPilotProductForRevision` first.
+      && (
+        !('pilotProductApproval' in existing)
+        || !(existing.pilotProductApproval is map)
+        || existing.pilotProductApproval.active != true
+        || !incoming.diff(existing).affectedKeys().hasAny(pilotApprovalBoundFields())
+      )
       // Marketplace P1-A (docs/plans/marketplace_p1a_compliance_review_
       // implementation_plan_2026-08-21.md §10.1 "Authoritative media-cap
       // enforcement prerequisite", §17 step 21c): the resulting incoming
@@ -1497,9 +1622,11 @@ match /dogs/{dogId}/visits/{visitId} {
       isBusinessOwner(resource.data.businessId)
     );
 
-  allow create: if isAdmin() || isSafeNewProductSubmission();
+  allow create: if (isAdmin() || isSafeNewProductSubmission())
+    && omitsPilotProductApprovalOnCreate(request.resource.data);
 
-  allow update: if isAdmin() || isSafeProductResubmission();
+  allow update: if (isAdmin() || isSafeProductResubmission())
+    && preservesPilotProductApprovalOnUpdate(request.resource.data, resource.data);
 
   // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_compliance_
   // review_implementation_plan_2026-08-21.md §0.17 Phase 12, §9.E,
@@ -2348,6 +2475,17 @@ match /stories/{storyId} {
     // admin-read-only, no client write of any kind, Admin SDK writes it
     // directly inside the same transaction as the state-object write.
     match /marketplaceSellerActivationAuditEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Revision 28 (§10.1 "Pilot Product Approval contract"): mirrors
+    // `marketplaceSellerActivationAuditEvents`'s own exact
+    // client-immutable posture — admin-read-only, no client write of
+    // any kind, Admin SDK writes it directly inside the same
+    // transaction as the corresponding `pilotProductApproval` state
+    // write.
+    match /pilotProductApprovalAuditEvents/{eventId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
     }

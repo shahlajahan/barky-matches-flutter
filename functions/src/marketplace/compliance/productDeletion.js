@@ -33,6 +33,7 @@ const { deriveEvidenceLinkId } = require("./complianceMatching");
 const {
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
 } = require("./complianceConstants");
+const { REASON_CODE: PILOT_PRODUCT_APPROVAL_REASON_CODE } = require("./pilotProductApproval");
 
 const PRODUCTS_COLLECTION = "businesses";
 const DECISIONS_COLLECTION = "productComplianceDecisions";
@@ -324,6 +325,41 @@ async function deleteMarketplaceProductCore({ db, auth, data, now }) {
     if (decisionSnap.exists) {
       tx.delete(decisionDocRef);
     }
+
+    // Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_
+    // compliance_review_implementation_plan_2026-08-21.md §10.1
+    // "Product-deletion contract, exact"): if this product currently
+    // carries an active pilot approval, stage one terminal audit event
+    // and decrement the business's own counter before this same
+    // transaction's own existing, unmodified `tx.delete(productDocRef)`
+    // proceeds — the counter can never be overstated (decremented in the
+    // same transaction as the delete) and can never be double-decremented
+    // (the receipt short-circuit above already returns before this logic
+    // ever re-executes on a retried call). If `pilotProductApproval` is
+    // absent, inactive, or malformed, none of this fires — deletion
+    // proceeds exactly as it already did before this revision.
+    const pilotApproval = product.pilotProductApproval;
+    if (
+      pilotApproval &&
+      typeof pilotApproval === "object" &&
+      !Array.isArray(pilotApproval) &&
+      pilotApproval.active === true
+    ) {
+      tx.update(db.collection(PRODUCTS_COLLECTION).doc(request.businessId), {
+        pilotActiveProductCount: admin.firestore.FieldValue.increment(-1),
+      });
+      const pilotAuditRef = db.collection("pilotProductApprovalAuditEvents").doc();
+      tx.create(pilotAuditRef, {
+        businessId: request.businessId,
+        productId: request.productId,
+        action: "cascade_revoke",
+        adminUid: null,
+        occurredAt: admin.firestore.FieldValue.serverTimestamp(),
+        resultingActiveState: false,
+        reasonCode: PILOT_PRODUCT_APPROVAL_REASON_CODE.REVOKED_CONTENT_CHANGED,
+      });
+    }
+
     tx.delete(productDocRef);
     tx.set(receiptDocRef, {
       businessId: request.businessId,

@@ -6,9 +6,15 @@
 // emulator-backed — exactly like productModeration.test.js,
 // `grantMarketplaceSellerActivation`/`revokeMarketplaceSellerActivation`
 // are pure dependency injection ({db, auth, data}), so a hand-rolled,
-// self-contained in-memory fake stands in for `db`. This module never
-// issues a Firestore query (only point reads/writes), so this fake
-// needs no query-builder at all.
+// self-contained in-memory fake stands in for `db`.
+//
+// Revision 28 extension: `revokeMarketplaceSellerActivation` now calls
+// the shared `deactivateAllPilotProducts` helper, which issues one
+// single-collection, single-equality-filter query
+// (`products.where('pilotProductApproval.active','==',true)`) inside
+// the transaction — the fake below gains the minimum subcollection/
+// `.where()` support this one query shape requires, nothing more (no
+// compound filters, no ordering, no pagination).
 //
 // No conditional test-skipping and no environment-dependent bypass
 // anywhere in this file — every test always runs.
@@ -59,7 +65,80 @@ function makeRef(fullPath, store) {
       store.callLog.push(`get:${fullPath}`);
       return makeDocSnapshot(id, store.docs.get(fullPath), this);
     },
+    collection(subName) {
+      return makeCollection(`${fullPath}/${subName}`, store);
+    },
   };
+}
+
+function getNestedField(data, field) {
+  return field
+    .split(".")
+    .reduce((acc, key) => (acc && typeof acc === "object" ? acc[key] : undefined), data);
+}
+
+function queryMatches(data, filters) {
+  return filters.every(({ field, op, value }) => {
+    if (op !== "==") {
+      throw new Error(`unsupported fake Firestore query operator: ${op}`);
+    }
+    return getNestedField(data, field) === value;
+  });
+}
+
+// Matches only *direct* children of `collectionPath` — mirrors a real
+// Firestore collection query, never descending into a deeper nested
+// subcollection sharing the same path prefix.
+function directChildPaths(store, collectionPath) {
+  const prefix = `${collectionPath}/`;
+  return [...store.docs.keys()].filter(
+    (p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/")
+  );
+}
+
+function makeQuery(collectionPath, store, filters) {
+  return {
+    __isFakeQuery: true,
+    collectionPath,
+    where(field, op, value) {
+      return makeQuery(collectionPath, store, [...filters, { field, op, value }]);
+    },
+    async get() {
+      const paths = directChildPaths(store, collectionPath).filter((p) =>
+        queryMatches(store.docs.get(p), filters)
+      );
+      const docs = paths.map((p) => makeDocSnapshot(p.split("/").pop(), store.docs.get(p), makeRef(p, store)));
+      return { docs, size: docs.length };
+    },
+  };
+}
+
+// Revision 28 extension: `deactivateAllPilotProducts` writes via
+// dotted-path keys (`"pilotProductApproval.active"`), which real
+// Firestore `update()` interprets as a nested-field merge, not a
+// literal top-level key — this fake's own pre-existing shallow
+// `{...existing, ...write.data}` merge needs this to match.
+function applyDottedUpdate(existing, updates) {
+  const result = { ...(existing || {}) };
+  for (const [key, value] of Object.entries(updates)) {
+    if (!key.includes(".")) {
+      result[key] = value;
+      continue;
+    }
+    const parts = key.split(".");
+    let cursor = result;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      const existingPart = cursor[part];
+      cursor[part] =
+        existingPart && typeof existingPart === "object" && !Array.isArray(existingPart)
+          ? { ...existingPart }
+          : {};
+      cursor = cursor[part];
+    }
+    cursor[parts[parts.length - 1]] = value;
+  }
+  return result;
 }
 
 function makeCollection(collectionPath, store) {
@@ -70,6 +149,9 @@ function makeCollection(collectionPath, store) {
         return makeRef(`${collectionPath}/${autoId}`, store);
       }
       return makeRef(`${collectionPath}/${id}`, store);
+    },
+    where(field, op, value) {
+      return makeQuery(collectionPath, store, [{ field, op, value }]);
     },
   };
 }
@@ -87,10 +169,18 @@ async function runTransaction(store, callback) {
     const readVersions = new Map();
     const staged = [];
     const tx = {
-      async get(ref) {
-        store.callLog.push(`tx.get:${ref.path}`);
-        readVersions.set(ref.path, docRevision(store, ref.path));
-        return makeDocSnapshot(ref.id, store.docs.get(ref.path), ref);
+      async get(refOrQuery) {
+        if (refOrQuery && refOrQuery.__isFakeQuery) {
+          store.callLog.push(`tx.query:${refOrQuery.collectionPath}`);
+          const snapResult = await refOrQuery.get();
+          for (const snap of snapResult.docs) {
+            readVersions.set(snap.ref.path, docRevision(store, snap.ref.path));
+          }
+          return snapResult;
+        }
+        store.callLog.push(`tx.get:${refOrQuery.path}`);
+        readVersions.set(refOrQuery.path, docRevision(store, refOrQuery.path));
+        return makeDocSnapshot(refOrQuery.id, store.docs.get(refOrQuery.path), refOrQuery);
       },
       update(ref, data) {
         if (!store.docs.has(ref.path)) {
@@ -117,7 +207,7 @@ async function runTransaction(store, callback) {
     }
     for (const write of staged) {
       if (write.type === "update") {
-        setDoc(store, write.path, { ...store.docs.get(write.path), ...write.data });
+        setDoc(store, write.path, applyDottedUpdate(store.docs.get(write.path), write.data));
       } else {
         setDoc(store, write.path, write.data);
       }

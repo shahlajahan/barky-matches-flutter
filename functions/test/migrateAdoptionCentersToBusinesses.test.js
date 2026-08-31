@@ -279,12 +279,86 @@ test("18. the two authorized activation Functions remain the only source paths t
     "utf8"
   );
   const mapFnMatch = migrationSource.match(
-    /function mapAdoptionCenterToBusiness\(rawOldData = \{\}\) \{[\s\S]*?const \{ marketplaceSellerActivation: _sourceActivationExcluded, \.\.\.oldData \} = rawOldData;/
+    /function mapAdoptionCenterToBusiness\(rawOldData = \{\}\) \{[\s\S]*?const \{\s*marketplaceSellerActivation: _sourceActivationExcluded,\s*pilotActiveProductCount: _sourcePilotCounterExcluded,\s*marketplaceBusinessGenerationId: _sourceGenerationIdExcluded,\s*\.\.\.oldData\s*\} = rawOldData;/
   );
-  assert.ok(mapFnMatch, "mapAdoptionCenterToBusiness must destructure-exclude marketplaceSellerActivation before any use of oldData");
+  assert.ok(
+    mapFnMatch,
+    "mapAdoptionCenterToBusiness must destructure-exclude marketplaceSellerActivation, pilotActiveProductCount, and marketplaceBusinessGenerationId before any use of oldData"
+  );
 
   const writeCallMatch = migrationSource.match(
     /\.doc\(doc\.id\)\s*\n\s*\.set\(newBusinessData, \{ merge: true \}\);/
   );
   assert.ok(writeCallMatch, "migrateAdoptionCentersToBusinesses must write with merge semantics");
+});
+
+// Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1 "Migration preservation,
+// extended"): `mapAdoptionCenterToBusiness`'s own already-corrected
+// destructuring exclusion (test 18, above) is extended a second and
+// third time to also exclude `pilotActiveProductCount` and
+// `marketplaceBusinessGenerationId` — dynamic proof, mirroring tests
+// 2-7's own convention exactly.
+
+test("19. no shape of source pilotActiveProductCount is ever copied", async () => {
+  const cases = [
+    ["number", 3],
+    ["zero", 0],
+    ["negative", -1],
+    ["string", "3"],
+    ["null", null],
+  ];
+  for (const [label, value] of cases) {
+    const id = nextId(`mig-pilotcount-${label}`);
+    await db.collection("adoption_centers").doc(id).set({
+      displayName: `Case ${label}`,
+      pilotActiveProductCount: value,
+    });
+    await runMigration();
+    const data = (await db.collection("businesses").doc(id).get()).data();
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(data, "pilotActiveProductCount"),
+      false,
+      `source case ${label} must not produce a destination pilotActiveProductCount field`
+    );
+  }
+});
+
+test("20. no shape of source marketplaceBusinessGenerationId is ever copied", async () => {
+  const cases = [
+    ["string", "forged-generation"],
+    ["number", 1],
+    ["null", null],
+    ["empty-string", ""],
+  ];
+  for (const [label, value] of cases) {
+    const id = nextId(`mig-gen-${label}`);
+    await db.collection("adoption_centers").doc(id).set({
+      displayName: `Case ${label}`,
+      marketplaceBusinessGenerationId: value,
+    });
+    await runMigration();
+    const data = (await db.collection("businesses").doc(id).get()).data();
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(data, "marketplaceBusinessGenerationId"),
+      false,
+      `source case ${label} must not produce a destination marketplaceBusinessGenerationId field`
+    );
+  }
+});
+
+test("21. an existing destination's pilotActiveProductCount/marketplaceBusinessGenerationId survive a rerun byte-identical", async () => {
+  const id = nextId("mig-pilot-preserve");
+  await db.collection("adoption_centers").doc(id).set({ displayName: "Preserve Case" });
+  await db.collection("businesses").doc(id).set({
+    displayName: "Preserve Case",
+    pilotActiveProductCount: 2,
+    marketplaceBusinessGenerationId: "already-set-generation",
+  });
+
+  await runMigration();
+
+  const data = (await db.collection("businesses").doc(id).get()).data();
+  assert.equal(data.pilotActiveProductCount, 2);
+  assert.equal(data.marketplaceBusinessGenerationId, "already-set-generation");
 });

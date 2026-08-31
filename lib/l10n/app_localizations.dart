@@ -19286,6 +19286,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get marketplaceSellerActivationGeneralError;
+
+  /// No description provided for @pilotUnpublishForRevisionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpublish for revision?'**
+  String get pilotUnpublishForRevisionTitle;
+
+  /// No description provided for @pilotUnpublishForRevisionMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing this product will unpublish it. It will not be visible to customers again until an admin reviews and approves it.'**
+  String get pilotUnpublishForRevisionMessage;
+
+  /// No description provided for @pilotUnpublishForRevisionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpublish and edit'**
+  String get pilotUnpublishForRevisionConfirm;
+
+  /// No description provided for @pilotStatusPendingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending review'**
+  String get pilotStatusPendingReview;
+
+  /// No description provided for @pilotStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved (pilot)'**
+  String get pilotStatusApproved;
+
+  /// No description provided for @pilotStatusRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked — needs re-approval'**
+  String get pilotStatusRevoked;
+
+  /// No description provided for @adminHubPilotProductApprovalsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pilot Product Approvals'**
+  String get adminHubPilotProductApprovalsTitle;
+
+  /// No description provided for @adminHubPilotProductApprovalsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and approve pilot listings'**
+  String get adminHubPilotProductApprovalsSubtitle;
+
+  /// No description provided for @pilotAdminListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pilot Product Approvals'**
+  String get pilotAdminListTitle;
+
+  /// No description provided for @pilotAdminListEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No products pending pilot review'**
+  String get pilotAdminListEmpty;
+
+  /// No description provided for @pilotAdminDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pilot Product Review'**
+  String get pilotAdminDetailTitle;
+
+  /// No description provided for @pilotAdminCategoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pilot category'**
+  String get pilotAdminCategoryLabel;
+
+  /// No description provided for @pilotAdminCategoryFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food'**
+  String get pilotAdminCategoryFood;
+
+  /// No description provided for @pilotAdminCategoryTreats.
+  ///
+  /// In en, this message translates to:
+  /// **'Treats'**
+  String get pilotAdminCategoryTreats;
+
+  /// No description provided for @pilotAdminCategoryLitter.
+  ///
+  /// In en, this message translates to:
+  /// **'Litter'**
+  String get pilotAdminCategoryLitter;
+
+  /// No description provided for @pilotAdminCategoryToys.
+  ///
+  /// In en, this message translates to:
+  /// **'Toys'**
+  String get pilotAdminCategoryToys;
+
+  /// No description provided for @pilotAdminCategoryCollarsLeads.
+  ///
+  /// In en, this message translates to:
+  /// **'Collars & leads'**
+  String get pilotAdminCategoryCollarsLeads;
+
+  /// No description provided for @pilotAdminCategoryBeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Beds'**
+  String get pilotAdminCategoryBeds;
+
+  /// No description provided for @pilotAdminCategoryBowls.
+  ///
+  /// In en, this message translates to:
+  /// **'Bowls'**
+  String get pilotAdminCategoryBowls;
+
+  /// No description provided for @pilotAdminCategoryGroomingTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Grooming tools'**
+  String get pilotAdminCategoryGroomingTools;
+
+  /// No description provided for @pilotAdminAttestationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm this listing makes no prohibited health, medical, or therapeutic claims.'**
+  String get pilotAdminAttestationLabel;
+
+  /// No description provided for @pilotAdminApproveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get pilotAdminApproveButton;
+
+  /// No description provided for @pilotAdminRevokeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get pilotAdminRevokeButton;
+
+  /// No description provided for @pilotAdminApproveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve this product?'**
+  String get pilotAdminApproveConfirmTitle;
+
+  /// No description provided for @pilotAdminApproveConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product will become visible to customers immediately.'**
+  String get pilotAdminApproveConfirmMessage;
+
+  /// No description provided for @pilotAdminRevokeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke approval?'**
+  String get pilotAdminRevokeConfirmTitle;
+
+  /// No description provided for @pilotAdminRevokeConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This product will be hidden from customers immediately.'**
+  String get pilotAdminRevokeConfirmMessage;
+
+  /// No description provided for @pilotAdminStaleContentWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This product has changed since it was last reviewed. Refresh before approving.'**
+  String get pilotAdminStaleContentWarning;
+
+  /// No description provided for @pilotAdminOperationalClassificationNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This approval is an operational pilot classification only. It is not a legal, regulatory, or compliance approval.'**
+  String get pilotAdminOperationalClassificationNote;
+
+  /// No description provided for @pilotAdminErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get pilotAdminErrorGeneric;
+
+  /// No description provided for @pilotAdminErrorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This product or business could not be found.'**
+  String get pilotAdminErrorNotFound;
+
+  /// No description provided for @pilotAdminErrorLimitExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller has reached the maximum number of active pilot products.'**
+  String get pilotAdminErrorLimitExceeded;
+
+  /// No description provided for @pilotAdminErrorStaleContent.
+  ///
+  /// In en, this message translates to:
+  /// **'The product content has changed. Please refresh and try again.'**
+  String get pilotAdminErrorStaleContent;
+
+  /// No description provided for @pilotAdminErrorStaleGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'This product\'s business record has changed. Please refresh and try again.'**
+  String get pilotAdminErrorStaleGeneration;
+
+  /// No description provided for @pilotAdminErrorSellerNotActive.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller\'s Marketplace activation is not currently active.'**
+  String get pilotAdminErrorSellerNotActive;
+
+  /// No description provided for @pilotAdminRevokeReasonManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin decision'**
+  String get pilotAdminRevokeReasonManual;
+
+  /// No description provided for @pilotAdminRevokeReasonContentChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Content changed'**
+  String get pilotAdminRevokeReasonContentChanged;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

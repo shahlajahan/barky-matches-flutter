@@ -2,11 +2,18 @@
 
 // Petsupo Marketplace P1-A compliance foundation — Slice 4.4 (docs/plans/
 // marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md,
-// §8/§9/§10.1/§11/§13.1/§16): `reviewProductModeration` — the sole path
-// by which a product's `moderationStatus` may become `'approved'`. Every
-// client-SDK write attempting that transition is denied by
-// `firestore.rules` (§9's approval-transition lock, deployed at Slice
-// 4.9) — only this Admin-SDK callable may perform it.
+// §8/§9/§10.1/§11/§13.1/§16): `reviewProductModeration` — the sole
+// *general-launch-path* mechanism by which a product's `moderationStatus`
+// may become `'approved'`. Every client-SDK write attempting that
+// transition is denied by `firestore.rules` (§9's approval-transition
+// lock, deployed at Slice 4.9) — only this Admin-SDK callable may
+// perform it. Revision 28 (§10.1 "Pilot Product Approval contract") adds
+// a second, narrow, structurally-independent path to the same field —
+// `approvePilotProduct`/`revokePilotProductApproval`/
+// `unpublishPilotProductForRevision` (`pilotProductApproval.js`) — never
+// routed through this function, never touching `PRODUCT_MODERATION_REVIEW_ENABLED`,
+// and proven never to conflict with or reactivate anything this function
+// governs.
 //
 // Calls `evaluateLiveProductEligibility` (§10.1) with its own transaction's
 // `tx`, a fresh per-attempt `now`, and its own already-read `productSnapshot`

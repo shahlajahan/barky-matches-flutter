@@ -37,6 +37,7 @@ const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
 
 const { requireAdmin } = require("../../moderation/adminAuth");
+const { deactivateAllPilotProducts, REASON_CODE } = require("./pilotProductApproval");
 
 const BUSINESSES_COLLECTION = "businesses";
 const AUDIT_EVENTS_COLLECTION = "marketplaceSellerActivationAuditEvents";
@@ -107,10 +108,26 @@ async function grantMarketplaceSellerActivation({ db, auth, data }) {
     }
     const businessData = snapshot.data();
 
-    // --- Idempotent replay: already active. No write of any kind —
-    //     no state-object write, no new audit record (§10.1 "Exact
-    //     idempotency contract"). ---
+    // Revision 28 (§10.1 "Business-generation architecture", "Business
+    // creation and legacy behavior") — initializes
+    // `marketplaceBusinessGenerationId` if and only if still absent,
+    // regardless of whether this call is a real activation transition
+    // or an idempotent replay: the universal safety net covering every
+    // business that could ever reach pilot approval, including one
+    // granted before this field existed. Never overwrites an
+    // already-present value.
+    const needsGenerationInit = businessData.marketplaceBusinessGenerationId === undefined;
+    const generationUpdate = needsGenerationInit
+      ? { marketplaceBusinessGenerationId: db.collection(BUSINESSES_COLLECTION).doc().id }
+      : {};
+
+    // --- Idempotent replay: already active. No state-object write, no
+    //     new audit record (§10.1 "Exact idempotency contract") — the
+    //     generation-init write above may still apply on its own. ---
     if (isCurrentlyActive(businessData)) {
+      if (needsGenerationInit) {
+        tx.update(ref, generationUpdate);
+      }
       return { active: true, idempotent: true };
     }
 
@@ -125,6 +142,7 @@ async function grantMarketplaceSellerActivation({ db, auth, data }) {
         revokedAt: null,
         revokedBy: null,
       },
+      ...generationUpdate,
     });
     const eventRef = db.collection(AUDIT_EVENTS_COLLECTION).doc();
     tx.create(
@@ -161,6 +179,17 @@ async function revokeMarketplaceSellerActivation({ db, auth, data }) {
     if (!isCurrentlyActive(businessData)) {
       return { active: false, idempotent: true };
     }
+
+    // Revision 28 (§10.1 "Seller-revocation cascade, exact") — this
+    // helper's own read (a query) must complete before any write in this
+    // transaction is staged (Firestore transactions require every read
+    // to precede every write); called here, before the activation
+    // state/audit writes below, so both land in the *same* transaction:
+    // the seller's own activation and every one of its ≤5 pilot
+    // products' visibility change together, or none of them do.
+    await deactivateAllPilotProducts(tx, db, businessId, {
+      reasonCode: REASON_CODE.REVOKED_SELLER_DEACTIVATED,
+    });
 
     // --- Real transition: preserve the most recent grantedAt/
     //     grantedBy from the fresh in-transaction read; every prior

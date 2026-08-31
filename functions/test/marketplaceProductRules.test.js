@@ -62,6 +62,17 @@ async function env() {
   return testEnv;
 }
 
+// Revision 28 (§10.1 "Product binding, exact") — fixed, non-secret
+// stand-in generation-ID values for the two shared fixture businesses.
+// Every pre-existing product-create test's own default `safeProduct()`
+// payload carries the matching value for `biz-1` (below), so this one
+// fixture-level change keeps every pre-existing test's already-expected
+// outcome unchanged, exactly mirroring how `media` was defaulted before
+// it, rather than requiring an edit at each of this file's own ~190
+// `safeProduct()` call sites.
+const BIZ_1_GENERATION_ID = "biz-1-generation";
+const BIZ_2_GENERATION_ID = "biz-2-generation";
+
 async function resetSeed() {
   const rulesEnv = await env();
   await rulesEnv.clearFirestore();
@@ -87,6 +98,8 @@ async function resetSeed() {
         revokedAt: null,
         revokedBy: null,
       },
+      marketplaceBusinessGenerationId: BIZ_1_GENERATION_ID,
+      pilotActiveProductCount: 0,
     });
     await setDoc(doc(db, "businesses", "biz-2"), {
       ownerUid: "seller-2",
@@ -100,6 +113,8 @@ async function resetSeed() {
         revokedAt: null,
         revokedBy: null,
       },
+      marketplaceBusinessGenerationId: BIZ_2_GENERATION_ID,
+      pilotActiveProductCount: 0,
     });
     await setDoc(doc(db, "users", "admin-1"), { role: "admin" });
   });
@@ -122,6 +137,11 @@ function safeProduct(overrides = {}) {
     // outcome unchanged; the dedicated media-cap tests below override this
     // default explicitly to exercise the boundary itself.
     media: [],
+    // Revision 28 (§10.1 "Product binding, exact") — matches `biz-1`'s
+    // own seeded value above by default; a test targeting `biz-2`
+    // instead already overrides `businessId` and must likewise override
+    // this to `BIZ_2_GENERATION_ID`.
+    marketplaceBusinessGenerationId: BIZ_1_GENERATION_ID,
     ...overrides,
   };
 }
@@ -4536,5 +4556,305 @@ rulesTest(
     await resetSeed();
     const db = (await env()).unauthenticatedContext().firestore();
     await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+// =======================================================================
+// Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1 "Pilot Product Approval
+// contract", §15 items 781-935): the product-level `pilotProductApproval`
+// create-exclusion/update-immutability/content-binding predicates, and
+// the business-level `marketplaceBusinessGenerationId`/
+// `pilotActiveProductCount` product-side generation-match/delete-safety
+// predicates. Every admin/owner client-SDK business-level protection for
+// these two fields is already proven by the SELLER-ACTIVATION-HOTFIX-*
+// series above (the shared helpers cover all three fields identically);
+// this section covers the product-document-level predicates those tests
+// do not reach.
+// =======================================================================
+
+rulesTest(
+  "PILOT-1. a client can never create a product carrying pilotProductApproval, in any shape",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pilot-1"),
+        safeProduct({
+          pilotProductApproval: { schemaVersion: 1, active: true, approvedAt: null, approvedBy: null, revokedAt: null, revokedBy: null, revokedByKind: null, allowedPilotCategory: "food", reviewedContentFingerprint: "x", reviewedProductRevision: 0, reasonCode: "pilot_approved" },
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-2. an admin client-SDK create is denied identically",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pilot-2"),
+        safeProduct({ pilotProductApproval: { active: true } })
+      )
+    );
+  }
+);
+
+async function seedPilotApprovedProduct(productId, overrides = {}) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "businesses/biz-1/products", productId),
+      safeProduct({
+        isActive: true,
+        moderationStatus: "approved",
+        pilotProductApproval: {
+          schemaVersion: 1,
+          active: true,
+          approvedAt: serverTimestamp(),
+          approvedBy: "admin-1",
+          revokedAt: null,
+          revokedBy: null,
+          revokedByKind: null,
+          allowedPilotCategory: "food",
+          reviewedContentFingerprint: "fixture-fingerprint",
+          reviewedProductRevision: 0,
+          reasonCode: "pilot_approved",
+        },
+        ...overrides,
+      })
+    );
+  });
+}
+
+rulesTest(
+  "PILOT-3. the owning seller cannot directly overwrite pilotProductApproval on an approved product",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("pilot-3");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pilot-3"), {
+        "pilotProductApproval.active": false,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-4. an admin client-SDK update cannot mutate pilotProductApproval either",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("pilot-4");
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pilot-4"), {
+        "pilotProductApproval.active": false,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-5. a bound-field edit (name) on an approved product is denied unconditionally",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("pilot-5");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pilot-5"), { name: "Changed Name" })
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-6. a bound-field edit that also attempts to self-revoke pilotProductApproval.active is denied — no client escape hatch",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("pilot-6");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pilot-6"), {
+        name: "Changed Name",
+        "pilotProductApproval.active": false,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-7. a harmless, non-bound-field edit (stock) is ALSO denied while isActive:true — the pre-existing, unconditional incoming.isActive == false resubmission requirement fires first, independent of the new bound-field predicate",
+  async () => {
+    await resetSeed();
+    await seedPilotApprovedProduct("pilot-7");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(updateDoc(doc(db, "businesses/biz-1/products/pilot-7"), { stock: 9 }));
+  }
+);
+
+rulesTest(
+  "PILOT-7b. after the seller-authorized unpublish-for-revision transition (isActive:false, pilotProductApproval.active:false), the identical harmless stock edit succeeds — proving the pre-edit unpublish flow is the correct, and only, path back to ordinary editing",
+  async () => {
+    const rulesEnv = await env();
+    await resetSeed();
+    await seedPilotApprovedProduct("pilot-7b");
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "businesses/biz-1/products/pilot-7b"), {
+        isActive: false,
+        moderationStatus: "pending_review",
+        "pilotProductApproval.active": false,
+      });
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(updateDoc(doc(db, "businesses/biz-1/products/pilot-7b"), { stock: 9 }));
+  }
+);
+
+rulesTest(
+  "PILOT-8. a bound-field edit on a never-approved product (pilotProductApproval absent) is unaffected by the new predicate",
+  async () => {
+    await resetSeed();
+    await seedMediaProduct("pilot-8", mediaList(1));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/pilot-8"), { name: "Renamed" })
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-9. a product create submitting a marketplaceBusinessGenerationId that does not match the live business value is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/pilot-9"),
+        safeProduct({ marketplaceBusinessGenerationId: "wrong-generation" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-10. a product create omitting marketplaceBusinessGenerationId entirely is denied",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    const payload = safeProduct();
+    delete payload.marketplaceBusinessGenerationId;
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/pilot-10"), payload));
+  }
+);
+
+rulesTest(
+  "PILOT-11. a product create against a business with no generation ID at all (legacy/never-granted) is denied",
+  async () => {
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "businesses", "biz-nogen"), {
+        ownerUid: "seller-nogen",
+        marketplaceSellerActivation: { active: true, grantedAt: null, grantedBy: "admin-1", revokedAt: null, revokedBy: null },
+      });
+    });
+    const db = rulesEnv.authenticatedContext("seller-nogen").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-nogen/products/pilot-11"),
+        safeProduct({ businessId: "biz-nogen", marketplaceBusinessGenerationId: "anything" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-12. marketplaceBusinessGenerationId is immutable after create — an owner edit attempting to change it is denied",
+  async () => {
+    await resetSeed();
+    await seedMediaProduct("pilot-12", mediaList(1));
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/pilot-12"), {
+        marketplaceBusinessGenerationId: "different-generation",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "PILOT-13. a direct owner business delete is denied while pilotActiveProductCount is positive",
+  async () => {
+    const rulesEnv = await env();
+    await resetSeed();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "businesses", "biz-1"), { pilotActiveProductCount: 1 });
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "PILOT-14. an admin client-SDK business delete is denied identically while pilotActiveProductCount is positive",
+  async () => {
+    const rulesEnv = await env();
+    await resetSeed();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "businesses", "biz-1"), { pilotActiveProductCount: 1 });
+    });
+    const db = rulesEnv.authenticatedContext("admin-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "PILOT-15. a business delete with pilotActiveProductCount == 0 and no active seller activation is allowed",
+  async () => {
+    const rulesEnv = await env();
+    await resetSeed();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "businesses", "biz-1"), {
+        marketplaceSellerActivation: { active: false, grantedAt: null, grantedBy: "admin-1", revokedAt: null, revokedBy: "admin-1" },
+        pilotActiveProductCount: 0,
+      });
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertSucceeds(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "PILOT-16. a business delete with a malformed pilotActiveProductCount is denied — fails closed",
+  async () => {
+    const rulesEnv = await env();
+    await resetSeed();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), "businesses", "biz-1"), {
+        marketplaceSellerActivation: { active: false, grantedAt: null, grantedBy: "admin-1", revokedAt: null, revokedBy: "admin-1" },
+        pilotActiveProductCount: "not-a-number",
+      });
+    });
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    await assertFails(deleteDoc(doc(db, "businesses", "biz-1")));
+  }
+);
+
+rulesTest(
+  "PILOT-17. the pilotProductApprovalAuditEvents collection is fully client-immutable, admin-read-only",
+  async () => {
+    const rulesEnv = await env();
+    const adminDb = rulesEnv.authenticatedContext("admin-1").firestore();
+    const sellerDb = rulesEnv.authenticatedContext("seller-1").firestore();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "admin-1"), { role: "admin" });
+      await setDoc(doc(context.firestore(), "pilotProductApprovalAuditEvents", "evt-1"), { businessId: "biz-1" });
+    });
+    await assertSucceeds(getDoc(doc(adminDb, "pilotProductApprovalAuditEvents", "evt-1")));
+    await assertFails(getDoc(doc(sellerDb, "pilotProductApprovalAuditEvents", "evt-1")));
+    await assertFails(setDoc(doc(adminDb, "pilotProductApprovalAuditEvents", "evt-2"), { businessId: "biz-1" }));
+    await assertFails(deleteDoc(doc(adminDb, "pilotProductApprovalAuditEvents", "evt-1")));
   }
 );

@@ -141,6 +141,13 @@ const int maxProductMediaEntries = 20;
 Map<String, dynamic> buildProductWritePayload({
   required Product product,
   required int productInputRevision,
+  // Revision 28 (docs/plans/marketplace_p1a_compliance_review_
+  // implementation_plan_2026-08-21.md §10.1 "Product binding, exact"):
+  // seller-submitted once, at create, then immutable exactly like `sku`
+  // — the owning business's own current `marketplaceBusinessGenerationId`,
+  // read fresh at submission time (never cached from page load), the
+  // same value on every subsequent edit (a no-op diff, Rules-safe).
+  required String marketplaceBusinessGenerationId,
 }) {
   if (product.media.length > maxProductMediaEntries) {
     throw ArgumentError.value(
@@ -213,6 +220,7 @@ Map<String, dynamic> buildProductWritePayload({
     'updatedAt': product.updatedAt,
     'productInputRevision': productInputRevision,
     'sellerRelationship': product.sellerRelationship,
+    'marketplaceBusinessGenerationId': marketplaceBusinessGenerationId,
   };
 }
 
@@ -1673,6 +1681,19 @@ class _AddProductPageState extends State<AddProductPage> {
       final businessCity = (businessData['contact'] as Map?)?['city'];
       final businessName = (businessData['profile'] as Map?)?['displayName'];
       final businessLogo = (businessData['profile'] as Map?)?['logoUrl'];
+      // Revision 28 (§10.1 "Product binding, exact") — read fresh, off
+      // the same raw business map just fetched above, exactly mirroring
+      // the marketplaceSellerActivation read directly above it. Absent
+      // (a legacy/not-yet-granted business) fails closed below, before
+      // any write: Rules would deny the create/edit regardless, but
+      // this gives the seller a clear, named error instead of an opaque
+      // Rules-evaluation failure.
+      final marketplaceBusinessGenerationId =
+          businessData['marketplaceBusinessGenerationId']?.toString();
+      if (marketplaceBusinessGenerationId == null ||
+          marketplaceBusinessGenerationId.isEmpty) {
+        throw const ProductSubmitException('marketplace-seller-inactive');
+      }
 
       final product = Product(
         id: targetProductId,
@@ -1758,6 +1779,56 @@ class _AddProductPageState extends State<AddProductPage> {
         "businesses/$businessId/products/$targetProductId",
       );
 
+      // Revision 28 (§10.1 "Seller UI contract"): editing an already-
+      // approved product requires first invoking the seller-authorized
+      // `unpublishPilotProductForRevision` — with a clear confirmation —
+      // before the existing, unmodified edit path below proceeds. Read
+      // fresh, off a plain (non-transactional) pre-check read, exactly
+      // mirroring how `marketplaceSellerActivation` is pre-checked above
+      // (the real transaction below, and firestore.rules itself, remain
+      // the authoritative enforcement regardless of this client check).
+      if (isEdit && originalRef != null) {
+        final currentSnap = await originalRef.get();
+        final currentApproval = currentSnap.data()?['pilotProductApproval'];
+        final isCurrentlyPilotActive =
+            currentApproval is Map && currentApproval['active'] == true;
+        if (isCurrentlyPilotActive) {
+          final l10n = AppLocalizations.of(context)!;
+          final confirmed = mounted
+              ? await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: Text(l10n.pilotUnpublishForRevisionTitle),
+                    content: Text(l10n.pilotUnpublishForRevisionMessage),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: Text(l10n.cancel),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: Text(l10n.pilotUnpublishForRevisionConfirm),
+                      ),
+                    ],
+                  ),
+                )
+              : false;
+          if (confirmed != true) {
+            setState(() {
+              _isSubmitting = false;
+              _loading = false;
+            });
+            return;
+          }
+          await FirebaseFunctions.instanceFor(region: 'europe-west3')
+              .httpsCallable('unpublishPilotProductForRevision')
+              .call({
+                'businessId': businessId,
+                'productId': originalProductId,
+              });
+        }
+      }
+
       debugPrint("🧠 BEFORE TRANSACTION");
 
       await firestore.runTransaction((tx) async {
@@ -1773,6 +1844,7 @@ class _AddProductPageState extends State<AddProductPage> {
           final payload = buildProductWritePayload(
             product: product,
             productInputRevision: 0,
+            marketplaceBusinessGenerationId: marketplaceBusinessGenerationId,
           );
           tx.set(targetRef, payload, SetOptions(merge: true));
           return;
@@ -1797,6 +1869,7 @@ class _AddProductPageState extends State<AddProductPage> {
               existingRevision: existingRevision,
               matchingChanged: matchingChanged,
             ),
+            marketplaceBusinessGenerationId: marketplaceBusinessGenerationId,
           );
           tx.set(originalRef, payload, SetOptions(merge: true));
           return;
