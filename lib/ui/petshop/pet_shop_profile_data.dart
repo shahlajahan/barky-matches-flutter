@@ -82,9 +82,32 @@ class PetShopProfileData {
     distanceKm: distanceKm,
   );
 
+  /// The sector-detail map, resolved across both stored representations.
+  ///
+  /// `businesses/{id}` stores sector details under `sectorData`, written by
+  /// `registerBusiness`. The public projection `businesses_public/{id}`
+  /// (functions/src/publicProjections.js) republishes exactly the same
+  /// content under `publicSectorData` — it is listed in that file's own
+  /// `PUBLIC_BUSINESS_KEYS`, while `sectorData` deliberately is not.
+  ///
+  /// Both public Petshop surfaces — the list page and the customer detail
+  /// sheet it hands its `rawData` to — read `businesses_public`, so a reader
+  /// that consulted `sectorData` alone saw an empty sector map there. Root
+  /// business fields survived (`profile.displayName`, `contact.*`,
+  /// `isVerified`) while every sector-scoped field silently rendered as its
+  /// empty state. Reading both keys here, at the one shared model boundary,
+  /// fixes every consumer at once and keeps direct `businesses` reads
+  /// working unchanged. `sectorData` is preferred when both are present so a
+  /// direct document read stays authoritative over any stale projection.
+  static Map<String, dynamic> _sectorDataOf(Map<String, dynamic> data) {
+    final canonical = _map(data['sectorData']);
+    if (canonical.isNotEmpty) return canonical;
+    return _map(data['publicSectorData']);
+  }
+
   static bool isPetShopBusiness(Map<String, dynamic> data) {
     final sectors = _stringList(data['sectors']).map(_normalizeSector).toSet();
-    final sectorData = _map(data['sectorData']);
+    final sectorData = _sectorDataOf(data);
     sectors.addAll(sectorData.keys.map(_normalizeSector));
     return sectors.any(sectorAliases.contains);
   }
@@ -98,7 +121,7 @@ class PetShopProfileData {
   factory PetShopProfileData.fromMap(String id, Map<String, dynamic> data) {
     final profile = _map(data['profile']);
     final contact = _map(data['contact']);
-    final sectorData = _map(data['sectorData']);
+    final sectorData = _sectorDataOf(data);
     final petShop = _firstNonEmptyMap([
       sectorData['petshop'],
       sectorData['pet_shop'],

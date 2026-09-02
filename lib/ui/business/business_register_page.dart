@@ -1,6 +1,7 @@
 // lib/ui/business/business_register_page.dart
 
 import 'dart:async';
+import 'company_type_summary_row.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -2766,32 +2767,11 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
           // before final submission; the user can still go Back to step 0
           // to change it.
           if (_companyType != null)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    LucideIcons.building2,
-                    size: 18,
-                    color: Color(0xFF9E1B4F),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppLocalizations.of(
-                      context,
-                    )!.businessRegisterCompanyTypeLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const Spacer(),
-                  Text(_companyTypeLabel(_companyType!)),
-                ],
-              ),
+            CompanyTypeSummaryRow(
+              label: AppLocalizations.of(
+                context,
+              )!.businessRegisterCompanyTypeLabel,
+              value: _companyTypeLabel(_companyType!),
             ),
 
           const SizedBox(height: 14),

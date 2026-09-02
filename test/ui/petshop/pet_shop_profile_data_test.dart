@@ -57,4 +57,144 @@ void main() {
     expect(shop.categories, ['Food', 'Toys']);
     expect(shop.productOwnerId, 'seller-owner-1');
   });
+
+  // ---------------------------------------------------------------------
+  // Public-projection schema regression.
+  //
+  // Both public Petshop surfaces read `businesses_public`, whose projection
+  // (functions/src/publicProjections.js) republishes sector details under
+  // `publicSectorData` — `sectorData` is deliberately absent from its
+  // `PUBLIC_BUSINESS_KEYS` allowlist. A reader that consulted `sectorData`
+  // alone therefore rendered name/location/Verified correctly while every
+  // sector-scoped field silently fell back to its empty state.
+  // ---------------------------------------------------------------------
+  group('businesses_public projection schema', () {
+    /// The exact shape `buildBusinessPublicProjection` emits for a Petshop
+    /// registered through `registerBusiness`: root-level picked keys, a
+    /// picked `profile`/`contact`/`verification`, and the sector map under
+    /// `publicSectorData` rather than `sectorData`.
+    Map<String, dynamic> projectionDocument() => {
+      'businessId': 'business-1',
+      'sectors': ['pet_shop'],
+      'status': 'approved',
+      'isActive': true,
+      'published': true,
+      'isVerified': true,
+      'ownerUid': 'seller-owner-1',
+      'profile': {'displayName': 'Paws & Co', 'logoUrl': 'logo'},
+      'contact': {'city': 'Istanbul', 'district': 'Kadıköy'},
+      'verification': {'isVerified': true},
+      'publicSectorData': {
+        'petshop': {
+          'shopName': 'Paws & Co',
+          'ownerName': 'Owner',
+          'shopTypes': ['Pet Food'],
+          'categories': ['Food', 'Toys'],
+          'brands': 'BrandA, BrandB',
+          'pricing': {'level': 'mid'},
+          'sales': {'delivery': 'yes'},
+          'workingHours': '09:00-18:00',
+          'profile': {'bio': 'Local pet supplies'},
+          'promotion': {'hasOffers': 'yes', 'details': '10% off'},
+        },
+      },
+      'projectionVersion': 1,
+    };
+
+    test('is detected as a pet shop from the projection sector map', () {
+      expect(
+        PetShopProfileData.isPetShopBusiness({
+          'sectors': <String>[],
+          'publicSectorData': {
+            'petshop': {'shopName': 'Paws'},
+          },
+        }),
+        isTrue,
+      );
+    });
+
+    test('reproduces the reported failure surface, then resolves it', () {
+      final shop = PetShopProfileData.fromMap(
+        'business-1',
+        projectionDocument(),
+      );
+
+      // Previously correct — these come from root/profile/contact keys the
+      // projection does publish, which is why the business looked fine.
+      expect(shop.name, 'Paws & Co');
+      expect(shop.address, 'Kadıköy, Istanbul');
+      expect(shop.isVerified, isTrue);
+
+      // Previously empty — the exact user-reported "No shop description is
+      // available." / "No shop categories are available." symptoms.
+      expect(shop.description, 'Local pet supplies');
+      expect(shop.categories, ['Food', 'Toys']);
+      expect(shop.workingHours, isNotNull);
+    });
+
+    test('a direct businesses document still wins over a stale projection', () {
+      final shop = PetShopProfileData.fromMap('business-1', {
+        ...projectionDocument(),
+        'sectorData': {
+          'petshop': {
+            'profile': {'bio': 'Authoritative bio'},
+            'categories': ['Authoritative'],
+          },
+        },
+      });
+
+      expect(shop.description, 'Authoritative bio');
+      expect(shop.categories, ['Authoritative']);
+    });
+
+    test('legacy documents carrying neither key still parse safely', () {
+      final shop = PetShopProfileData.fromMap('business-1', {
+        'profile': {'displayName': 'Legacy Shop'},
+        'contact': {'city': 'Ankara'},
+      });
+
+      expect(shop.name, 'Legacy Shop');
+      expect(shop.description, isEmpty);
+      expect(shop.categories, isEmpty);
+    });
+
+    test('malformed sector maps fail safely instead of throwing', () {
+      for (final malformed in <dynamic>[
+        null,
+        'not-a-map',
+        42,
+        <String>['list'],
+        <String, dynamic>{},
+      ]) {
+        final shop = PetShopProfileData.fromMap('business-1', {
+          'profile': {'displayName': 'Paws & Co'},
+          'publicSectorData': malformed,
+        });
+        expect(shop.name, 'Paws & Co');
+        expect(shop.categories, isEmpty);
+      }
+    });
+
+    test('malformed categories inside a valid sector map degrade to empty', () {
+      final shop = PetShopProfileData.fromMap('business-1', {
+        'publicSectorData': {
+          'petshop': {'categories': 'Food, Toys'},
+        },
+      });
+
+      expect(shop.categories, isEmpty);
+    });
+
+    test('shopTypes remains the documented categories fallback', () {
+      final shop = PetShopProfileData.fromMap('business-1', {
+        'publicSectorData': {
+          'petshop': {
+            'shopTypes': ['Pet Food'],
+          },
+        },
+      });
+
+      expect(shop.categories, ['Pet Food']);
+    });
+  });
 }
