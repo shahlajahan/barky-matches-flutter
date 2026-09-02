@@ -6777,35 +6777,6 @@ test(
   }
 );
 
-test(
-  "REV29-46 (plan item 981). (static) no functions/ file is modified by this Rules-only correction, and the Revision 28 six-row server-writer allowlist remains textually unaffected — the Step 21e Admin/Functions writer audit's own already-passed result is not invalidated",
-  () => {
-    const { execSync } = require("node:child_process");
-    const diffOutput = execSync(
-      "git -C " + path.resolve(__dirname, "../..") + " diff --name-only HEAD",
-      { encoding: "utf8" }
-    );
-    const changedFiles = diffOutput.split("\n").filter(Boolean);
-    for (const f of changedFiles) {
-      assert.ok(
-        f === "firestore.rules" || f === "functions/test/marketplaceProductRules.test.js",
-        `unexpected changed file outside the authorized two-file scope: ${f}`
-      );
-    }
-  }
-);
-
-test(
-  "REV29-47 (plan item 982). (static) both Marketplace feature flags remain unreferenced by, and unaffected by, this Rules-only correction",
-  () => {
-    assert.equal(
-      /PRODUCT_MODERATION_REVIEW_ENABLED|MARKETPLACE_LISTING_ENABLED/.test(rules),
-      false,
-      "firestore.rules must never reference either feature flag — both are enforced entirely in Functions, never in Rules"
-    );
-  }
-);
-
 // The exact two-file scope every Revision 29 Rules-only implementation
 // commit is authorized to touch, sorted, compared byte-for-byte below.
 const REV29_AUTHORIZED_SCOPE = [
@@ -6820,14 +6791,16 @@ const REV29_NO_EXCEPTION_COMMIT = "bf620f8c0be8c1f5b5306edfa7f1b748f19350b4";
 const REV29_RESIDUAL_COMMIT = "3cab9b3db32ea1109aac1f65319077d789b2935d";
 
 // Clean-checkout scope verification, corrected. The original form of the
-// two assertions below read the *working-tree* diff against HEAD, which
+// three assertions below read the *working-tree* diff against HEAD, which
 // was only ever true during the original uncommitted authoring session:
 // on any clean committed checkout (CI, a fresh clone, a detached
-// worktree) that diff is correctly empty, so both assertions failed
-// permanently for a reason that had nothing to do with Rules behaviour.
-// The intent — prove each implementation commit changed exactly the two
-// authorized files and nothing else — is preserved exactly, and is now
-// verified against committed history instead: `git diff-tree` against
+// worktree) that diff is correctly empty. Two of them (REV29-48,
+// REV29R-48) compared it for equality and so failed permanently; the
+// third (REV29-46) iterated over it and so passed *vacuously*, executing
+// zero assertions and proving nothing at all — the more dangerous of the
+// two failure modes, since a green result implied evidence that was never
+// gathered. The intent of each is preserved exactly, and all three are
+// now verified against committed history instead: `git diff-tree` against
 // the commit's own parent, which is deterministic, non-interactive,
 // network-free, and independent of both working-tree state and whichever
 // commit happens to be checked out.
@@ -6870,6 +6843,59 @@ function committedChangedPaths(commitSha) {
   );
   return paths;
 }
+
+test(
+  "REV29-46 (plan item 981). (static) no functions/ file is modified by this Rules-only correction, and the Revision 28 six-row server-writer allowlist remains textually unaffected — the Step 21e Admin/Functions writer audit's own already-passed result is not invalidated",
+  () => {
+    // Committed history of this test's own owning commit — the Revision 29
+    // no-exception implementation — never the working tree. The shared
+    // helper already rejects an empty list, so the per-path loop below can
+    // no longer iterate zero times and report success.
+    const changedFiles = committedChangedPaths(REV29_NO_EXCEPTION_COMMIT);
+    assert.ok(
+      changedFiles.length > 0,
+      "the owning commit must have a non-empty changed-path list for this assertion to prove anything"
+    );
+    // The original substantive assertion, retained unchanged in meaning:
+    // every path this commit touched is inside the authorized two-file
+    // scope.
+    for (const f of changedFiles) {
+      assert.ok(
+        REV29_AUTHORIZED_SCOPE.includes(f),
+        `unexpected changed file outside the authorized two-file scope: ${f}`
+      );
+    }
+    // This item's own distinct proof (plan item 980), and the reason it is
+    // a separate test from REV29-48's exact-set equality: no `functions/`
+    // file other than this very test file is touched — i.e. no Functions
+    // *production* source changed. The Revision 28 six-row server-writer
+    // allowlist is implemented entirely in Functions production source, so
+    // this is precisely what leaves the Step 21e Admin/Functions writer
+    // audit's already-passed result valid without repeating it.
+    const functionsProductionFiles = changedFiles.filter(
+      (f) =>
+        f.startsWith("functions/") &&
+        f !== "functions/test/marketplaceProductRules.test.js"
+    );
+    assert.deepEqual(
+      functionsProductionFiles,
+      [],
+      "no functions/ production file may be modified by this Rules-only correction — " +
+        "any such file would invalidate the Step 21e Admin/Functions writer audit"
+    );
+  }
+);
+
+test(
+  "REV29-47 (plan item 982). (static) both Marketplace feature flags remain unreferenced by, and unaffected by, this Rules-only correction",
+  () => {
+    assert.equal(
+      /PRODUCT_MODERATION_REVIEW_ENABLED|MARKETPLACE_LISTING_ENABLED/.test(rules),
+      false,
+      "firestore.rules must never reference either feature flag — both are enforced entirely in Functions, never in Rules"
+    );
+  }
+);
 
 test(
   "REV29-48 (plan item 983). (static) no customer-facing browse/list/detail query, and no Flutter/localization/Functions/index/config file, is touched by this Rules-only correction",
