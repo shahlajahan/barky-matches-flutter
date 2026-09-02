@@ -6806,19 +6806,78 @@ test(
   }
 );
 
+// The exact two-file scope every Revision 29 Rules-only implementation
+// commit is authorized to touch, sorted, compared byte-for-byte below.
+const REV29_AUTHORIZED_SCOPE = [
+  "firestore.rules",
+  "functions/test/marketplaceProductRules.test.js",
+].sort();
+
+// The owning commit of each scope assertion below — pinned by full SHA,
+// never by branch name, upstream state, or `HEAD`, so the assertion is
+// identical from the main checkout, a detached clean worktree, and CI.
+const REV29_NO_EXCEPTION_COMMIT = "bf620f8c0be8c1f5b5306edfa7f1b748f19350b4";
+const REV29_RESIDUAL_COMMIT = "3cab9b3db32ea1109aac1f65319077d789b2935d";
+
+// Clean-checkout scope verification, corrected. The original form of the
+// two assertions below read the *working-tree* diff against HEAD, which
+// was only ever true during the original uncommitted authoring session:
+// on any clean committed checkout (CI, a fresh clone, a detached
+// worktree) that diff is correctly empty, so both assertions failed
+// permanently for a reason that had nothing to do with Rules behaviour.
+// The intent — prove each implementation commit changed exactly the two
+// authorized files and nothing else — is preserved exactly, and is now
+// verified against committed history instead: `git diff-tree` against
+// the commit's own parent, which is deterministic, non-interactive,
+// network-free, and independent of both working-tree state and whichever
+// commit happens to be checked out.
+function committedChangedPaths(commitSha) {
+  const { execFileSync } = require("node:child_process");
+  // Pinned constants only — a malformed SHA is a test-authoring bug, and
+  // is rejected here rather than being passed to Git.
+  assert.match(
+    commitSha,
+    /^[0-9a-f]{40}$/,
+    `commit SHA must be a full 40-character hex object name: ${commitSha}`
+  );
+  const repoRoot = path.resolve(__dirname, "../..");
+  let raw;
+  try {
+    // execFileSync (no shell) — no quoting or interpolation concerns.
+    // `-r` recurses into subtrees so nested paths are listed in full;
+    // `--no-commit-id` suppresses the header line, leaving only paths.
+    raw = execFileSync(
+      "git",
+      ["-C", repoRoot, "diff-tree", "--no-commit-id", "--name-only", "-r", commitSha],
+      { encoding: "utf8" }
+    );
+  } catch (err) {
+    // A missing commit, a non-repository path, or any other Git failure
+    // must fail this test loudly — never degrade into an empty list that
+    // would silently satisfy a subset check.
+    assert.fail(
+      `git diff-tree failed for ${commitSha} (commit missing or repository unreadable): ${err.message}`
+    );
+  }
+  const paths = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+  assert.ok(
+    paths.length > 0,
+    `git diff-tree returned no paths for ${commitSha} — refusing to treat empty output as an in-scope result`
+  );
+  return paths;
+}
+
 test(
   "REV29-48 (plan item 983). (static) no customer-facing browse/list/detail query, and no Flutter/localization/Functions/index/config file, is touched by this Rules-only correction",
   () => {
-    const { execSync } = require("node:child_process");
-    const diffOutput = execSync(
-      "git -C " + path.resolve(__dirname, "../..") + " diff --name-only HEAD",
-      { encoding: "utf8" }
-    );
-    const changedFiles = diffOutput.split("\n").filter(Boolean);
     assert.deepEqual(
-      changedFiles.sort(),
-      ["firestore.rules", "functions/test/marketplaceProductRules.test.js"].sort(),
-      "exactly the two authorized files must be the only changed files"
+      committedChangedPaths(REV29_NO_EXCEPTION_COMMIT),
+      REV29_AUTHORIZED_SCOPE,
+      `commit ${REV29_NO_EXCEPTION_COMMIT} must have changed exactly the two authorized files`
     );
   }
 );
@@ -7514,16 +7573,10 @@ test(
 test(
   "REV29R-48 (residual correction). the complete set of git-changed files remains exactly the two authorized files, re-affirmed after the residual correction's own edits",
   () => {
-    const { execSync } = require("node:child_process");
-    const diffOutput = execSync(
-      "git -C " + path.resolve(__dirname, "../..") + " diff --name-only HEAD",
-      { encoding: "utf8" }
-    );
-    const changedFiles = diffOutput.split("\n").filter(Boolean);
     assert.deepEqual(
-      changedFiles.sort(),
-      ["firestore.rules", "functions/test/marketplaceProductRules.test.js"].sort(),
-      "exactly the two authorized files must be the only changed files"
+      committedChangedPaths(REV29_RESIDUAL_COMMIT),
+      REV29_AUTHORIZED_SCOPE,
+      `commit ${REV29_RESIDUAL_COMMIT} must have changed exactly the two authorized files`
     );
   }
 );
