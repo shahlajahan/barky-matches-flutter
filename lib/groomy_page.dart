@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 import 'package:barky_matches_fixed/services/business_search_matcher.dart';
+import 'package:barky_matches_fixed/utils/business_sector.dart';
 
 import 'app_state.dart' as app;
 import 'l10n/app_localizations.dart';
@@ -15,7 +16,10 @@ import 'ui/business/groomy/groomy_appointment_page.dart';
 import 'ui/business/business_card.dart';
 
 class GroomyPage extends StatefulWidget {
-  const GroomyPage({super.key});
+  const GroomyPage({super.key, this.firestore});
+
+  /// Injection seam for widget tests; production uses the shared singleton.
+  final FirebaseFirestore? firestore;
 
   @override
   State<GroomyPage> createState() => _GroomyPageState();
@@ -51,7 +55,7 @@ class _GroomyPageState extends State<GroomyPage>
         'businesses_public',
         'status == approved',
       );
-      final query = FirebaseFirestore.instance
+      final query = (widget.firestore ?? FirebaseFirestore.instance)
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       final snapshot = await query.get();
@@ -96,7 +100,9 @@ class _GroomyPageState extends State<GroomyPage>
 
   BusinessCardData? _mapGroomingBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};
-    if (!_isGroomingBusiness(root)) return null;
+    if (!BusinessSector.belongsToSector(root, BusinessSector.groomy)) {
+      return null;
+    }
 
     final profile = _map(root['profile']);
     final contact = _map(root['contact']);
@@ -202,26 +208,6 @@ class _GroomyPageState extends State<GroomyPage>
       rawData: root,
       data: root,
     );
-  }
-
-  bool _isGroomingBusiness(Map<String, dynamic> data) {
-    final profile = _map(data['profile']);
-    final sectorData = _map(data['publicSectorData']);
-    final raw = [
-      data['sector'],
-      data['sectors'],
-      data['businessType'],
-      data['category'],
-      data['type'],
-      profile['categories'],
-      profile['businessType'],
-      profile['category'],
-      profile['tags'],
-      sectorData.keys.join(' '),
-      sectorData.toString(),
-    ].join(' ').toLowerCase();
-
-    return raw.contains('groom') || raw.contains('kuaf');
   }
 
   Map<String, dynamic> _map(dynamic value) {

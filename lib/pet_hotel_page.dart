@@ -14,9 +14,13 @@ import 'ui/business/pet_hotel/pet_hotel_booking_page.dart';
 import 'package:barky_matches_fixed/ui/vet/vet_card.dart';
 import 'package:barky_matches_fixed/ui/vet/vet_card_data.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/utils/business_sector.dart';
 
 class PetHotelPage extends StatefulWidget {
-  const PetHotelPage({super.key});
+  const PetHotelPage({super.key, this.firestore});
+
+  /// Injection seam for widget tests; production uses the shared singleton.
+  final FirebaseFirestore? firestore;
 
   @override
   State<PetHotelPage> createState() => _PetHotelPageState();
@@ -52,7 +56,7 @@ class _PetHotelPageState extends State<PetHotelPage>
         'businesses_public',
         'status == approved',
       );
-      final query = FirebaseFirestore.instance
+      final query = (widget.firestore ?? FirebaseFirestore.instance)
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       final snapshot = await query.get();
@@ -95,7 +99,9 @@ class _PetHotelPageState extends State<PetHotelPage>
 
   VetCardData? _mapHotelBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};
-    if (!_isHotelBusiness(root)) return null;
+    if (!BusinessSector.belongsToSector(root, BusinessSector.petHotel)) {
+      return null;
+    }
 
     final profile = _map(root['profile']);
     final contact = _map(root['contact']);
@@ -202,30 +208,6 @@ class _PetHotelPageState extends State<PetHotelPage>
 
       rawData: root,
     );
-  }
-
-  bool _isHotelBusiness(Map<String, dynamic> data) {
-    final profile = _map(data['profile']);
-    final sectorData = _map(data['publicSectorData']);
-    final raw = [
-      data['sector'],
-      data['sectors'],
-      data['businessType'],
-      data['category'],
-      data['type'],
-      profile['categories'],
-      profile['businessType'],
-      profile['category'],
-      profile['tags'],
-      sectorData.keys.join(' '),
-      sectorData.toString(),
-    ].join(' ').toLowerCase();
-
-    return raw.contains('pet_hotel') ||
-        raw.contains('pet hotel') ||
-        raw.contains('hotel') ||
-        raw.contains('boarding') ||
-        raw.contains('pansiyon');
   }
 
   Map<String, dynamic> _map(dynamic value) {

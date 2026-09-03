@@ -37,7 +37,7 @@ abstract final class BusinessSector {
       'vet' || 'veterinary' || 'veterinaryclinic' || 'clinic' => vet,
       'groomy' || 'groomer' || 'grooming' || 'petgrooming' => groomy,
       'petshop' || 'seller' || 'petstore' => petShop,
-      'pethotel' || 'boarding' || 'petboarding' => petHotel,
+      'pethotel' || 'hotel' || 'boarding' || 'petboarding' => petHotel,
       'pettaxi' || 'taxi' => petTaxi,
       'adoptioncenter' || 'adoption' => adoptionCenter,
       'training' || 'trainer' || 'dogtraining' || 'pettraining' => training,
@@ -75,6 +75,46 @@ abstract final class BusinessSector {
     return _values(
       business['sectors'],
     ).any((value) => normalize(value) == canonical);
+  }
+
+  /// Returns true only when [business] authoritatively belongs to [canonical].
+  ///
+  /// Membership may be established by exactly two things:
+  ///
+  /// 1. the canonical `sectors` array, normalized through [normalize]; and
+  /// 2. a top-level key of the sector-detail map — `sectorData`, or its
+  ///    published mirror `publicSectorData` — that itself normalizes to
+  ///    [canonical]. This second source exists only so documents written
+  ///    before `sectors` became canonical stay visible in their own list.
+  ///
+  /// Values nested underneath those keys are never inspected, and neither is
+  /// any other field. A Pet Shop's `shopTypes: ['Grooming']`, its categories,
+  /// brands, tags, service names and free-text description are product data,
+  /// not sector membership: they must never place the shop in the Groomy
+  /// list. The same holds for a shop that merely mentions "hotel",
+  /// "boarding" or "pansiyon" somewhere in its own content.
+  static bool belongsToSector(Map<String, dynamic> business, String canonical) {
+    if (hasCanonicalSector(business, canonical)) return true;
+    return _sectorDataKeys(business).any((key) => normalize(key) == canonical);
+  }
+
+  /// Top-level sector keys across both stored representations.
+  ///
+  /// `businesses/{id}` stores sector details under `sectorData`; the public
+  /// projection republishes the same map as `publicSectorData`. Anything that
+  /// is not a map contributes no keys, so malformed documents fail closed.
+  static Iterable<String> _sectorDataKeys(Map<String, dynamic> business) {
+    final keys = <String>[];
+    for (final source in [
+      business['sectorData'],
+      business['publicSectorData'],
+    ]) {
+      if (source is! Map) continue;
+      for (final key in source.keys) {
+        keys.add(key.toString());
+      }
+    }
+    return keys;
   }
 
   static String rawValue(Map<String, dynamic> business) {
