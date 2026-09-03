@@ -25,18 +25,51 @@ class ImageUploadService {
     required File file,
     required String businessId,
     required Function(double progress) onProgress,
+  }) {
+    return _uploadCompressedJpeg(
+      file: file,
+      objectPath:
+          'business_gallery/$businessId/'
+          '${DateTime.now().millisecondsSinceEpoch}.jpg',
+      onProgress: onProgress,
+    );
+  }
+
+  /// Uploads a business cover image to `business_cover/{businessId}/`.
+  ///
+  /// Kept as a separate object namespace from the gallery — `storage.rules`
+  /// scopes each prefix to one business and the cover is a single replaceable
+  /// image rather than a gallery member — but it shares the identical
+  /// compression, naming and content-type contract, so the same
+  /// `hasAllowedBusinessImage()` validator governs both.
+  static Future<String> uploadBusinessCoverImage({
+    required File file,
+    required String businessId,
+    required Function(double progress) onProgress,
+  }) {
+    return _uploadCompressedJpeg(
+      file: file,
+      objectPath:
+          'business_cover/$businessId/'
+          '${DateTime.now().millisecondsSinceEpoch}.jpg',
+      onProgress: onProgress,
+    );
+  }
+
+  static Future<String> _uploadCompressedJpeg({
+    required File file,
+    required String objectPath,
+    required Function(double progress) onProgress,
   }) async {
     final compressedBytes = await _compressImage(file);
 
-    final ref = FirebaseStorage.instance.ref().child(
-      'business_gallery/$businessId/${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
+    final ref = FirebaseStorage.instance.ref().child(objectPath);
 
     // The content type must be declared explicitly. `putData` has no local
     // file to infer from, so the Firebase SDK falls back to
     // `application/octet-stream` (StorageUploadTask's
     // `MIMETypeForExtension(file?.pathExtension)` receives null), which
-    // `storage.rules`' `hasAllowedBusinessGalleryImage()` rejects. The
+    // `storage.rules`' `hasAllowedBusinessImage()` rejects. The
     // declaration is unconditionally truthful here: `_compressImage`
     // always returns `img.encodeJpg(...)` bytes, and the object name above
     // is always `.jpg`, so the declared type, the bytes and the extension

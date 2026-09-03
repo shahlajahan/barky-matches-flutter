@@ -82,11 +82,20 @@ service firebase.storage {
         );
     }
 
-    // Business gallery media. business_gallery/ previously had no matching
-    // rule at all and fell through to the deny-all at the bottom of this
-    // file, so every existing Vet / Groomy / Pet Hotel dashboard gallery
-    // upload was rejected in production. These two validators restore the
-    // path under the same owner-bound model products/ already uses.
+    // Business gallery and cover media. business_gallery/ and
+    // business_cover/ previously had no matching rule at all and fell
+    // through to the deny-all at the bottom of this file, so every existing
+    // Vet / Groomy / Pet Hotel dashboard gallery upload and the Vet cover
+    // image were rejected in production. These two validators restore both
+    // paths under the same owner-bound model products/ already uses.
+    //
+    // hasAllowedBusinessImage() is shared by the flat business_gallery/
+    // object path and by business_cover/: both receive exactly one
+    // ImageUploadService-produced still image per object, with identical
+    // compression, naming and content-type contracts, so a single validator
+    // is accurate rather than merely convenient. It is actor-agnostic — it
+    // constrains the object only — and authorization stays in each match
+    // block.
     //
     // They are deliberately split by object shape rather than reusing
     // hasAllowedMedia(): the flat business_gallery/{businessId}/{fileName}
@@ -104,7 +113,7 @@ service firebase.storage {
     // per-letter character classes rather than an inline (?i) flag so they
     // do not depend on whether the RE2 engine honors that flag; uppercase
     // extensions are common from iOS/Android camera rolls.
-    function hasAllowedBusinessGalleryImage() {
+    function hasAllowedBusinessImage() {
       return request.resource != null
         && request.resource.size > 0
         && request.resource.size <= 10485760
@@ -317,7 +326,7 @@ service firebase.storage {
         && (isBusinessOwner(businessId) || isAdmin());
       allow create, update: if isSignedIn()
         && isBusinessOwner(businessId)
-        && hasAllowedBusinessGalleryImage();
+        && hasAllowedBusinessImage();
       allow delete: if isSignedIn()
         && (isBusinessOwner(businessId) || isAdmin());
     }
@@ -328,6 +337,25 @@ service firebase.storage {
       allow create, update: if isSignedIn()
         && isBusinessOwner(businessId)
         && hasAllowedBusinessGalleryVideo();
+      allow delete: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+    }
+
+    // Business cover image. Same owner-bound contract, same object
+    // validator and the same read boundary as the gallery block above —
+    // only the namespace differs, because the cover is a single replaceable
+    // image rather than a gallery member. {fileName} binds exactly one
+    // segment, so no nested object can be written here, and video is
+    // rejected: hasAllowedBusinessImage() has no video content type.
+    // Registration-time uploads remain denied for the same reason as the
+    // gallery — isBusinessOwner() requires the canonical business document
+    // to already exist.
+    match /business_cover/{businessId}/{fileName} {
+      allow read: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+      allow create, update: if isSignedIn()
+        && isBusinessOwner(businessId)
+        && hasAllowedBusinessImage();
       allow delete: if isSignedIn()
         && (isBusinessOwner(businessId) || isAdmin());
     }

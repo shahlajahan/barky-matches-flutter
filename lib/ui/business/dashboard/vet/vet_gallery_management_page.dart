@@ -282,13 +282,17 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
 
       final file = File(picked.path);
 
-      final storageRef = FirebaseStorage.instance.ref().child(
-        'business_cover/${widget.businessId}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      // Same correction as _addPhoto above: a direct putFile declares the
+      // content type from the *local* file's extension, and image_picker
+      // emits PNG bytes whenever the picked bitmap has an alpha channel,
+      // so a `.jpg` object could arrive declared as `image/png` and be
+      // rejected by hasAllowedBusinessImage(). The shared service
+      // re-encodes to JPEG and declares `image/jpeg`.
+      final url = await ImageUploadService.uploadBusinessCoverImage(
+        file: file,
+        businessId: widget.businessId,
+        onProgress: (_) {},
       );
-
-      await storageRef.putFile(file);
-
-      final url = await storageRef.getDownloadURL();
 
       final snapshot = await _businessRef.get();
 
