@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/debug/auth_boot_trace.dart';
 import 'l10n/app_localizations.dart';
 import 'welcome_page.dart';
 import 'home_gate.dart';
@@ -33,6 +34,22 @@ class AppEntry extends StatelessWidget {
     debugPrint('🧨 AppEntry.build');
 
     final appState = context.watch<AppState>();
+
+    AuthBootTrace.record(
+      'app_entry_route',
+      data: <String, Object?>{
+        'phase': appState.authRestorationPhase.name,
+        'profileReady': appState.isUserProfileReady,
+        'isGuest': appState.isGuest,
+        'destination': switch (appState.authRestorationPhase) {
+          AuthRestorationPhase.restoring => 'loading',
+          AuthRestorationPhase.failed => 'startup_error',
+          AuthRestorationPhase.unauthenticated => 'welcome',
+          AuthRestorationPhase.authenticated =>
+            appState.isUserProfileReady ? 'home_gate' : 'loading_profile',
+        },
+      },
+    );
 
     switch (appState.authRestorationPhase) {
       // Unknown, still in progress: keep the existing launch presentation.

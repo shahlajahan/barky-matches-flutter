@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'core/debug/auth_boot_trace.dart';
 import 'dart:async';
 import 'dog.dart';
 import 'notification_service.dart';
@@ -1197,6 +1199,10 @@ class AppState with ChangeNotifier {
     }
 
     debugPrint('🔐 AUTH RESTORATION → ${phase.name} ($reason)');
+    AuthBootTrace.record(
+      'auth_restoration_phase',
+      data: <String, Object?>{'phase': phase.name, 'reason': reason},
+    );
     notifyListeners();
   }
 
@@ -2631,6 +2637,14 @@ class AppState with ChangeNotifier {
       debugPrint('🌐 PASSIVE AUTH OBSERVER ACTIVE');
     }
 
+    AuthBootTrace.record(
+      'auth_listener_subscribe',
+      data: <String, Object?>{
+        'minimalMode': AuthTrap.authProbeMinimalMode,
+        'startupCurrentUserPresent': _currentUser() != null,
+      },
+    );
+
     final authEvents =
         authEventsOverride?.call() ??
         (AuthTrap.authProbeMinimalMode
@@ -2639,6 +2653,11 @@ class AppState with ChangeNotifier {
 
     _authSub = authEvents.listen(
       (user) {
+        AuthBootTrace.recordAuthEvent(
+          user,
+          sdkCurrentUserPresent: _currentUser() != null,
+        );
+
         // A successful emission — the only thing that may establish a
         // confirmed outcome. Recorded before the branches below, all of which
         // can return early.
@@ -2763,6 +2782,10 @@ class AppState with ChangeNotifier {
         // outcome that outcome is preserved, and if it had not, the state
         // becomes `failed` (unknown + retryable), never `unauthenticated`.
         // No signOut() is performed here.
+        AuthBootTrace.record(
+          'auth_stream_error',
+          data: <String, Object?>{'errorType': e.runtimeType.toString()},
+        );
         _markAuthRestorationFailed(reason: 'auth stream error');
       },
     );

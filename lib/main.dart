@@ -56,6 +56,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
+import 'core/debug/auth_boot_trace.dart';
 import 'core/debug/diagnostics_bootstrap.dart';
 import 'core/debug/diagnostics_queue.dart';
 import 'core/debug/diagnostics_uploader.dart';
@@ -906,9 +907,9 @@ Future<AppointmentNotificationNavigationDecision> _handleNotificationTapGuarded(
   final l10n = context == null ? null : AppLocalizations.of(context);
   void showMessage(String? message) {
     if (context == null || message == null) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   return appState.handleNotificationTapGuarded(
@@ -1087,9 +1088,15 @@ void main() async {
 
   DiagnosticsQueue().enablePersistence();
   await DiagnosticsBootstrap.initialize();
+
+  // Durable cold-start auth trace. Opened before Firebase so the restore
+  // interval — which is over before `flutter logs` can attach — is captured.
+  await AuthBootTrace.initialize();
   GoogleFonts.config.allowRuntimeFetching = true;
   //await waitForInternet();
+  AuthBootTrace.record('firebase_init_start');
   await ensureFirebaseInitialized();
+  AuthBootTrace.recordCurrentUserSnapshot('after_firebase_init');
   if (!kIsWeb) {
     unawaited(
       MobileAdvertisingService.instance.initialize(
@@ -1285,6 +1292,10 @@ void main() async {
   // device locale, else English. Doing this here (rather than after runApp)
   // means the app never paints English first and then switches.
   final String initialLanguageCode = await AppState.loadInitialLanguageCode();
+
+  // Emitted again after launch so the operator can attach `flutter logs`
+  // once the app has already reached its startup destination.
+  AuthBootTrace.scheduleDumps();
 
   runApp(
     MultiProvider(

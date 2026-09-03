@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../core/debug/auth_boot_trace.dart';
 import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/firestore_recovery.dart';
 
@@ -400,6 +402,19 @@ class AuthTrap {
     }
 
     debugPrint('SIGNOUT → $reason | uid=${user.uid}');
+    AuthBootTrace.record(
+      'signout',
+      data: <String, Object?>{
+        'reason': reason,
+        'uid': AuthBootTrace.redactUid(user.uid),
+        'caller': StackTrace.current
+            .toString()
+            .split('\n')
+            .skip(1)
+            .take(3)
+            .join(' | '),
+      },
+    );
 
     try {
       await FirebaseAuth.instance.signOut().timeout(
