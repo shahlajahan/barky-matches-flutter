@@ -13,6 +13,7 @@ import 'dog.dart';
 import 'terms_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/core/debug/auth_boot_trace.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
@@ -2267,6 +2268,7 @@ class _AuthPageState extends State<AuthPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     debugPrint('AuthPage - Building UI (isLogin: $_isLogin) - Versioning');
+    AuthBootTrace.record('auth_page_build');
 
     const Color primaryPink = Colors.pink;
     const Color accentYellow = Color(0xFFFFC107);

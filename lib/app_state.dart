@@ -2664,7 +2664,7 @@ class AppState with ChangeNotifier {
         if (user != null) {
           _setAuthRestorationPhase(
             AuthRestorationPhase.authenticated,
-            reason: 'auth event uid=${user.uid}',
+            reason: 'auth event ${AuthBootTrace.redactUid(user.uid)}',
           );
         } else if (_currentUser() == null) {
           _setAuthRestorationPhase(

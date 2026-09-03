@@ -65,11 +65,20 @@ void main() {
     });
 
     test('long strings are truncated rather than stored whole', () {
+      // Deliberately not identifier-like (spaces), so this exercises
+      // truncation rather than the identifier scrubber.
+      AuthBootTrace.record('x', data: <String, Object?>{'v': 'word ' * 200});
+
+      final stored = AuthBootTrace.currentEvents.single['data']['v'] as String;
+      expect(stored.length, lessThan(1000));
+      expect(stored, endsWith('…'));
+    });
+
+    test('identifier-like values are scrubbed before truncation', () {
       AuthBootTrace.record('x', data: <String, Object?>{'v': 'a' * 500});
 
       final stored = AuthBootTrace.currentEvents.single['data']['v'] as String;
-      expect(stored.length, lessThan(500));
-      expect(stored, endsWith('…'));
+      expect(stored, '<redacted>');
     });
 
     test('non-primitive values are reduced to a type name', () {

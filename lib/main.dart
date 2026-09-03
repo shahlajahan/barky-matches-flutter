@@ -56,6 +56,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
+import 'app_entry.dart';
 import 'core/debug/auth_boot_trace.dart';
 import 'core/debug/diagnostics_bootstrap.dart';
 import 'core/debug/diagnostics_queue.dart';
@@ -1364,16 +1365,6 @@ void main() async {
     ),
   );
   debugPrint('🧨 startAuthListener fired');
-}
-
-class AppEntry extends StatelessWidget {
-  const AppEntry({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // طبق خواسته‌ات: همیشه اول Welcome (Greeting)
-    return const WelcomePage();
-  }
 }
 
 class MyApp extends StatefulWidget {

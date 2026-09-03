@@ -12,6 +12,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/welcome/preview_dogs_section.dart';
 import 'theme/app_theme.dart';
 import 'package:barky_matches_fixed/app_state.dart' as app;
+import 'package:barky_matches_fixed/core/debug/auth_boot_trace.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
@@ -378,6 +379,16 @@ Future<void> debugFirestoreRestOffers() async {
 
   @override
   Widget build(BuildContext context) {
+    // Presentation marker: proves in the durable trace whether the
+    // signed-out entry point was actually rendered, and under which
+    // restoration phase.
+    AuthBootTrace.record(
+      'welcome_page_build',
+      data: <String, Object?>{
+        'phase': context.read<app.AppState>().authRestorationPhase.name,
+      },
+    );
+
     final appState = context.read<app.AppState>();
 
     final favoriteDogs = appState.favoriteDogsNotifier.value;

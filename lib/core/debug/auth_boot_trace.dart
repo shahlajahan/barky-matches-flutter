@@ -195,6 +195,18 @@ class AuthBootTrace {
     return 'uid#${digest.substring(0, 12)}';
   }
 
+  /// Anything that looks like an opaque identifier — a Firebase UID is 28
+  /// alphanumeric characters — is scrubbed from free-text values.
+  ///
+  /// Call sites are expected to pass [redactUid] output, but a reason string
+  /// or message can be composed anywhere in the codebase, so the guarantee is
+  /// enforced here rather than trusted upstream. `uid#<12 hex>` digests are
+  /// shorter than the threshold and survive.
+  static final RegExp _identifierLike = RegExp(r'[A-Za-z0-9_-]{20,}');
+
+  static String scrubIdentifiers(String value) =>
+      value.replaceAll(_identifierLike, '<redacted>');
+
   /// Copies only primitives, and truncates strings. Anything else is recorded
   /// as its type name, so an unexpected object cannot leak its contents.
   static Map<String, dynamic> _sanitize(Map<String, Object?> data) {
@@ -203,13 +215,15 @@ class AuthBootTrace {
       if (value == null || value is bool || value is num) {
         safe[key] = value;
       } else if (value is String) {
-        safe[key] = value.length <= _maxValueLength
-            ? value
-            : '${value.substring(0, _maxValueLength)}…';
+        final scrubbed = scrubIdentifiers(value);
+        safe[key] = scrubbed.length <= _maxValueLength
+            ? scrubbed
+            : '${scrubbed.substring(0, _maxValueLength)}…';
       } else if (value is List) {
         safe[key] = value
             .whereType<String>()
             .take(10)
+            .map(scrubIdentifiers)
             .map(
               (e) => e.length <= _maxValueLength
                   ? e
