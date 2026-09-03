@@ -52,6 +52,10 @@ void main() {
   late StreamController<User?> authEvents;
   late List<AppState> created;
 
+  /// Counts how many times the auth stream was subscribed to, so a retry can
+  /// be proven to *replace* rather than accumulate listeners.
+  late int subscribeCount;
+
   // AppState's auth listener logs FirebaseAuth.instance state on the event
   // path; core mocks let that resolve without a real app. Auth *decisions*
   // still come only from the injected stream/currentUser seams.
@@ -64,6 +68,7 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     authEvents = StreamController<User?>.broadcast();
     created = <AppState>[];
+    subscribeCount = 0;
   });
 
   tearDown(() async {
@@ -85,11 +90,17 @@ void main() {
       notificationService: NotificationService(),
       currentUserId: null,
     );
-    state.authEventsOverride = () => authEvents.stream;
+    state.authEventsOverride = () {
+      subscribeCount++;
+      return authEvents.stream;
+    };
     // Restoration + routing only; downstream session coordination reaches the
     // real Firebase singletons and is Phase 4/5 scope.
     state.debugSkipAuthenticatedSessionCoordination = true;
     state.currentUserOverride = () => currentUser;
+    // Per-instance: keeps plain (non-fake-async) tests fast without touching
+    // production's 10s default.
+    state.authRestorationTimeout = const Duration(milliseconds: 50);
     created.add(state);
     return state;
   }
@@ -219,6 +230,11 @@ void main() {
         isTrue,
         reason: 'an error is not a sign-out',
       );
+      expect(
+        appState.authRestorationPhase,
+        AuthRestorationPhase.authenticated,
+        reason: 'a confirmed outcome survives a later error',
+      );
     });
 
     testWidgets('a missed initial event settles via the defensive timeout', (
@@ -230,7 +246,7 @@ void main() {
 
       // Correctness never depends on this delay: it only stops the app from
       // waiting forever if the stream never speaks.
-      await tester.pump(AppState.authRestorationTimeout);
+      await tester.pump(appState.authRestorationTimeout);
       await tester.pump();
 
       expect(appState.authRestorationSettled, isTrue);
@@ -239,6 +255,12 @@ void main() {
         isFalse,
         reason: 'timeout must not invent an authenticated user',
       );
+      expect(
+        appState.authRestorationPhase,
+        AuthRestorationPhase.failed,
+        reason: 'a timeout is unknown, not confirmed signed out',
+      );
+      expect(appState.hasConfirmedNoAuthUser, isFalse);
 
       appState.dispose();
     });
@@ -309,7 +331,11 @@ void main() {
     testWidgets('shows loading while restoring, never WelcomePage', (
       tester,
     ) async {
-      final appState = buildAppState()..startAuthListener();
+      final appState = buildAppState();
+      // Must remain `restoring` across the frames pumped below, so the
+      // liveness guard must outlast them.
+      appState.authRestorationTimeout = const Duration(seconds: 30);
+      appState.startAuthListener();
       await tester.pumpWidget(harness(appState));
 
       // Pump several frames while the stream is deliberately silent.
@@ -412,6 +438,390 @@ void main() {
       await tester.pump();
 
       expect(appState.hasRestoredAuthUser, isTrue);
+      expect(find.byType(WelcomePage), findsNothing);
+
+      appState.dispose();
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // Residual correction: a failed/unknown restoration is NOT a sign-out.
+  //
+  // Previously an error or timeout before the first successful emission set
+  // settled=true while hasUser stayed false, which AppEntry read as confirmed
+  // signed out and rendered WelcomePage.
+  // ───────────────────────────────────────────────────────────────────
+  group('restoration failure is not a sign-out', () {
+    Widget harness(AppState appState) {
+      return ChangeNotifierProvider<AppState>.value(
+        value: appState,
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const AppEntry(),
+        ),
+      );
+    }
+
+    test(
+      'an initial stream error yields failed, not unauthenticated',
+      () async {
+        final appState = buildAppState()..startAuthListener();
+
+        authEvents.addError(StateError('cannot reach auth backend'));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(appState.authRestorationPhase, AuthRestorationPhase.failed);
+        expect(
+          appState.hasConfirmedNoAuthUser,
+          isFalse,
+          reason: 'an error must never confirm a signed-out state',
+        );
+        expect(appState.hasRestoredAuthUser, isFalse);
+        expect(
+          appState.currentUserId,
+          isNull,
+          reason: 'no session state was cleared, i.e. no signOut happened',
+        );
+      },
+    );
+
+    test('an initial timeout yields failed, not unauthenticated', () async {
+      final appState = buildAppState()..startAuthListener();
+
+      await Future<void>.delayed(Duration.zero);
+      expect(appState.authRestorationPhase, AuthRestorationPhase.restoring);
+    });
+
+    testWidgets('an initial stream error never renders WelcomePage', (
+      tester,
+    ) async {
+      final appState = buildAppState()..startAuthListener();
+      await tester.pumpWidget(harness(appState));
+      await tester.pump();
+
+      authEvents.addError(StateError('cannot reach auth backend'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.byType(WelcomePage),
+        findsNothing,
+        reason: 'unknown restoration must not look like a sign-out',
+      );
+
+      appState.dispose();
+    });
+
+    testWidgets('an initial stream error renders a retryable error state', (
+      tester,
+    ) async {
+      final appState = buildAppState()..startAuthListener();
+      await tester.pumpWidget(harness(appState));
+      await tester.pump();
+
+      authEvents.addError(StateError('cannot reach auth backend'));
+      await tester.pump();
+      await tester.pump();
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      expect(find.text(l10n.somethingWentWrong), findsOneWidget);
+      expect(
+        find.widgetWithText(ElevatedButton, l10n.retryButton),
+        findsOneWidget,
+      );
+
+      appState.dispose();
+    });
+
+    testWidgets(
+      'an initial timeout never renders WelcomePage and offers retry',
+      (tester) async {
+        final appState = buildAppState()..startAuthListener();
+        await tester.pumpWidget(harness(appState));
+        await tester.pump();
+
+        await tester.pump(appState.authRestorationTimeout);
+        await tester.pump();
+
+        expect(appState.authRestorationPhase, AuthRestorationPhase.failed);
+        expect(
+          find.byType(WelcomePage),
+          findsNothing,
+          reason: 'a timeout is unknown, not confirmed signed out',
+        );
+
+        final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+        expect(find.text(l10n.somethingWentWrong), findsOneWidget);
+        expect(
+          find.widgetWithText(ElevatedButton, l10n.retryButton),
+          findsOneWidget,
+        );
+
+        appState.dispose();
+      },
+    );
+
+    test(
+      'an error after a confirmed authenticated state preserves it',
+      () async {
+        final appState = buildAppState()..startAuthListener();
+
+        authEvents.add(_FakeUser('uid-1'));
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          appState.authRestorationPhase,
+          AuthRestorationPhase.authenticated,
+        );
+
+        authEvents.addError(StateError('later transient failure'));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          appState.authRestorationPhase,
+          AuthRestorationPhase.authenticated,
+          reason: 'a confirmed outcome is never downgraded by a later error',
+        );
+        expect(appState.hasRestoredAuthUser, isTrue);
+      },
+    );
+
+    test(
+      'an error after a confirmed unauthenticated state preserves it',
+      () async {
+        final appState = buildAppState()..startAuthListener();
+
+        authEvents.add(null);
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          appState.authRestorationPhase,
+          AuthRestorationPhase.unauthenticated,
+        );
+
+        authEvents.addError(StateError('later transient failure'));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          appState.authRestorationPhase,
+          AuthRestorationPhase.unauthenticated,
+          reason: 'an error must not manufacture an authenticated session',
+        );
+      },
+    );
+  });
+
+  group('retry lifecycle', () {
+    Future<AppState> failedState() async {
+      final appState = buildAppState()..startAuthListener();
+      authEvents.addError(StateError('initial failure'));
+      await Future<void>.delayed(Duration.zero);
+      expect(appState.authRestorationPhase, AuthRestorationPhase.failed);
+      return appState;
+    }
+
+    test('retry resubscribes exactly once and returns to restoring', () async {
+      final appState = await failedState();
+      expect(subscribeCount, 1);
+
+      appState.retryAuthRestoration();
+
+      expect(subscribeCount, 2, reason: 'replaced, not duplicated');
+      expect(appState.authRestorationPhase, AuthRestorationPhase.restoring);
+    });
+
+    test('repeated retries never accumulate subscriptions', () async {
+      final appState = await failedState();
+
+      for (var i = 0; i < 4; i++) {
+        appState.retryAuthRestoration();
+      }
+
+      // One initial + four retries; each retry cancelled the previous.
+      expect(subscribeCount, 5);
+
+      // A single event still produces exactly one authenticated transition.
+      var transitions = 0;
+      var lastPhase = appState.authRestorationPhase;
+      appState.addListener(() {
+        final phase = appState.authRestorationPhase;
+        if (phase != lastPhase) {
+          lastPhase = phase;
+          if (phase == AuthRestorationPhase.authenticated) transitions++;
+        }
+      });
+      authEvents.add(_FakeUser('uid-1'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(appState.authRestorationPhase, AuthRestorationPhase.authenticated);
+      expect(
+        transitions,
+        1,
+        reason: 'duplicate listeners would notify more than once',
+      );
+    });
+
+    test('retry then an authenticated user routes correctly', () async {
+      final appState = await failedState();
+      appState.retryAuthRestoration();
+
+      authEvents.add(_FakeUser('uid-1'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(appState.authRestorationPhase, AuthRestorationPhase.authenticated);
+    });
+
+    test('retry then an anonymous user restores guest mode', () async {
+      final appState = await failedState();
+      appState.retryAuthRestoration();
+
+      authEvents.add(_FakeUser('anon-1', isAnonymous: true));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(appState.authRestorationPhase, AuthRestorationPhase.authenticated);
+      expect(appState.isGuest, isTrue);
+    });
+
+    test('retry then a confirmed null becomes unauthenticated', () async {
+      final appState = await failedState();
+      appState.retryAuthRestoration();
+
+      authEvents.add(null);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        appState.authRestorationPhase,
+        AuthRestorationPhase.unauthenticated,
+      );
+      expect(appState.hasConfirmedNoAuthUser, isTrue);
+    });
+
+    testWidgets('retry replaces the old timeout rather than stacking one', (
+      tester,
+    ) async {
+      final appState = buildAppState()..startAuthListener();
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppState>.value(
+          value: appState,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const AppEntry(),
+          ),
+        ),
+      );
+
+      // First timeout fires -> failed.
+      await tester.pump(appState.authRestorationTimeout);
+      await tester.pump();
+      expect(appState.authRestorationPhase, AuthRestorationPhase.failed);
+
+      // Widen the guard for the retry window so the assertions below observe
+      // `restoring` rather than a second immediate expiry.
+      appState.authRestorationTimeout = const Duration(seconds: 30);
+
+      appState.retryAuthRestoration();
+      await tester.pump();
+      expect(appState.authRestorationPhase, AuthRestorationPhase.restoring);
+
+      // A successful emission well inside the fresh window settles it, and the
+      // old timer must not later drag it back to failed.
+      authEvents.add(_FakeUser('uid-1'));
+      await tester.pump();
+      expect(appState.authRestorationPhase, AuthRestorationPhase.authenticated);
+
+      await tester.pump(const Duration(seconds: 60));
+      expect(
+        appState.authRestorationPhase,
+        AuthRestorationPhase.authenticated,
+        reason: 'a stale timer must not reopen a settled state',
+      );
+
+      appState.dispose();
+    });
+
+    testWidgets('dispose from a failed state leaves no pending timer', (
+      tester,
+    ) async {
+      final appState = buildAppState()..startAuthListener();
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppState>.value(
+          value: appState,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const AppEntry(),
+          ),
+        ),
+      );
+
+      authEvents.addError(StateError('initial failure'));
+      await tester.pump();
+      expect(appState.authRestorationPhase, AuthRestorationPhase.failed);
+
+      appState.dispose();
+
+      // Emitting after dispose must not notify a disposed AppState.
+      authEvents.add(_FakeUser('uid-1'));
+      await tester.pump();
+      expect(appState.isDisposed, isTrue);
+    });
+
+    testWidgets('dispose while still restoring leaves no pending timer', (
+      tester,
+    ) async {
+      final appState = buildAppState()..startAuthListener();
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppState>.value(
+          value: appState,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const AppEntry(),
+          ),
+        ),
+      );
+
+      expect(appState.authRestorationPhase, AuthRestorationPhase.restoring);
+      appState.dispose();
+      await tester.pump();
+
+      expect(appState.isDisposed, isTrue);
+    });
+
+    testWidgets('tapping retry in the error UI re-runs restoration', (
+      tester,
+    ) async {
+      final appState = buildAppState()..startAuthListener();
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppState>.value(
+          value: appState,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const AppEntry(),
+          ),
+        ),
+      );
+
+      authEvents.addError(StateError('initial failure'));
+      await tester.pump();
+      await tester.pump();
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      appState.authRestorationTimeout = const Duration(seconds: 30);
+      await tester.tap(find.widgetWithText(ElevatedButton, l10n.retryButton));
+      await tester.pump();
+      await tester.pump();
+
+      expect(subscribeCount, 2, reason: 'retry resubscribed');
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(WelcomePage), findsNothing);
+
+      authEvents.add(_FakeUser('uid-1'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(appState.authRestorationPhase, AuthRestorationPhase.authenticated);
       expect(find.byType(WelcomePage), findsNothing);
 
       appState.dispose();

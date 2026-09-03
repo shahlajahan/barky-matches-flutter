@@ -93,6 +93,29 @@ enum BusinessSubPage {
 
 enum HomeOverlay { none, parkPlaydateEntry, notifications }
 
+/// Outcome of restoring a persisted Firebase session at startup.
+///
+/// A single value rather than a pair of booleans, so the invalid combinations
+/// are unrepresentable by construction: restoration cannot be simultaneously
+/// restoring and failed, nor authenticated and unauthenticated, and a failure
+/// can never be read as a confirmed sign-out.
+enum AuthRestorationPhase {
+  /// No auth event has arrived yet and nothing has failed.
+  restoring,
+
+  /// A Firebase user (including an anonymous/guest user) is present.
+  authenticated,
+
+  /// The auth stream successfully emitted null — a real signed-out state.
+  /// This is the only outcome that may route to WelcomePage.
+  unauthenticated,
+
+  /// The stream errored, or the defensive timeout fired, before any
+  /// successful emission. The user's actual auth state is still unknown, so
+  /// this must never be treated as signed out.
+  failed,
+}
+
 enum StartupPhase {
   coldStart,
   firebaseInitialized,
@@ -1108,37 +1131,116 @@ class AppState with ChangeNotifier {
   // auth stream has spoken yet* and *what it last said*; every existing
   // guest/blocked/suspended/profile-completion rule is untouched.
 
-  bool _authRestorationSettled = false;
+  AuthRestorationPhase _authRestorationPhase = AuthRestorationPhase.restoring;
 
-  /// False until the auth stream delivers its first event. While false the
-  /// startup UI must show the launch/loading presentation — never WelcomePage
-  /// and never an authenticated page.
-  bool get authRestorationSettled => _authRestorationSettled;
+  /// The authoritative startup auth outcome. Routing switches on this.
+  AuthRestorationPhase get authRestorationPhase => _authRestorationPhase;
 
-  bool _hasRestoredAuthUser = false;
+  /// True once restoration has reached any terminal outcome — including
+  /// [AuthRestorationPhase.failed]. Deliberately *not* a permission to show
+  /// WelcomePage: only [hasConfirmedNoAuthUser] grants that.
+  bool get authRestorationSettled =>
+      _authRestorationPhase != AuthRestorationPhase.restoring;
 
-  /// The last settled auth-stream value: true when a Firebase user (including
-  /// an anonymous/guest user) is present. Maintained from the stream event
-  /// itself rather than by re-reading the singleton.
-  bool get hasRestoredAuthUser => _hasRestoredAuthUser;
+  /// A Firebase user (including anonymous/guest) is present.
+  bool get hasRestoredAuthUser =>
+      _authRestorationPhase == AuthRestorationPhase.authenticated;
 
-  Timer? _authRestorationTimeout;
+  /// The auth stream successfully reported "no user". This is the only state
+  /// that may route to WelcomePage — a failure or timeout must not.
+  bool get hasConfirmedNoAuthUser =>
+      _authRestorationPhase == AuthRestorationPhase.unauthenticated;
+
+  /// Restoration could not be determined. The user's real state is unknown,
+  /// so the UI offers a retry rather than assuming they are signed out.
+  bool get authRestorationFailed =>
+      _authRestorationPhase == AuthRestorationPhase.failed;
+
+  Timer? _authRestorationTimeoutTimer;
 
   /// Defensive liveness guard only. Firebase reliably emits an initial event,
   /// but a missed event must not strand the app on a splash screen forever.
   /// This never decides *whether* a user is authenticated — it only stops
-  /// waiting, after which the ordinary settled logic applies.
-  static const Duration authRestorationTimeout = Duration(seconds: 10);
+  /// waiting, and the resulting state is `failed` (unknown, retryable), never
+  /// `unauthenticated`.
+  static const Duration defaultAuthRestorationTimeout = Duration(seconds: 10);
 
-  void _markAuthRestorationSettled({required String reason}) {
-    if (_authRestorationSettled) return;
+  Duration _authRestorationTimeout = defaultAuthRestorationTimeout;
 
-    _authRestorationSettled = true;
-    _authRestorationTimeout?.cancel();
-    _authRestorationTimeout = null;
+  /// The active liveness-guard duration. Per-instance rather than a mutable
+  /// global, so a test shortening it cannot leak into another test or into
+  /// production.
+  Duration get authRestorationTimeout => _authRestorationTimeout;
 
-    debugPrint('🔐 AUTH RESTORATION SETTLED → $reason');
+  @visibleForTesting
+  set authRestorationTimeout(Duration value) => _authRestorationTimeout = value;
+
+  void _setAuthRestorationPhase(
+    AuthRestorationPhase phase, {
+    required String reason,
+  }) {
+    if (_disposed || _authRestorationPhase == phase) return;
+
+    _authRestorationPhase = phase;
+
+    // Any terminal outcome makes the liveness guard redundant.
+    if (phase != AuthRestorationPhase.restoring) {
+      _authRestorationTimeoutTimer?.cancel();
+      _authRestorationTimeoutTimer = null;
+    }
+
+    debugPrint('🔐 AUTH RESTORATION → ${phase.name} ($reason)');
     notifyListeners();
+  }
+
+  /// Records that restoration could not be determined.
+  ///
+  /// Only an in-progress restoration can fail: once the stream has
+  /// successfully reported a user or a genuine null, that confirmed outcome is
+  /// preserved and a later error/timeout changes nothing. This is what keeps a
+  /// failure from ever being read as a sign-out.
+  void _markAuthRestorationFailed({required String reason}) {
+    if (_authRestorationPhase != AuthRestorationPhase.restoring) {
+      debugPrint(
+        '🔐 AUTH RESTORATION failure ignored ($reason) → '
+        'keeping ${_authRestorationPhase.name}',
+      );
+      return;
+    }
+
+    _setAuthRestorationPhase(AuthRestorationPhase.failed, reason: reason);
+  }
+
+  /// Re-attempts restoration after a failure.
+  ///
+  /// Replaces — never duplicates — the subscription and the liveness timer, so
+  /// repeated retries cannot accumulate listeners or timers.
+  /// Synchronous by design: the UI returns to the loading state on the same
+  /// frame as the tap, and there is no async gap during which a second retry
+  /// could start a parallel subscription.
+  ///
+  /// The previous subscription is cancelled without awaiting completion —
+  /// `cancel()` stops event delivery immediately, so the dropped subscription
+  /// cannot route a late event — and `_authSub` is cleared first so
+  /// [startAuthListener] subscribes exactly once.
+  void retryAuthRestoration() {
+    if (_disposed) return;
+
+    debugPrint('🔐 AUTH RESTORATION retry requested');
+
+    final previous = _authSub;
+    _authSub = null;
+    unawaited(previous?.cancel() ?? Future<void>.value());
+
+    _authRestorationTimeoutTimer?.cancel();
+    _authRestorationTimeoutTimer = null;
+
+    _setAuthRestorationPhase(
+      AuthRestorationPhase.restoring,
+      reason: 'retry requested',
+    );
+
+    startAuthListener();
   }
 
   StartupPhase _startupPhase = StartupPhase.coldStart;
@@ -2502,10 +2604,10 @@ class AppState with ChangeNotifier {
 
     // Starts the moment we begin listening, so a stream that never delivers
     // its initial event cannot leave startup stuck in `restoring` forever.
-    _authRestorationTimeout?.cancel();
-    _authRestorationTimeout = Timer(authRestorationTimeout, () {
+    _authRestorationTimeoutTimer?.cancel();
+    _authRestorationTimeoutTimer = Timer(_authRestorationTimeout, () {
       if (_disposed) return;
-      _markAuthRestorationSettled(reason: 'timeout — no initial auth event');
+      _markAuthRestorationFailed(reason: 'timeout — no initial auth event');
     });
 
     debugPrint('🧨 startAuthListener INITIALIZED');
@@ -2530,16 +2632,27 @@ class AppState with ChangeNotifier {
 
     _authSub = authEvents.listen(
       (user) {
-        // The auth stream has spoken: startup may stop waiting. Recorded
-        // before any of the branches below, all of which can return early.
+        // A successful emission — the only thing that may establish a
+        // confirmed outcome. Recorded before the branches below, all of which
+        // can return early.
         if (user != null) {
-          _hasRestoredAuthUser = true;
+          _setAuthRestorationPhase(
+            AuthRestorationPhase.authenticated,
+            reason: 'auth event uid=${user.uid}',
+          );
         } else if (_currentUser() == null) {
-          // A null event while the SDK still holds a user is the transient
-          // "false null" handled below — do not report the user as gone.
-          _hasRestoredAuthUser = false;
+          _setAuthRestorationPhase(
+            AuthRestorationPhase.unauthenticated,
+            reason: 'auth event reported no user',
+          );
+        } else {
+          // "False null": the stream said null while the SDK still holds a
+          // user. Not a sign-out — the session is intact.
+          _setAuthRestorationPhase(
+            AuthRestorationPhase.authenticated,
+            reason: 'false null while SDK still holds a user',
+          );
         }
-        _markAuthRestorationSettled(reason: 'auth event uid=${user?.uid}');
 
         debugPrint(
           'AUTH STATE CHANGED → user=${user?.uid ?? "NULL"} source=${AuthTrap.authProbeMinimalMode ? "authStateChanges" : "idTokenChanges"}',
@@ -2639,10 +2752,11 @@ class AppState with ChangeNotifier {
       },
       onError: (e, stack) {
         debugPrint('⚠️ idTokenChanges listener error → $e');
-        // Settle so startup does not hang on the splash. The stream error is
-        // not treated as a sign-out: `_hasRestoredAuthUser` keeps whatever the
-        // last real event said, and no signOut() is performed here.
-        _markAuthRestorationSettled(reason: 'auth stream error');
+        // Never a sign-out: if restoration had already confirmed an
+        // outcome that outcome is preserved, and if it had not, the state
+        // becomes `failed` (unknown + retryable), never `unauthenticated`.
+        // No signOut() is performed here.
+        _markAuthRestorationFailed(reason: 'auth stream error');
       },
     );
 
@@ -5604,8 +5718,8 @@ class AppState with ChangeNotifier {
     _startupReadinessRetryTimer?.cancel();
     _startupReadinessRetryTimer = null;
 
-    _authRestorationTimeout?.cancel();
-    _authRestorationTimeout = null;
+    _authRestorationTimeoutTimer?.cancel();
+    _authRestorationTimeoutTimer = null;
 
     super.dispose();
   }
