@@ -102,9 +102,31 @@ void main() {
       expect(WorkingHoursFormat.forDisplay('10:00-21:00'), '10:00–21:00');
     });
 
-    test('malformed legacy values are shown as stored, never crash', () {
-      expect(WorkingHoursFormat.forDisplay('10:00_21:00'), '10:00_21:00');
-      expect(WorkingHoursFormat.forDisplay('  open daily '), 'open daily');
+    test('em dash legacy values are canonicalized for display', () {
+      expect(WorkingHoursFormat.forDisplay('10:00—21:00'), '10:00–21:00');
+    });
+
+    test('single-digit legacy hours are zero-padded for display', () {
+      expect(WorkingHoursFormat.forDisplay('9:05-18:30'), '09:05–18:30');
+    });
+
+    test('malformed legacy values are unavailable, never shown verbatim', () {
+      // The reported production value must not reach the profile as raw text.
+      expect(WorkingHoursFormat.forDisplay('10:00_21:00'), isNull);
+      expect(WorkingHoursFormat.forDisplay('  open daily '), isNull);
+    });
+
+    test('out-of-range and reversed legacy values are unavailable', () {
+      expect(WorkingHoursFormat.forDisplay('25:00-26:00'), isNull);
+      expect(WorkingHoursFormat.forDisplay('10:60-21:00'), isNull);
+      expect(WorkingHoursFormat.forDisplay('21:00-10:00'), isNull);
+      expect(WorkingHoursFormat.forDisplay('10:00-10:00'), isNull);
+    });
+
+    test('no time is invented for an invalid value', () {
+      for (final raw in const ['10:00_21:00', '25:00-26:00', '21:00-10:00']) {
+        expect(WorkingHoursFormat.forDisplay(raw), isNull, reason: raw);
+      }
     });
 
     test('empty and null render as absent', () {

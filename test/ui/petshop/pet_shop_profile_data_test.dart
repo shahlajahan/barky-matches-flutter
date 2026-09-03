@@ -276,4 +276,86 @@ void main() {
       expect(shop.description, 'Legacy bio');
     });
   });
+
+  // =====================================================================
+  // Working-hours display (residual correction).
+  //
+  // `forDisplay` previously had no production call site, so the public
+  // profile rendered the raw stored value — the reported `10:00_21:00`
+  // appeared verbatim. The model now normalizes through the same utility the
+  // registration form validates with.
+  // =====================================================================
+  group('working hours display normalization', () {
+    Map<String, dynamic> withHours(dynamic hours) => {
+      'profile': {'displayName': 'Shop'},
+      'publicSectorData': {
+        'petshop': {'workingHours': hours},
+      },
+    };
+
+    String? hoursOf(dynamic stored) =>
+        PetShopProfileData.fromMap(
+              's',
+              withHours(stored),
+            ).workingHours?['hours']
+            as String?;
+
+    test('canonical value renders canonically', () {
+      expect(hoursOf('10:00\u201321:00'), '10:00\u201321:00');
+    });
+
+    test('legacy hyphen value renders canonically', () {
+      expect(hoursOf('10:00-21:00'), '10:00\u201321:00');
+    });
+
+    test('legacy em dash value renders canonically', () {
+      expect(hoursOf('10:00\u201421:00'), '10:00\u201321:00');
+    });
+
+    test('single-digit legacy hour renders zero-padded', () {
+      expect(hoursOf('9:05-18:30'), '09:05\u201318:30');
+    });
+
+    test('the reported underscore value is unavailable, not verbatim', () {
+      final shop = PetShopProfileData.fromMap('s', withHours('10:00_21:00'));
+      expect(shop.workingHours, isNull);
+    });
+
+    test('out-of-range and reversed values are unavailable', () {
+      for (final raw in const ['25:00-26:00', '10:60-21:00', '21:00-10:00']) {
+        expect(
+          PetShopProfileData.fromMap('s', withHours(raw)).workingHours,
+          isNull,
+          reason: raw,
+        );
+      }
+    });
+
+    test('missing, null and blank values are unavailable', () {
+      for (final raw in <dynamic>[null, '', '   ']) {
+        expect(
+          PetShopProfileData.fromMap('s', withHours(raw)).workingHours,
+          isNull,
+          reason: '$raw',
+        );
+      }
+      expect(
+        PetShopProfileData.fromMap('s', {
+          'publicSectorData': {'petshop': <String, dynamic>{}},
+        }).workingHours,
+        isNull,
+      );
+    });
+
+    test('a per-day map is passed through unchanged', () {
+      final shop = PetShopProfileData.fromMap(
+        's',
+        withHours({
+          'mon': {'hours': '10:00-21:00'},
+        }),
+      );
+      expect(shop.workingHours, isNotNull);
+      expect(shop.workingHours!['mon'], isNotNull);
+    });
+  });
 }

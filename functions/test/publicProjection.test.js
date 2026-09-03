@@ -603,3 +603,76 @@ test("non-pet-shop sectors keep their previous projection output", () => {
   assert.equal("sales" in vet, false);
   assert.equal("promotion" in vet, false);
 });
+
+// =====================================================================
+// Residual correction: `pricing.level` must be Pet-Shop-only.
+//
+// The first attempt added "level" to the shared PUBLIC_MAP_SCHEMAS.pricing,
+// which projected it for veterinary and every other sector too. It now lives
+// in a Pet-Shop-only nested schema table.
+// =====================================================================
+
+test("pet shop keeps pricing.level alongside the shared pricing fields", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({
+      petshop: { pricing: { level: "mid", amount: 5, currency: "TRY" } },
+    })
+  );
+  assert.deepEqual(projection.publicSectorData.petshop.pricing, {
+    level: "mid",
+    amount: 5,
+    currency: "TRY",
+  });
+});
+
+test("unknown pet shop pricing keys are still removed", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({
+      petshop: { pricing: { level: "mid", costPrice: "9.99", margin: 0.4 } },
+    })
+  );
+  assert.deepEqual(projection.publicSectorData.petshop.pricing, {
+    level: "mid",
+  });
+});
+
+test("a wrong-typed pet shop level is removed but siblings survive", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({ petshop: { pricing: { level: 42, amount: 5 } } })
+  );
+  assert.deepEqual(projection.publicSectorData.petshop.pricing, { amount: 5 });
+});
+
+for (const sector of [
+  "veterinary",
+  "grooming",
+  "pet_hotel",
+  "pet_taxi",
+  "adoption_center",
+  "training",
+]) {
+  test(`${sector} never gains pricing.level even when the source has it`, () => {
+    const projection = buildBusinessPublicProjection("b-1", {
+      businessId: "b-1",
+      sectors: [sector],
+      status: "approved",
+      published: true,
+      profile: { displayName: "N" },
+      contact: { city: "C" },
+      sectorData: {
+        [sector]: {
+          description: "d",
+          pricing: { level: "mid", amount: 5, currency: "TRY" },
+        },
+      },
+    });
+    const projected = projection.publicSectorData[sector];
+    assert.equal("level" in (projected.pricing || {}), false);
+    // The shared permitted pricing fields must remain untouched.
+    assert.deepEqual(projected.pricing, { amount: 5, currency: "TRY" });
+    assert.equal(projected.description, "d");
+  });
+}

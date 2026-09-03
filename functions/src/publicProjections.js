@@ -286,7 +286,7 @@ const PUBLIC_MAP_SCHEMAS = {
     "displayName", "name", "title", "description", "price", "priceRange",
     "pricing", "duration", "durationMin", "currency", "isActive", "sortOrder",
   ]),
-  pricing: new Set(["amount", "currency", "unit", "min", "max", "price", "level"]),
+  pricing: new Set(["amount", "currency", "unit", "min", "max", "price"]),
   sales: new Set(["delivery", "onlineOrder", "whatsappOrder"]),
   promotion: new Set(["hasOffers", "details"]),
   packages: new Set([
@@ -344,7 +344,17 @@ function isPrivateKey(key) {
   return PRIVATE_KEY_PARTS.some((part) => normalized.includes(part));
 }
 
-function projectValue(value, { keys = PUBLIC_SECTOR_KEYS, allowDayKeys = false } = {}) {
+// `mapSchemas` selects the nested-map schema table. It defaults to the shared
+// PUBLIC_MAP_SCHEMAS, so every sector that does not pass it keeps byte-identical
+// output; only Pet Shop supplies its own table (see PUBLIC_PETSHOP_MAP_SCHEMAS).
+function projectValue(
+  value,
+  {
+    keys = PUBLIC_SECTOR_KEYS,
+    allowDayKeys = false,
+    mapSchemas = PUBLIC_MAP_SCHEMAS,
+  } = {}
+) {
   if (
     (admin.firestore.Timestamp && value instanceof admin.firestore.Timestamp) ||
     (admin.firestore.GeoPoint && value instanceof admin.firestore.GeoPoint) ||
@@ -356,7 +366,7 @@ function projectValue(value, { keys = PUBLIC_SECTOR_KEYS, allowDayKeys = false }
   if (Array.isArray(value)) {
     return value.map((item) =>
       item && typeof item === "object"
-        ? projectValue(item, { keys, allowDayKeys })
+        ? projectValue(item, { keys, allowDayKeys, mapSchemas })
         : item
     );
   }
@@ -368,11 +378,12 @@ function projectValue(value, { keys = PUBLIC_SECTOR_KEYS, allowDayKeys = false }
     const allowed = keys.has(key) || (allowDayKeys && PUBLIC_DAY_KEYS.has(key));
     if (!allowed) continue;
 
-    const childKeys = PUBLIC_MAP_SCHEMAS[key];
+    const childKeys = mapSchemas[key];
     if (child && typeof child === "object" && !Array.isArray(child) && !childKeys) {
       if (allowDayKeys && PUBLIC_DAY_KEYS.has(key)) {
         result[key] = projectValue(child, {
-          keys: PUBLIC_MAP_SCHEMAS.workingHours,
+          keys: mapSchemas.workingHours,
+          mapSchemas,
         });
       }
       continue;
@@ -380,13 +391,14 @@ function projectValue(value, { keys = PUBLIC_SECTOR_KEYS, allowDayKeys = false }
     result[key] = Array.isArray(child)
       ? child.map((item) =>
           item && typeof item === "object"
-            ? projectValue(item, { keys: childKeys || PUBLIC_SECTOR_KEYS })
+            ? projectValue(item, { keys: childKeys || PUBLIC_SECTOR_KEYS, mapSchemas })
             : item
         )
       : child && typeof child === "object"
       ? projectValue(child, {
           keys: childKeys,
           allowDayKeys: key === "workingHours" || key === "workingHoursMap",
+          mapSchemas,
         })
       : child;
   }
@@ -455,6 +467,20 @@ function buildUserPublicProjection(userId, source = {}) {
 const CANONICAL_SERVICES_SOURCE = "canonical";
 const EMBEDDED_SERVICES_SOURCE = "embedded";
 
+// Pet-Shop-only nested-map schemas. Everything is inherited from the shared
+// table except `pricing`, which additionally permits the Pet Shop price-tier
+// label. `level` deliberately does NOT live in the shared schema: adding it
+// there projected `pricing.level` for veterinary and every other sector too.
+// Only these two keys differ, so no other nested schema can drift apart.
+const PUBLIC_PETSHOP_PRICING_KEYS = new Set([
+  ...PUBLIC_MAP_SCHEMAS.pricing,
+  "level",
+]);
+const PUBLIC_PETSHOP_MAP_SCHEMAS = {
+  ...PUBLIC_MAP_SCHEMAS,
+  pricing: PUBLIC_PETSHOP_PRICING_KEYS,
+};
+
 // Type enforcement for the Pet-Shop-only additions above. `projectValue`
 // allowlists key *names*; it does not check value shapes. A malformed value
 // (a number where a string belongs, a string where a list belongs) is dropped
@@ -498,10 +524,15 @@ function sanitizePetShopSectorProjection(sector, projected) {
       delete result[mapKey];
       continue;
     }
-    const cleaned = {};
+    // `projectValue` has already dropped every key outside the nested
+    // allowlist, so whatever remains is permitted. Only strip the enforced
+    // fields when they carry the wrong type — never rebuild the map from the
+    // enforced list, which would silently discard other allowlisted keys such
+    // as `pricing.amount`.
+    const cleaned = { ...child };
     for (const field of fields) {
-      if (field in child && typeof child[field] === "string") {
-        cleaned[field] = child[field];
+      if (field in cleaned && typeof cleaned[field] !== "string") {
+        delete cleaned[field];
       }
     }
     if (Object.keys(cleaned).length === 0) delete result[mapKey];
@@ -540,13 +571,24 @@ function buildBusinessPublicProjection(businessId, source = {}, serviceProjectio
       // Use the sector's own schema when one exists (Pet Shop has a
       // superset); every other sector keeps the shared allowlist exactly as
       // before.
+      const canonicalSector =
+        normalizeSector(sector) || String(sector || "").toLowerCase();
+      const isPetShopSector =
+        PETSHOP_SECTOR_ALIASES.has(canonicalSector) ||
+        PETSHOP_SECTOR_ALIASES.has(String(sector));
       const sectorKeys =
-        PUBLIC_MAP_SCHEMAS[normalizeSector(sector) || sector] ||
+        PUBLIC_MAP_SCHEMAS[canonicalSector] ||
         PUBLIC_MAP_SCHEMAS[sector] ||
         PUBLIC_SECTOR_KEYS;
       publicSectorData[sector] = sanitizePetShopSectorProjection(
         sector,
-        projectValue(value, { keys: sectorKeys })
+        projectValue(value, {
+          keys: sectorKeys,
+          // Only Pet Shop gets the widened nested pricing schema.
+          mapSchemas: isPetShopSector
+            ? PUBLIC_PETSHOP_MAP_SCHEMAS
+            : PUBLIC_MAP_SCHEMAS,
+        })
       );
     }
   }

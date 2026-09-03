@@ -77,16 +77,17 @@ class WorkingHoursFormat {
 
   /// Display helper for values already persisted.
   ///
-  /// Canonicalizes when possible so historical `10:00-21:00` records render
-  /// identically to newly-submitted ones. A malformed legacy value (for
-  /// example `10:00_21:00`) is returned trimmed and unchanged rather than
-  /// discarded or rewritten, so the public profile keeps showing whatever the
-  /// seller actually stored instead of crashing or inventing hours.
+  /// Canonicalizes when possible, so a historical `10:00-21:00` record renders
+  /// identically to a newly-submitted one. A malformed legacy value (for
+  /// example the reported `10:00_21:00`) returns `null` rather than being shown
+  /// verbatim: callers then fall back to their existing localized
+  /// "hours unavailable" presentation. No time is ever invented, and the stored
+  /// document is not modified — this affects display only.
   static String? forDisplay(String? stored) {
     if (stored == null) return null;
     final trimmed = stored.trim();
     if (trimmed.isEmpty) return null;
-    return normalize(trimmed) ?? trimmed;
+    return normalize(trimmed);
   }
 
   static bool _isValidTime(int hour, int minute) =>

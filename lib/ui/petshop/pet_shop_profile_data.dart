@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../business/petshop/working_hours_format.dart';
+
 class PetShopProfileData {
   const PetShopProfileData({
     required this.id,
@@ -305,9 +307,17 @@ class PetShopProfileData {
     return null;
   }
 
+  /// Normalizes the single-string working-hours model for display.
+  ///
+  /// A per-day map is passed through unchanged. A string is canonicalized by
+  /// the same [WorkingHoursFormat] utility the registration form validates
+  /// with, so submitted and legacy records render identically. A malformed
+  /// legacy value yields `null`, which the public widget already presents as
+  /// its localized "hours unavailable" state instead of showing raw text such
+  /// as `10:00_21:00`.
   static Map<String, dynamic>? _workingHours(dynamic value) {
     if (value is Map) return Map<String, dynamic>.from(value);
-    final text = _text(value);
-    return text.isEmpty ? null : {'hours': text};
+    final formatted = WorkingHoursFormat.forDisplay(_text(value));
+    return formatted == null ? null : {'hours': formatted};
   }
 }
