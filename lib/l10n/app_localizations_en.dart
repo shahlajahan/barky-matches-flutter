@@ -10382,4 +10382,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pilotAdminRevokeReasonContentChanged => 'Content changed';
+
+  @override
+  String get petShopBrandsOptionalLabel => 'Brands (optional)';
+
+  @override
+  String get petShopWorkingHoursLabel => 'Working Hours';
+
+  @override
+  String get petShopWorkingHoursHint => 'Example: 10:00–21:00';
+
+  @override
+  String get petShopWorkingHoursInvalidFormat => 'Use the format 10:00–21:00 (24-hour, separated by a dash).';
+
+  @override
+  String get petShopWorkingHoursInvalidRange => 'Closing time must be later than opening time.';
 }

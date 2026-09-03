@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/business_draft.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'working_hours_format.dart';
 
 class PetShopDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -80,6 +81,8 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
       'ownerName': _ownerName.text.trim(),
       'shopTypes': _selectedShopTypes,
       'categories': _selectedCategories,
+      // Optional: whitespace-only normalizes to the empty string the payload
+      // already uses for "not provided".
       'brands': _brands.text.trim(),
 
       'pricing': {'level': _priceLevel},
@@ -90,7 +93,11 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
         'whatsappOrder': _whatsappOrder,
       },
 
-      'workingHours': _workingHours.text.trim(),
+      // Stored in the canonical HH:mm–HH:mm form; the validator has already
+      // rejected anything normalize() cannot accept.
+      'workingHours':
+          WorkingHoursFormat.normalize(_workingHours.text) ??
+          _workingHours.text.trim(),
 
       'profile': {'bio': _bio.text.trim()},
 
@@ -149,15 +156,45 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
     );
   }
 
-  Widget _field(TextEditingController c, String label) {
+  /// [required] defaults to true so every field that was mandatory before
+  /// stays mandatory; only Brands opts out.
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    bool required = true,
+    String? hintText,
+    String? Function(String?)? validator,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: c,
-        validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-        decoration: InputDecoration(labelText: label),
+        validator:
+            validator ??
+            (required
+                ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
+                : null),
+        decoration: InputDecoration(labelText: label, hintText: hintText),
       ),
     );
+  }
+
+  /// Working hours must be one canonical range — see [WorkingHoursFormat].
+  String? _validateWorkingHours(String? value) {
+    final l10n = AppLocalizations.of(context)!;
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return 'Required';
+    if (WorkingHoursFormat.normalize(trimmed) != null) return null;
+
+    // Distinguish a well-formed range whose times are ordered wrongly from
+    // input that is not a recognizable range at all, so the seller is told
+    // what to change rather than just "invalid".
+    final looksLikeRange = RegExp(
+      r'^\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2}$',
+    ).hasMatch(trimmed);
+    return looksLikeRange
+        ? l10n.petShopWorkingHoursInvalidRange
+        : l10n.petShopWorkingHoursInvalidFormat;
   }
 
   @override
@@ -180,7 +217,11 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
             Text(AppLocalizations.of(context)!.categoriesTitle),
             _chips(_categories, _selectedCategories),
 
-            _field(_brands, 'Brands'),
+            _field(
+              _brands,
+              AppLocalizations.of(context)!.petShopBrandsOptionalLabel,
+              required: false,
+            ),
 
             const SizedBox(height: 20),
             Text(AppLocalizations.of(context)!.priceLevel),
@@ -211,7 +252,12 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
               title: Text(AppLocalizations.of(context)!.hasDelivery),
             ),
 
-            _field(_workingHours, 'Working Hours'),
+            _field(
+              _workingHours,
+              AppLocalizations.of(context)!.petShopWorkingHoursLabel,
+              hintText: AppLocalizations.of(context)!.petShopWorkingHoursHint,
+              validator: _validateWorkingHours,
+            ),
 
             _field(_bio, 'Description'),
 

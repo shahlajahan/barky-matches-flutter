@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'seller_product_availability.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -42,10 +43,22 @@ class _PetShopCustomerDetailsPageState extends State<PetShopCustomerDetailsPage>
     return _shop.productOwnerId;
   }
 
+  /// Buy Now stays hidden until this resolves, so a customer never sees an
+  /// actionable button that would open an empty catalogue.
+  SellerProductAvailability _productAvailability =
+      SellerProductAvailability.unknown;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _resolveProductAvailability();
+  }
+
+  Future<void> _resolveProductAvailability() async {
+    final result = await resolveSellerProductAvailability(_productOwnerId);
+    if (!mounted) return;
+    setState(() => _productAvailability = result);
   }
 
   @override
@@ -151,34 +164,41 @@ class _PetShopCustomerDetailsPageState extends State<PetShopCustomerDetailsPage>
                               ],
                             ),
                           ),
-                          SafeArea(
-                            top: false,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                              child: SizedBox(
-                                height: 54,
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _buyNow,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primary,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
+                          if (_productAvailability ==
+                              SellerProductAvailability.available)
+                            SafeArea(
+                              top: false,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  8,
+                                  16,
+                                  16,
+                                ),
+                                child: SizedBox(
+                                  height: 54,
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _buyNow,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
                                     ),
-                                  ),
-                                  icon: const Icon(LucideIcons.shoppingBag),
-                                  label: Text(
-                                    l10n.buyNowButton,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
+                                    icon: const Icon(LucideIcons.shoppingBag),
+                                    label: Text(
+                                      l10n.buyNowButton,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ),

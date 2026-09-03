@@ -2,6 +2,7 @@ const admin = require("firebase-admin");
 const {
   filterSectorDataByCanonicalSectors,
   isPetTaxiBusiness,
+  normalizeSector,
 } = require("./businessSectorMembership");
 const {
   synchronizeServicePromotionProjections,
@@ -203,6 +204,27 @@ const PUBLIC_DAY_KEYS = new Set([
   "mon", "tue", "wed", "thu", "fri", "sat", "sun",
 ]);
 
+// Pet Shop registration writes several public fields that the shared sector
+// allowlist above does not name, so they were silently dropped from
+// `businesses_public` and could never render on the public profile. They are
+// added here — as a Pet-Shop-only superset — so no other sector's projection
+// output changes. Each addition is an individually reviewed, seller-authored,
+// customer-facing value; nothing legal, financial, verification-related or
+// identifying beyond the shop's own public presentation is included.
+const PUBLIC_PETSHOP_SECTOR_KEYS = new Set([
+  ...PUBLIC_SECTOR_KEYS,
+  "shopName",
+  // `ownerName` is deliberately NOT added: `isPrivateKey` blocks every key
+  // containing "owner" so that owner-identifying data cannot reach
+  // `businesses_public`. Publishing the owner's personal name would require
+  // overriding that guard, which is out of scope here and a privacy decision
+  // in its own right.
+  "shopTypes",
+  "brands",
+  "sales",
+  "promotion",
+]);
+
 const PUBLIC_MAP_SCHEMAS = {
   adoptionCenter: PUBLIC_SECTOR_KEYS,
   adoption_center: PUBLIC_SECTOR_KEYS,
@@ -219,10 +241,10 @@ const PUBLIC_MAP_SCHEMAS = {
   veterinary: PUBLIC_SECTOR_KEYS,
   vet: PUBLIC_SECTOR_KEYS,
   veterinarian: PUBLIC_SECTOR_KEYS,
-  petshop: PUBLIC_SECTOR_KEYS,
-  pet_shop: PUBLIC_SECTOR_KEYS,
-  seller: PUBLIC_SECTOR_KEYS,
-  store: PUBLIC_SECTOR_KEYS,
+  petshop: PUBLIC_PETSHOP_SECTOR_KEYS,
+  pet_shop: PUBLIC_PETSHOP_SECTOR_KEYS,
+  seller: PUBLIC_PETSHOP_SECTOR_KEYS,
+  store: PUBLIC_PETSHOP_SECTOR_KEYS,
   profile: new Set([
     "displayName", "businessName", "name", "description", "bio", "logoUrl",
     "coverUrl", "coverImageUrl", "categories", "tags", "rating",
@@ -264,7 +286,9 @@ const PUBLIC_MAP_SCHEMAS = {
     "displayName", "name", "title", "description", "price", "priceRange",
     "pricing", "duration", "durationMin", "currency", "isActive", "sortOrder",
   ]),
-  pricing: new Set(["amount", "currency", "unit", "min", "max", "price"]),
+  pricing: new Set(["amount", "currency", "unit", "min", "max", "price", "level"]),
+  sales: new Set(["delivery", "onlineOrder", "whatsappOrder"]),
+  promotion: new Set(["hasOffers", "details"]),
   packages: new Set([
     "displayName", "name", "title", "description", "price", "priceRange",
     "pricing", "duration", "durationMin", "currency", "isActive", "sortOrder",
@@ -431,6 +455,62 @@ function buildUserPublicProjection(userId, source = {}) {
 const CANONICAL_SERVICES_SOURCE = "canonical";
 const EMBEDDED_SERVICES_SOURCE = "embedded";
 
+// Type enforcement for the Pet-Shop-only additions above. `projectValue`
+// allowlists key *names*; it does not check value shapes. A malformed value
+// (a number where a string belongs, a string where a list belongs) is dropped
+// here rather than published, so the public reader never receives a shape it
+// would have to defend against. Unrelated sectors are returned untouched.
+const PETSHOP_SECTOR_ALIASES = new Set(["petshop", "pet_shop", "seller", "store"]);
+const PETSHOP_STRING_FIELDS = ["shopName", "brands"];
+const PETSHOP_NESTED_STRING_FIELDS = {
+  pricing: ["level"],
+  sales: ["delivery", "onlineOrder", "whatsappOrder"],
+  promotion: ["hasOffers", "details"],
+};
+
+function sanitizePetShopSectorProjection(sector, projected) {
+  const canonical = normalizeSector(sector) || String(sector || "").toLowerCase();
+  if (!PETSHOP_SECTOR_ALIASES.has(canonical) && !PETSHOP_SECTOR_ALIASES.has(String(sector))) {
+    return projected;
+  }
+  if (!projected || typeof projected !== "object" || Array.isArray(projected)) {
+    return projected;
+  }
+
+  const result = { ...projected };
+
+  for (const key of PETSHOP_STRING_FIELDS) {
+    if (key in result && typeof result[key] !== "string") delete result[key];
+  }
+
+  if ("shopTypes" in result) {
+    if (!Array.isArray(result.shopTypes)) {
+      delete result.shopTypes;
+    } else {
+      result.shopTypes = result.shopTypes.filter((v) => typeof v === "string");
+    }
+  }
+
+  for (const [mapKey, fields] of Object.entries(PETSHOP_NESTED_STRING_FIELDS)) {
+    if (!(mapKey in result)) continue;
+    const child = result[mapKey];
+    if (!child || typeof child !== "object" || Array.isArray(child)) {
+      delete result[mapKey];
+      continue;
+    }
+    const cleaned = {};
+    for (const field of fields) {
+      if (field in child && typeof child[field] === "string") {
+        cleaned[field] = child[field];
+      }
+    }
+    if (Object.keys(cleaned).length === 0) delete result[mapKey];
+    else result[mapKey] = cleaned;
+  }
+
+  return result;
+}
+
 function buildBusinessPublicProjection(businessId, source = {}, serviceProjection = null) {
   const normalizedServices = normalizeServiceProjection(serviceProjection);
   const sourceWithServices = applyCanonicalServices(
@@ -457,9 +537,17 @@ function buildBusinessPublicProjection(businessId, source = {}, serviceProjectio
   if (rawSectorData && typeof rawSectorData === "object") {
     for (const [sector, value] of Object.entries(rawSectorData)) {
       if (!value || typeof value !== "object") continue;
-      publicSectorData[sector] = projectValue(value, {
-        allowUnknownMapKeys: false,
-      });
+      // Use the sector's own schema when one exists (Pet Shop has a
+      // superset); every other sector keeps the shared allowlist exactly as
+      // before.
+      const sectorKeys =
+        PUBLIC_MAP_SCHEMAS[normalizeSector(sector) || sector] ||
+        PUBLIC_MAP_SCHEMAS[sector] ||
+        PUBLIC_SECTOR_KEYS;
+      publicSectorData[sector] = sanitizePetShopSectorProjection(
+        sector,
+        projectValue(value, { keys: sectorKeys })
+      );
     }
   }
 

@@ -4575,4 +4575,9 @@
 ,"pilotAdminErrorSellerNotActive": "Bu satıcının Marketplace aktivasyonu şu anda aktif değil."
 ,"pilotAdminRevokeReasonManual": "Yönetici kararı"
 ,"pilotAdminRevokeReasonContentChanged": "İçerik değişti"
+,"petShopBrandsOptionalLabel": "Markalar (isteğe bağlı)"
+,"petShopWorkingHoursLabel": "Çalışma Saatleri"
+,"petShopWorkingHoursHint": "Örnek: 10:00–21:00"
+,"petShopWorkingHoursInvalidFormat": "10:00–21:00 biçimini kullanın (24 saat, tire ile ayrılmış)."
+,"petShopWorkingHoursInvalidRange": "Kapanış saati açılış saatinden sonra olmalıdır."
 }

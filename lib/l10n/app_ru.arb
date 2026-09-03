@@ -3381,4 +3381,9 @@
 ,"pilotAdminErrorSellerNotActive": "Активация Marketplace для этого продавца в данный момент неактивна."
 ,"pilotAdminRevokeReasonManual": "Решение администратора"
 ,"pilotAdminRevokeReasonContentChanged": "Содержимое изменилось"
+,"petShopBrandsOptionalLabel": "Бренды (необязательно)"
+,"petShopWorkingHoursLabel": "Часы работы"
+,"petShopWorkingHoursHint": "Пример: 10:00–21:00"
+,"petShopWorkingHoursInvalidFormat": "Используйте формат 10:00–21:00 (24 часа, через тире)."
+,"petShopWorkingHoursInvalidRange": "Время закрытия должно быть позже времени открытия."
 }

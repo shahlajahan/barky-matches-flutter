@@ -197,4 +197,83 @@ void main() {
       expect(shop.categories, ['Pet Food']);
     });
   });
+
+  // =====================================================================
+  // Pinned to the real production projection.
+  //
+  // The map below is the verbatim `publicSectorData` emitted by
+  // `buildBusinessPublicProjection` (functions/src/publicProjections.js) for a
+  // Pet Shop registered through the current form — captured from that function,
+  // not hand-designed. If the projection allowlist ever drops one of these
+  // fields again, this test fails alongside the Functions-side coverage.
+  // =====================================================================
+  group('real projection output shape', () {
+    Map<String, dynamic> realProjection() => {
+      'businessId': 'shop-1',
+      'sectors': ['pet_shop'],
+      'status': 'approved',
+      'isVerified': true,
+      'verification': {'isVerified': true},
+      'profile': {'displayName': 'Paws & Co'},
+      'contact': {'city': 'Istanbul', 'district': 'Kadikoy'},
+      'publicSectorData': {
+        'petshop': {
+          'shopName': 'Paws & Co',
+          'shopTypes': ['Pet Food'],
+          'categories': ['Dry Food'],
+          'brands': 'BrandA',
+          'pricing': {'level': 'mid'},
+          'sales': {
+            'delivery': 'yes',
+            'onlineOrder': 'no',
+            'whatsappOrder': 'yes',
+          },
+          'workingHours': '10:00\u201321:00',
+          'profile': {'bio': 'Local pet supplies'},
+          'promotion': {'hasOffers': 'yes', 'details': '10% off'},
+        },
+      },
+    };
+
+    test('the submitted Bio reaches the public model', () {
+      final shop = PetShopProfileData.fromMap('shop-1', realProjection());
+      expect(shop.description, 'Local pet supplies');
+    });
+
+    test('canonical working hours survive to the public model', () {
+      final shop = PetShopProfileData.fromMap('shop-1', realProjection());
+      expect(shop.workingHours, isNotNull);
+      expect(shop.workingHours!['hours'], '10:00\u201321:00');
+    });
+
+    test('categories and identity still resolve', () {
+      final shop = PetShopProfileData.fromMap('shop-1', realProjection());
+      expect(shop.name, 'Paws & Co');
+      expect(shop.categories, ['Dry Food']);
+      expect(shop.isVerified, isTrue);
+    });
+
+    test('empty Bio keeps the honest empty state', () {
+      final doc = realProjection();
+      (doc['publicSectorData'] as Map)['petshop']['profile'] = {'bio': ''};
+      final shop = PetShopProfileData.fromMap('shop-1', doc);
+      expect(shop.description, isEmpty);
+    });
+
+    test('canonical sector Bio wins over an unrelated legacy alias', () {
+      final doc = realProjection();
+      // A legacy top-level profile.description must not override the value the
+      // seller actually submitted in the Pet Shop form.
+      (doc['profile'] as Map)['description'] = 'stale legacy text';
+      final shop = PetShopProfileData.fromMap('shop-1', doc);
+      expect(shop.description, 'Local pet supplies');
+    });
+
+    test('legacy documents with only a top-level bio still resolve', () {
+      final shop = PetShopProfileData.fromMap('legacy-1', {
+        'profile': {'displayName': 'Legacy', 'bio': 'Legacy bio'},
+      });
+      expect(shop.description, 'Legacy bio');
+    });
+  });
 }

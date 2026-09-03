@@ -4589,4 +4589,9 @@
 ,"pilotAdminErrorSellerNotActive": "This seller's Marketplace activation is not currently active."
 ,"pilotAdminRevokeReasonManual": "Admin decision"
 ,"pilotAdminRevokeReasonContentChanged": "Content changed"
+,"petShopBrandsOptionalLabel": "Brands (optional)"
+,"petShopWorkingHoursLabel": "Working Hours"
+,"petShopWorkingHoursHint": "Example: 10:00–21:00"
+,"petShopWorkingHoursInvalidFormat": "Use the format 10:00–21:00 (24-hour, separated by a dash)."
+,"petShopWorkingHoursInvalidRange": "Closing time must be later than opening time."
 }

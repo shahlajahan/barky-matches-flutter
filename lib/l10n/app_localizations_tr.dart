@@ -10382,4 +10382,19 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get pilotAdminRevokeReasonContentChanged => 'İçerik değişti';
+
+  @override
+  String get petShopBrandsOptionalLabel => 'Markalar (isteğe bağlı)';
+
+  @override
+  String get petShopWorkingHoursLabel => 'Çalışma Saatleri';
+
+  @override
+  String get petShopWorkingHoursHint => 'Örnek: 10:00–21:00';
+
+  @override
+  String get petShopWorkingHoursInvalidFormat => '10:00–21:00 biçimini kullanın (24 saat, tire ile ayrılmış).';
+
+  @override
+  String get petShopWorkingHoursInvalidRange => 'Kapanış saati açılış saatinden sonra olmalıdır.';
 }

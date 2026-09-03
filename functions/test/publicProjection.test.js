@@ -424,3 +424,182 @@ test("business backfill loads canonical service documents and is idempotent", as
   assert.equal(second.scanned, 0);
   assert.equal(targetRef.setCount, writesAfterFirstRun);
 });
+
+// =====================================================================
+// Pet Shop public projection.
+//
+// `projectValue` is a strict allowlist: a key absent from the sector key set
+// is dropped, and a nested map with no PUBLIC_MAP_SCHEMAS entry is dropped
+// whole. Pet Shop registration writes several legitimate public fields that
+// the shared allowlist did not name, so delivery, offers, price level, brands
+// and shop types could never reach `businesses_public` and therefore could
+// never render on the public profile. These assert the real production
+// projection, not a hand-built map.
+// =====================================================================
+
+function petShopSource(overrides = {}) {
+  return {
+    businessId: "shop-1",
+    sectors: ["pet_shop"],
+    status: "approved",
+    published: true,
+    ownerUid: "owner-1",
+    profile: { displayName: "Paws & Co" },
+    contact: { city: "Istanbul", district: "Kadikoy" },
+    sectorData: {
+      petshop: {
+        shopName: "Paws & Co",
+        ownerName: "A Real Person",
+        shopTypes: ["Pet Food", "Accessories"],
+        categories: ["Dry Food"],
+        brands: "BrandA, BrandB",
+        pricing: { level: "mid" },
+        sales: { delivery: "yes", onlineOrder: "no", whatsappOrder: "yes" },
+        workingHours: "10:00–21:00",
+        profile: { bio: "Local pet supplies" },
+        promotion: { hasOffers: "yes", details: "10% off" },
+        ...(overrides.petshop || {}),
+      },
+    },
+    ...overrides.root,
+  };
+}
+
+test("pet shop projection preserves the approved public fields", () => {
+  const projection = buildBusinessPublicProjection("shop-1", petShopSource());
+  const shop = projection.publicSectorData.petshop;
+
+  assert.equal(shop.shopName, "Paws & Co");
+  assert.deepEqual(shop.shopTypes, ["Pet Food", "Accessories"]);
+  assert.deepEqual(shop.categories, ["Dry Food"]);
+  assert.equal(shop.brands, "BrandA, BrandB");
+  assert.deepEqual(shop.pricing, { level: "mid" });
+  assert.deepEqual(shop.sales, {
+    delivery: "yes",
+    onlineOrder: "no",
+    whatsappOrder: "yes",
+  });
+  assert.equal(shop.workingHours, "10:00–21:00");
+  assert.deepEqual(shop.promotion, { hasOffers: "yes", details: "10% off" });
+});
+
+test("submitted Bio survives the real projection at the canonical path", () => {
+  const projection = buildBusinessPublicProjection("shop-1", petShopSource());
+  assert.equal(
+    projection.publicSectorData.petshop.profile.bio,
+    "Local pet supplies"
+  );
+});
+
+test("empty Bio projects as empty rather than fabricated", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({ petshop: { profile: { bio: "" } } })
+  );
+  assert.equal(projection.publicSectorData.petshop.profile.bio, "");
+});
+
+test("owner-identifying and private data never reach the projection", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({
+      root: {
+        legal: { taxNumber: "1234567890", mersisNumber: "0987654321" },
+        bankAccount: { iban: "TR000000000000000000000000" },
+        marketplaceSellerActivation: { active: true },
+        pilotActiveProductCount: 3,
+        marketplaceBusinessGenerationId: "gen-1",
+      },
+    })
+  );
+  const shop = projection.publicSectorData.petshop;
+
+  // `isPrivateKey` blocks every key containing "owner".
+  assert.equal("ownerName" in shop, false);
+  assert.equal("legal" in projection, false);
+  assert.equal("bankAccount" in projection, false);
+  assert.equal("marketplaceSellerActivation" in projection, false);
+  assert.equal("pilotActiveProductCount" in projection, false);
+  assert.equal("marketplaceBusinessGenerationId" in projection, false);
+  assert.equal("ownerUid" in projection, false);
+});
+
+test("malformed pet shop values are dropped rather than published", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({
+      petshop: {
+        brands: 123,
+        shopName: { nested: "x" },
+        shopTypes: "not-a-list",
+        pricing: "not-a-map",
+        sales: ["not", "a", "map"],
+        promotion: { hasOffers: 42, details: "kept" },
+      },
+    })
+  );
+  const shop = projection.publicSectorData.petshop;
+
+  assert.equal("brands" in shop, false);
+  assert.equal("shopName" in shop, false);
+  assert.equal("shopTypes" in shop, false);
+  assert.equal("pricing" in shop, false);
+  assert.equal("sales" in shop, false);
+  assert.deepEqual(shop.promotion, { details: "kept" });
+});
+
+test("unknown keys inside approved nested maps are still dropped", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({
+      petshop: {
+        sales: { delivery: "yes", internalMargin: "0.3" },
+        promotion: { hasOffers: "yes", details: "x", adminNote: "secret" },
+        pricing: { level: "mid", costPrice: "12.34" },
+      },
+    })
+  );
+  const shop = projection.publicSectorData.petshop;
+
+  assert.deepEqual(shop.sales, { delivery: "yes" });
+  assert.deepEqual(shop.promotion, { hasOffers: "yes", details: "x" });
+  assert.deepEqual(shop.pricing, { level: "mid" });
+});
+
+test("shopTypes survives so the categories fallback can use it", () => {
+  const projection = buildBusinessPublicProjection(
+    "shop-1",
+    petShopSource({ petshop: { categories: [] } })
+  );
+  const shop = projection.publicSectorData.petshop;
+  assert.deepEqual(shop.categories, []);
+  assert.deepEqual(shop.shopTypes, ["Pet Food", "Accessories"]);
+});
+
+test("non-pet-shop sectors keep their previous projection output", () => {
+  const projection = buildBusinessPublicProjection("vet-1", {
+    businessId: "vet-1",
+    sectors: ["veterinary"],
+    status: "approved",
+    published: true,
+    profile: { displayName: "Vet" },
+    contact: { city: "Ankara" },
+    sectorData: {
+      veterinary: {
+        description: "Clinic",
+        shopName: "should not appear",
+        brands: "should not appear",
+        sales: { delivery: "yes" },
+        promotion: { hasOffers: "yes" },
+      },
+    },
+  });
+  const vet = projection.publicSectorData.veterinary;
+
+  assert.equal(vet.description, "Clinic");
+  // The Pet-Shop-only superset must not leak into other sectors.
+  assert.equal("shopName" in vet, false);
+  assert.equal("brands" in vet, false);
+  assert.equal("sales" in vet, false);
+  assert.equal("promotion" in vet, false);
+});

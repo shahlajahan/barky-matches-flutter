@@ -183,11 +183,22 @@ class PetShopProfileData {
       address: address,
       city: city,
       district: district,
+      // Deterministic Bio precedence, canonical first.
+      //
+      // The Pet Shop form writes the seller's description to
+      // `sectorData.petshop.profile.bio`, which the public projection
+      // republishes at `publicSectorData.petshop.profile.bio`. That is the
+      // canonical current path and must win: the top-level `profile.*` aliases
+      // are legacy/shared fields that registration leaves empty for a Pet Shop
+      // (`business_register_page.dart` submits `description: ""`), so a stale
+      // value there must never mask what the seller actually submitted. The
+      // legacy aliases remain as fallbacks so older documents, and businesses
+      // created through other paths, still render.
       description: _firstText([
-        profile['bio'],
-        profile['description'],
         shopProfile['bio'],
         profileContent['bio'],
+        profile['bio'],
+        profile['description'],
       ]),
       categories: _stringList(petShop['categories'] ?? petShop['shopTypes']),
       gallery: gallery,

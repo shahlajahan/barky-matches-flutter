@@ -10382,4 +10382,19 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get pilotAdminRevokeReasonContentChanged => 'محتوا تغییر کرده است';
+
+  @override
+  String get petShopBrandsOptionalLabel => 'برندها (اختیاری)';
+
+  @override
+  String get petShopWorkingHoursLabel => 'ساعات کاری';
+
+  @override
+  String get petShopWorkingHoursHint => 'نمونه: ۱۰:۰۰–۲۱:۰۰';
+
+  @override
+  String get petShopWorkingHoursInvalidFormat => 'از قالب 10:00–21:00 استفاده کنید (۲۴ ساعته، جدا شده با خط تیره).';
+
+  @override
+  String get petShopWorkingHoursInvalidRange => 'ساعت پایان باید بعد از ساعت شروع باشد.';
 }

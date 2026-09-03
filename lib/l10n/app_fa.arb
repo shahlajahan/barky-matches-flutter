@@ -4576,4 +4576,9 @@
 ,"pilotAdminErrorSellerNotActive": "فعال‌سازی آزمایشی این فروشنده در حال حاضر فعال نیست."
 ,"pilotAdminRevokeReasonManual": "تصمیم ادمین"
 ,"pilotAdminRevokeReasonContentChanged": "محتوا تغییر کرده است"
+,"petShopBrandsOptionalLabel": "برندها (اختیاری)"
+,"petShopWorkingHoursLabel": "ساعات کاری"
+,"petShopWorkingHoursHint": "نمونه: ۱۰:۰۰–۲۱:۰۰"
+,"petShopWorkingHoursInvalidFormat": "از قالب 10:00–21:00 استفاده کنید (۲۴ ساعته، جدا شده با خط تیره)."
+,"petShopWorkingHoursInvalidRange": "ساعت پایان باید بعد از ساعت شروع باشد."
 }

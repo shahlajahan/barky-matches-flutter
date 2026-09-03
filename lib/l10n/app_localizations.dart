@@ -19508,6 +19508,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Content changed'**
   String get pilotAdminRevokeReasonContentChanged;
+
+  /// No description provided for @petShopBrandsOptionalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Brands (optional)'**
+  String get petShopBrandsOptionalLabel;
+
+  /// No description provided for @petShopWorkingHoursLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Working Hours'**
+  String get petShopWorkingHoursLabel;
+
+  /// No description provided for @petShopWorkingHoursHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: 10:00–21:00'**
+  String get petShopWorkingHoursHint;
+
+  /// No description provided for @petShopWorkingHoursInvalidFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the format 10:00–21:00 (24-hour, separated by a dash).'**
+  String get petShopWorkingHoursInvalidFormat;
+
+  /// No description provided for @petShopWorkingHoursInvalidRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Closing time must be later than opening time.'**
+  String get petShopWorkingHoursInvalidRange;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
