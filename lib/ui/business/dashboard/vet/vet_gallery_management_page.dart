@@ -8,6 +8,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../theme/app_theme.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/image_upload_service.dart';
 
 class VetGalleryManagementPage extends StatefulWidget {
   final String businessId;
@@ -82,13 +83,20 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
 
       final file = File(picked.path);
 
-      final storageRef = FirebaseStorage.instance.ref().child(
-        'business_gallery/${widget.businessId}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      // Routed through ImageUploadService rather than a direct putFile.
+      // image_picker returns PNG bytes whenever the picked bitmap has an
+      // alpha channel (ImageResizer compresses with CompressFormat.PNG
+      // regardless of imageQuality), while this destination name was
+      // always `.jpg` — so putFile could declare `image/png` for a `.jpg`
+      // object and be rejected by hasAllowedBusinessGalleryImage(), which
+      // requires the declared type and the extension to agree. The shared
+      // service re-encodes to JPEG and declares `image/jpeg`, so the
+      // bytes, the declared type and the `.jpg` name always match.
+      final url = await ImageUploadService.uploadBusinessImage(
+        file: file,
+        businessId: widget.businessId,
+        onProgress: (_) {},
       );
-
-      await storageRef.putFile(file);
-
-      final url = await storageRef.getDownloadURL();
 
       final snapshot = await _businessRef.get();
 

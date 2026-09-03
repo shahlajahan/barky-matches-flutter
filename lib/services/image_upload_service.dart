@@ -32,7 +32,19 @@ class ImageUploadService {
       'business_gallery/$businessId/${DateTime.now().millisecondsSinceEpoch}.jpg',
     );
 
-    final uploadTask = ref.putData(compressedBytes);
+    // The content type must be declared explicitly. `putData` has no local
+    // file to infer from, so the Firebase SDK falls back to
+    // `application/octet-stream` (StorageUploadTask's
+    // `MIMETypeForExtension(file?.pathExtension)` receives null), which
+    // `storage.rules`' `hasAllowedBusinessGalleryImage()` rejects. The
+    // declaration is unconditionally truthful here: `_compressImage`
+    // always returns `img.encodeJpg(...)` bytes, and the object name above
+    // is always `.jpg`, so the declared type, the bytes and the extension
+    // always agree.
+    final uploadTask = ref.putData(
+      compressedBytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
 
     uploadTask.snapshotEvents.listen((event) {
       double progress = 0;
@@ -74,6 +86,35 @@ class ImageUploadService {
     }
 
     return urls;
+  }
+
+  /// Canonical content type for a business gallery video object, resolved
+  /// from the object's own file name.
+  ///
+  /// The Firebase SDK's inference is not sufficient for this path.
+  /// `putFile` derives the content type from the *local* file's extension
+  /// (`StorageUploadTask` calls `MIMETypeForExtension(file?.pathExtension)`),
+  /// and no `UTType` maps `.hevc`, so an `.hevc` capture uploads as
+  /// `application/octet-stream` — which `storage.rules`'
+  /// `hasAllowedBusinessGalleryVideo()` rejects. Declaring the type from
+  /// the destination name keeps the client's declaration and the object
+  /// name in agreement, which is exactly what that rule requires.
+  ///
+  /// Returns `null` for anything outside the supported set, so callers fail
+  /// closed instead of uploading an object the rules would reject anyway.
+  /// The mapping matches `adoptionContentTypeFor` in
+  /// `lib/ui/adoption/adoption_upload_helper.dart`.
+  static String? videoContentTypeFor(String fileName) {
+    final clean = fileName.split('?').first.toLowerCase();
+    final dot = clean.lastIndexOf('.');
+    if (dot < 0 || dot == clean.length - 1) return null;
+    return switch (clean.substring(dot + 1)) {
+      'mp4' => 'video/mp4',
+      'mov' => 'video/quicktime',
+      'webm' => 'video/webm',
+      'hevc' => 'video/hevc',
+      _ => null,
+    };
   }
 
   static Future<void> deleteImageByUrl(String url) async {

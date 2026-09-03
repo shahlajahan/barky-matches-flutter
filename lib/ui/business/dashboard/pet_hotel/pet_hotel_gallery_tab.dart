@@ -102,11 +102,23 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
         final name =
             '${DateTime.now().millisecondsSinceEpoch}_${video.path.split('/').last}';
 
+        // Declared explicitly: putFile infers the type from the local
+        // file's extension, which yields application/octet-stream for
+        // .hevc and would be rejected by storage.rules'
+        // hasAllowedBusinessGalleryVideo(). Unsupported types are skipped
+        // rather than uploaded into a guaranteed rejection.
+        final contentType = ImageUploadService.videoContentTypeFor(name);
+
+        if (contentType == null) continue;
+
         final ref = FirebaseStorage.instance.ref().child(
           'business_gallery/${widget.businessId}/videos/$name',
         );
 
-        final task = ref.putFile(video);
+        final task = ref.putFile(
+          video,
+          SettableMetadata(contentType: contentType),
+        );
 
         final result = await task;
 

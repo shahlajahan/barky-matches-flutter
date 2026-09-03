@@ -84,10 +84,20 @@ class _GroomyDashboardGalleryTabState extends State<GroomyDashboardGalleryTab> {
       for (final videoFile in videoFiles) {
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${videoFile.path.split('/').last}';
+        // Declared explicitly: putFile infers the type from the local
+        // file's extension, which yields application/octet-stream for
+        // .hevc and would be rejected by storage.rules'
+        // hasAllowedBusinessGalleryVideo(). Unsupported types are skipped
+        // rather than uploaded into a guaranteed rejection.
+        final contentType = ImageUploadService.videoContentTypeFor(fileName);
+        if (contentType == null) continue;
         final ref = FirebaseStorage.instance.ref().child(
           'business_gallery/${widget.businessId}/videos/$fileName',
         );
-        final task = ref.putFile(videoFile);
+        final task = ref.putFile(
+          videoFile,
+          SettableMetadata(contentType: contentType),
+        );
         final snap = await task;
         final url = await snap.ref.getDownloadURL();
         videoUrls.add(url);

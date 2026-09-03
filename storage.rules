@@ -82,6 +82,61 @@ service firebase.storage {
         );
     }
 
+    // Business gallery media. business_gallery/ previously had no matching
+    // rule at all and fell through to the deny-all at the bottom of this
+    // file, so every existing Vet / Groomy / Pet Hotel dashboard gallery
+    // upload was rejected in production. These two validators restore the
+    // path under the same owner-bound model products/ already uses.
+    //
+    // They are deliberately split by object shape rather than reusing
+    // hasAllowedMedia(): the flat business_gallery/{businessId}/{fileName}
+    // path only ever receives still images (ImageUploadService re-encodes
+    // to JPEG; the Vet gallery page picks a still), and the nested
+    // business_gallery/{businessId}/videos/{fileName} path only ever
+    // receives video. Using one combined validator would let video be
+    // written to the image path and images to the videos/ path; splitting
+    // keeps each namespace to exactly the media kind its callers produce.
+    //
+    // As with hasAllowedProductImage() above, Storage Rules cannot inspect
+    // file bytes — only the client-declared contentType and the object
+    // name are available — so both are required to agree as defense in
+    // depth against a single spoofed field. Extension checks use explicit
+    // per-letter character classes rather than an inline (?i) flag so they
+    // do not depend on whether the RE2 engine honors that flag; uppercase
+    // extensions are common from iOS/Android camera rolls.
+    function hasAllowedBusinessGalleryImage() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 10485760
+        && request.resource.contentType in [
+          'image/jpeg', 'image/png', 'image/webp', 'image/heic'
+        ]
+        && request.resource.name.matches(
+          '.*\\.([jJ][pP][gG]|[jJ][pP][eE][gG]|[pP][nN][gG]'
+          + '|[wW][eE][bB][pP]|[hH][eE][iI][cC])$'
+        );
+    }
+
+    // The 100 MiB ceiling here matches hasAllowedMedia(), which is the
+    // established limit for every other video-bearing path in this file
+    // (stories/, dogs/, social_posts/, adoption_center sector docs). The
+    // 10 MiB product-image limit is not applicable to video and is kept
+    // for the image validator above only. The accepted content types and
+    // extensions are exactly the four the dashboards' own _isVideo()
+    // gate plus the repo's existing adoptionContentTypeFor() mapping
+    // produce; image/gif is deliberately excluded from both validators.
+    function hasAllowedBusinessGalleryVideo() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 104857600
+        && request.resource.contentType in [
+          'video/mp4', 'video/quicktime', 'video/webm', 'video/hevc'
+        ]
+        && request.resource.name.matches(
+          '.*\\.([mM][pP]4|[mM][oO][vV]|[wW][eE][bB][mM]|[hH][eE][vV][cC])$'
+        );
+    }
+
     function isBusinessOwner(businessId) {
       return isSignedIn()
         && businessId is string
@@ -222,6 +277,57 @@ service firebase.storage {
       allow create, update: if isSignedIn()
         && isBusinessOwner(businessId)
         && hasAllowedProductImage();
+      allow delete: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+    }
+
+    // Business gallery media, cross-sector repair. Both blocks below are
+    // scoped to a single business namespace and authorized ONLY through
+    // isBusinessOwner(), which resolves ownership from the canonical
+    // businesses/{businessId}.ownerUid document. Ownership is never
+    // inferred from request.auth.uid == businessId, and never from client
+    // custom metadata: a business document that is missing, has no
+    // ownerUid, has a null ownerUid, or has a non-string ownerUid makes
+    // the firestore.get() comparison fail and the write is denied, so
+    // every malformed ownership state fails closed. That also means an
+    // upload attempted before registerBusiness has created the business
+    // document is denied — registration-time staged uploads need a
+    // server-issued session and finalization/cleanup architecture (see
+    // compliance_quarantine/ below for the shape that takes) and are
+    // deliberately NOT authorized here.
+    //
+    // The two matches are disjoint by segment count: {fileName} binds a
+    // single segment, so business_gallery/{id}/videos/{name} can never be
+    // written through the image block, and any deeper or differently
+    // shaped path (business_gallery/{id}/a/b/c.jpg) matches neither block
+    // and falls through to the deny-all at the bottom of this file.
+    //
+    // READ BOUNDARY — this is intentionally NOT a public-read rule. Read
+    // is limited to the owning business and admins, exactly as products/
+    // does, which is what the callers actually require: getDownloadURL()
+    // is a Rules-evaluated metadata read performed by the owner right
+    // after upload, and the dashboards' own management surfaces are
+    // owner-only. Public visitors render these images from the tokenized
+    // Firebase download URL persisted in Firestore, which bypasses Rules
+    // entirely. Whether that tokenized-URL mechanism is the right
+    // provenance model for public business media is a separate, still-open
+    // architecture decision; this block neither settles it nor claims to.
+    match /business_gallery/{businessId}/{fileName} {
+      allow read: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+      allow create, update: if isSignedIn()
+        && isBusinessOwner(businessId)
+        && hasAllowedBusinessGalleryImage();
+      allow delete: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+    }
+
+    match /business_gallery/{businessId}/videos/{fileName} {
+      allow read: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+      allow create, update: if isSignedIn()
+        && isBusinessOwner(businessId)
+        && hasAllowedBusinessGalleryVideo();
       allow delete: if isSignedIn()
         && (isBusinessOwner(businessId) || isAdmin());
     }
