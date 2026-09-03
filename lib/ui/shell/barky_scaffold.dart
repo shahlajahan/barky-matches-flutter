@@ -20,7 +20,6 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/business/business_detail_overlay.dart';
 
 import 'package:barky_matches_fixed/ui/business/pet_hotel/pet_hotel_details_overlay.dart';
-import 'package:flutter/rendering.dart';
 
 import 'package:barky_matches_fixed/ui/chat/chat_list_page.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
@@ -280,27 +279,20 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
         // ─────────────────────────────
         // 📄 Body
         // ─────────────────────────────
+        // The primary shell bottom navigation stays fixed while scrolling.
+        // A global UserScrollNotification listener used to hide it on reverse
+        // scroll and restore it on forward/idle scroll; that behavior was
+        // removed so the bar remains visible on every primary tab.
+        // AppState.setBottomNavVisibility is intentionally retained for
+        // explicit show/hide call sites (see barky_bottom_nav.dart and this
+        // widget's initState/didUpdateWidget).
         body: SafeArea(
           bottom: false,
-          child: NotificationListener<UserScrollNotification>(
-            onNotification: (notification) {
-              final appState = context.read<AppState>();
+          child: Stack(
+            children: [
+              widget.body,
 
-              if (notification.direction == ScrollDirection.reverse) {
-                appState.setBottomNavVisibility(false);
-              } else if (notification.direction == ScrollDirection.forward ||
-                  notification.direction == ScrollDirection.idle) {
-                appState.setBottomNavVisibility(true);
-              }
-
-              return false;
-            },
-
-            child: Stack(
-              children: [
-                widget.body,
-
-                /*
+              /*
             // ─────────────────────────────
             // 🩺 Vet Detail Overlay
             // ─────────────────────────────
@@ -365,484 +357,476 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
             ),
 
             */
-                Builder(
-                  builder: (context) {
-                    final show = context.select<AppState, bool>(
-                      (s) => s.showGuestFeatureGate,
-                    );
+              Builder(
+                builder: (context) {
+                  final show = context.select<AppState, bool>(
+                    (s) => s.showGuestFeatureGate,
+                  );
 
-                    if (!show) {
-                      return const SizedBox.shrink();
-                    }
+                  if (!show) {
+                    return const SizedBox.shrink();
+                  }
 
-                    final appState = context.read<AppState>();
+                  final appState = context.read<AppState>();
 
-                    return Positioned.fill(
-                      child: GuestFeatureGate(
-                        icon: Icons.people_alt_rounded,
-                        title: "Follow pet lovers",
-                        description:
-                            "Create an account to build your pet community.",
-                        buttonText: "Sign In",
-                        onPressed: () {
-                          appState.closeGuestFeatureGate();
+                  return Positioned.fill(
+                    child: GuestFeatureGate(
+                      icon: Icons.people_alt_rounded,
+                      title: "Follow pet lovers",
+                      description:
+                          "Create an account to build your pet community.",
+                      buttonText: "Sign In",
+                      onPressed: () {
+                        appState.closeGuestFeatureGate();
 
-                          // ✅ اول پروفایل Petplore بسته شود
-                          appState.closePetploreProfile();
+                        // ✅ اول پروفایل Petplore بسته شود
+                        appState.closePetploreProfile();
 
-                          // ✅ بعد Tab عوض شود
-                          appState.setCurrentTab(NavTab.profile);
-                        },
-                      ),
-                    );
-                  },
-                ),
+                        // ✅ بعد Tab عوض شود
+                        appState.setCurrentTab(NavTab.profile);
+                      },
+                    ),
+                  );
+                },
+              ),
 
-                // ─────────────────────────────
-                // 🧩 Business Detail Overlay (GLOBAL)
-                // ─────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final business = context
-                        .select<AppState, BusinessCardData?>(
-                          (s) => s.activeBusiness,
-                        );
+              // ─────────────────────────────
+              // 🧩 Business Detail Overlay (GLOBAL)
+              // ─────────────────────────────
+              Builder(
+                builder: (context) {
+                  final business = context.select<AppState, BusinessCardData?>(
+                    (s) => s.activeBusiness,
+                  );
 
-                    if (business == null) return const SizedBox.shrink();
+                  if (business == null) return const SizedBox.shrink();
 
-                    if (business.status != 'approved') {
-                      return const SizedBox.shrink(); // یا Pending UI
-                    }
+                  if (business.status != 'approved') {
+                    return const SizedBox.shrink(); // یا Pending UI
+                  }
 
-                    final appState = context.read<AppState>();
-                    final onCall = _callAction(business);
-                    final onWhatsApp = _whatsAppAction(business);
-                    final onDirections = _directionsAction(business);
+                  final appState = context.read<AppState>();
+                  final onCall = _callAction(business);
+                  final onWhatsApp = _whatsAppAction(business);
+                  final onDirections = _directionsAction(business);
 
-                    if (business.type == BusinessType.groomer) {
-                      debugPrint('GROOMY DETAIL OPEN → BusinessDetailOverlay');
-
-                      return BusinessDetailOverlay(
-                        key: ValueKey('${business.type}-${business.id}'),
-
-                        data: business,
-
-                        onClose: appState.closeBusinessDetails,
-
-                        onOpenAppointment: () {
-                          appState.closeBusinessDetails();
-
-                          appState.openBusinessAppointment(business);
-                        },
-
-                        onCall: onCall,
-
-                        onWhatsApp: onWhatsApp,
-
-                        onDirections: onDirections,
-                      );
-                    }
-                    if (business.type == BusinessType.adoptionCenter) {
-                      debugPrint('OPEN ADOPTION DETAIL OVERLAY');
-                      debugPrint(
-                        'ADOPTION CENTER DETAIL OPEN id=${business.id} name=${business.name}',
-                      );
-
-                      return AdoptionCenterDetailsOverlay(
-                        key: ValueKey('${business.type}-${business.id}'),
-
-                        data: business,
-
-                        onClose: appState.closeBusinessDetails,
-
-                        onOpenPet: (pet) {
-                          debugPrint(
-                            'OPEN ADOPTION PET => id=${pet.id} name=${pet.name}',
-                          );
-
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => AdoptionRequestSheet(
-                              targetType: 'adoption_pet',
-                              targetId: pet.id,
-                              targetOwnerId: pet.businessId,
-                              dogName: pet.name,
-                            ),
-                          );
-                        },
-
-                        onCall: onCall,
-
-                        onWhatsApp: onWhatsApp,
-
-                        onDirections: onDirections,
-                      );
-                    }
-                    if (business.type == BusinessType.petHotel) {
-                      debugPrint(
-                        'PET HOTEL DETAIL OPEN id=${business.id} name=${business.name}',
-                      );
-                      return PetHotelDetailsOverlay(
-                        key: ValueKey('${business.type}-${business.id}'),
-                        data: business,
-                        onClose: appState.closeBusinessDetails,
-                        onOpenBooking: (service) {
-                          appState.closeBusinessDetails();
-                          appState.openBusinessAppointment(
-                            business,
-                            selectedService: service,
-                          );
-                        },
-                        onCall: onCall,
-                        onWhatsApp: onWhatsApp,
-                        onDirections: onDirections,
-                      );
-                    }
+                  if (business.type == BusinessType.groomer) {
+                    debugPrint('GROOMY DETAIL OPEN → BusinessDetailOverlay');
 
                     return BusinessDetailOverlay(
-                      key: ValueKey(
-                        '${business.type}-${business.id}',
-                      ), // ✅ ریست state وقتی بیزنس عوض میشه
+                      key: ValueKey('${business.type}-${business.id}'),
+
                       data: business,
+
                       onClose: appState.closeBusinessDetails,
 
-                      // ✅ فقط Vet حق دارد appointment باز کند
-                      onOpenAppointment:
-                          business.type == BusinessType.vet ||
-                              business.type == BusinessType.petHotel
-                          ? () {
-                              debugPrint(
-                                '🔥 OPEN APPOINTMENT type=${business.type}',
-                              );
+                      onOpenAppointment: () {
+                        appState.closeBusinessDetails();
 
-                              appState.closeBusinessDetails();
+                        appState.openBusinessAppointment(business);
+                      },
 
-                              appState.openBusinessAppointment(business);
-                            }
-                          : null,
-
-                      // ✅ CALL
                       onCall: onCall,
 
-                      // ✅ WHATSAPP (TR normalize)
                       onWhatsApp: onWhatsApp,
 
-                      // ✅ DIRECTIONS
                       onDirections: onDirections,
                     );
-                  },
-                ),
-                // ─────────────────────────────
-                // 🔔 Notifications Overlay
-                // ─────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final overlay = context.select<AppState, HomeOverlay>(
-                      (s) => s.homeOverlay,
+                  }
+                  if (business.type == BusinessType.adoptionCenter) {
+                    debugPrint('OPEN ADOPTION DETAIL OVERLAY');
+                    debugPrint(
+                      'ADOPTION CENTER DETAIL OPEN id=${business.id} name=${business.name}',
                     );
 
-                    if (overlay != HomeOverlay.notifications) {
-                      return const SizedBox.shrink();
-                    }
+                    return AdoptionCenterDetailsOverlay(
+                      key: ValueKey('${business.type}-${business.id}'),
 
-                    final appState = context.read<AppState>();
+                      data: business,
 
-                    return Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: appState.closeNotifications,
-                        child: Material(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          child: SafeArea(
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: GestureDetector(
-                                onTap: () {},
-                                child: Container(
-                                  margin: const EdgeInsets.all(16),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                        0.72,
-                                    width: double.infinity,
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.close),
-                                              onPressed:
-                                                  appState.closeNotifications,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                AppLocalizations.of(
-                                                  context,
-                                                )!.notifications,
-                                                style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Expanded(
-                                          child: NotificationsPage(
-                                            currentUserId: widget.currentUserId,
-                                            onNotificationSelected: (payload) {
-                                              appState.closeNotifications();
-                                              Future.microtask(() {
-                                                appState.handleNotificationTap(
-                                                  payload,
-                                                );
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                      onClose: appState.closeBusinessDetails,
 
-                // ─────────────────────────────
-                // 🐶 Edit Dog Overlay
-                // ─────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final Dog? editingDog = context.select<AppState, Dog?>(
-                      (s) => s.editingDog,
-                    );
-
-                    if (editingDog == null) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final appState = context.read<AppState>();
-
-                    return Positioned.fill(
-                      child: EditDogOverlay(
-                        dog: editingDog,
-                        onClose: appState.closeEditDog,
-                      ),
-                    );
-                  },
-                ),
-                // ─────────────────────────────
-                // 🐾 Petplore Profile Overlay V2 (GLOBAL)
-                // ─────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final targetUserId = context.select<AppState, String?>(
-                      (s) => s.petploreProfileUserId,
-                    );
-
-                    if (targetUserId == null) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final appState = context.read<AppState>();
-
-                    return Positioned.fill(
-                      child: PetploreProfileOverlayV2(
-                        userId: targetUserId,
-                        dogs: appState.allDogs,
-                      ),
-                    );
-                  },
-                ),
-                // ─────────────────────────────
-                // 🐶 Playmate Profile Overlay (GLOBAL)
-                // ─────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final String? targetUserId = context
-                        .select<AppState, String?>(
-                          (s) => s.playmateProfileUserId,
+                      onOpenPet: (pet) {
+                        debugPrint(
+                          'OPEN ADOPTION PET => id=${pet.id} name=${pet.name}',
                         );
 
-                    if (targetUserId == null) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final appState = context.read<AppState>();
-
-                    final userDogs = appState.allDogs
-                        .where((d) => d.ownerId == targetUserId)
-                        .toList();
-
-                    return Positioned.fill(
-                      child: Stack(
-                        children: [
-                          // 🔲 Dim background
-                          GestureDetector(
-                            onTap: appState.closePlaymateProfile,
-                            child: Container(color: Colors.black54),
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => AdoptionRequestSheet(
+                            targetType: 'adoption_pet',
+                            targetId: pet.id,
+                            targetOwnerId: pet.businessId,
+                            dogName: pet.name,
                           ),
+                        );
+                      },
 
-                          // 🐶 Center Card
-                          Center(
-                            child: FractionallySizedBox(
-                              widthFactor: 0.88,
-                              heightFactor: 0.82,
+                      onCall: onCall,
+
+                      onWhatsApp: onWhatsApp,
+
+                      onDirections: onDirections,
+                    );
+                  }
+                  if (business.type == BusinessType.petHotel) {
+                    debugPrint(
+                      'PET HOTEL DETAIL OPEN id=${business.id} name=${business.name}',
+                    );
+                    return PetHotelDetailsOverlay(
+                      key: ValueKey('${business.type}-${business.id}'),
+                      data: business,
+                      onClose: appState.closeBusinessDetails,
+                      onOpenBooking: (service) {
+                        appState.closeBusinessDetails();
+                        appState.openBusinessAppointment(
+                          business,
+                          selectedService: service,
+                        );
+                      },
+                      onCall: onCall,
+                      onWhatsApp: onWhatsApp,
+                      onDirections: onDirections,
+                    );
+                  }
+
+                  return BusinessDetailOverlay(
+                    key: ValueKey(
+                      '${business.type}-${business.id}',
+                    ), // ✅ ریست state وقتی بیزنس عوض میشه
+                    data: business,
+                    onClose: appState.closeBusinessDetails,
+
+                    // ✅ فقط Vet حق دارد appointment باز کند
+                    onOpenAppointment:
+                        business.type == BusinessType.vet ||
+                            business.type == BusinessType.petHotel
+                        ? () {
+                            debugPrint(
+                              '🔥 OPEN APPOINTMENT type=${business.type}',
+                            );
+
+                            appState.closeBusinessDetails();
+
+                            appState.openBusinessAppointment(business);
+                          }
+                        : null,
+
+                    // ✅ CALL
+                    onCall: onCall,
+
+                    // ✅ WHATSAPP (TR normalize)
+                    onWhatsApp: onWhatsApp,
+
+                    // ✅ DIRECTIONS
+                    onDirections: onDirections,
+                  );
+                },
+              ),
+              // ─────────────────────────────
+              // 🔔 Notifications Overlay
+              // ─────────────────────────────
+              Builder(
+                builder: (context) {
+                  final overlay = context.select<AppState, HomeOverlay>(
+                    (s) => s.homeOverlay,
+                  );
+
+                  if (overlay != HomeOverlay.notifications) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final appState = context.read<AppState>();
+
+                  return Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: appState.closeNotifications,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        child: SafeArea(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: GestureDetector(
+                              onTap: () {},
                               child: Container(
-                                padding: const EdgeInsets.all(20),
+                                margin: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF9E1B4F),
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: SingleChildScrollView(
+                                child: SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.72,
+                                  width: double.infinity,
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
                                           IconButton(
-                                            icon: const Icon(
-                                              Icons.close,
-                                              color: Colors.white,
-                                            ),
+                                            icon: const Icon(Icons.close),
                                             onPressed:
-                                                appState.closePlaymateProfile,
+                                                appState.closeNotifications,
                                           ),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
                                               AppLocalizations.of(
                                                 context,
-                                              )!.dogsOfThisUser,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                                              )!.notifications,
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.w700,
-                                                color: Colors.white,
                                               ),
                                             ),
                                           ),
-                                          if (targetUserId !=
-                                              appState.currentUserId) ...[
-                                            const SizedBox(width: 10),
-                                            _PlaymateFollowButton(
-                                              targetUserId: targetUserId,
-                                            ),
-                                          ],
                                         ],
                                       ),
-                                      const SizedBox(height: 12),
-                                      _PlaymateFollowStatsRow(
-                                        targetUserId: targetUserId,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      if (userDogs.isEmpty)
-                                        Text(
-                                          AppLocalizations.of(
-                                            context,
-                                          )!.noDogsFound,
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                          ),
-                                        )
-                                      else
-                                        ...userDogs.map(
-                                          (dog) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 14,
-                                            ),
-                                            child: DogCard(
-                                              dog: dog,
-                                              mode: DogCardMode.playdate,
-                                              allDogs: appState.allDogs,
-                                              currentUserId:
-                                                  appState.currentUserId ?? '',
-                                              favoriteDogs:
-                                                  appState.favoriteDogs,
-                                              onToggleFavorite:
-                                                  appState.toggleFavorite,
-                                              likers:
-                                                  appState.dogLikes[dog.id] ??
-                                                  [],
-                                              enableEdit: false,
-                                            ),
-                                          ),
+                                      const SizedBox(height: 8),
+                                      Expanded(
+                                        child: NotificationsPage(
+                                          currentUserId: widget.currentUserId,
+                                          onNotificationSelected: (payload) {
+                                            appState.closeNotifications();
+                                            Future.microtask(() {
+                                              appState.handleNotificationTap(
+                                                payload,
+                                              );
+                                            });
+                                          },
                                         ),
+                                      ),
                                     ],
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
+              ),
 
-                // ─────────────────────────────
-                // ⭐ Upgrade Overlay (GLOBAL)
-                // ─────────────────────────────
-                Builder(
-                  builder: (context) {
-                    final isOpen = context.select<AppState, bool>(
-                      (s) => s.showUpgradePage,
-                    );
+              // ─────────────────────────────
+              // 🐶 Edit Dog Overlay
+              // ─────────────────────────────
+              Builder(
+                builder: (context) {
+                  final Dog? editingDog = context.select<AppState, Dog?>(
+                    (s) => s.editingDog,
+                  );
 
-                    if (!isOpen) return const SizedBox.shrink();
+                  if (editingDog == null) {
+                    return const SizedBox.shrink();
+                  }
 
-                    final appState = context.read<AppState>();
-                    debugPrint("🔥 PETSUPO OVERLAY BUILD");
-                    return Positioned.fill(
-                      child: Material(
-                        color: const Color(0xFF120914),
-                        child: Stack(
-                          children: [
-                            UpgradePage(
-                              onClose: () {
-                                debugPrint("🔥 PETSUPO onClose");
-                                appState.closeUpgradePage();
-                              },
-                            ),
-                            SafeArea(
-                              child: Align(
-                                alignment: Alignment.topLeft,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: IconButton(
-                                    icon: const Icon(
-                                      Icons.close,
-                                      color: Colors.white,
+                  final appState = context.read<AppState>();
+
+                  return Positioned.fill(
+                    child: EditDogOverlay(
+                      dog: editingDog,
+                      onClose: appState.closeEditDog,
+                    ),
+                  );
+                },
+              ),
+              // ─────────────────────────────
+              // 🐾 Petplore Profile Overlay V2 (GLOBAL)
+              // ─────────────────────────────
+              Builder(
+                builder: (context) {
+                  final targetUserId = context.select<AppState, String?>(
+                    (s) => s.petploreProfileUserId,
+                  );
+
+                  if (targetUserId == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final appState = context.read<AppState>();
+
+                  return Positioned.fill(
+                    child: PetploreProfileOverlayV2(
+                      userId: targetUserId,
+                      dogs: appState.allDogs,
+                    ),
+                  );
+                },
+              ),
+              // ─────────────────────────────
+              // 🐶 Playmate Profile Overlay (GLOBAL)
+              // ─────────────────────────────
+              Builder(
+                builder: (context) {
+                  final String? targetUserId = context
+                      .select<AppState, String?>(
+                        (s) => s.playmateProfileUserId,
+                      );
+
+                  if (targetUserId == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final appState = context.read<AppState>();
+
+                  final userDogs = appState.allDogs
+                      .where((d) => d.ownerId == targetUserId)
+                      .toList();
+
+                  return Positioned.fill(
+                    child: Stack(
+                      children: [
+                        // 🔲 Dim background
+                        GestureDetector(
+                          onTap: appState.closePlaymateProfile,
+                          child: Container(color: Colors.black54),
+                        ),
+
+                        // 🐶 Center Card
+                        Center(
+                          child: FractionallySizedBox(
+                            widthFactor: 0.88,
+                            heightFactor: 0.82,
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9E1B4F),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed:
+                                              appState.closePlaymateProfile,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.dogsOfThisUser,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        if (targetUserId !=
+                                            appState.currentUserId) ...[
+                                          const SizedBox(width: 10),
+                                          _PlaymateFollowButton(
+                                            targetUserId: targetUserId,
+                                          ),
+                                        ],
+                                      ],
                                     ),
-                                    onPressed: appState.closeUpgradePage,
-                                  ),
+                                    const SizedBox(height: 12),
+                                    _PlaymateFollowStatsRow(
+                                      targetUserId: targetUserId,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (userDogs.isEmpty)
+                                      Text(
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.noDogsFound,
+                                        style: TextStyle(color: Colors.white70),
+                                      )
+                                    else
+                                      ...userDogs.map(
+                                        (dog) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 14,
+                                          ),
+                                          child: DogCard(
+                                            dog: dog,
+                                            mode: DogCardMode.playdate,
+                                            allDogs: appState.allDogs,
+                                            currentUserId:
+                                                appState.currentUserId ?? '',
+                                            favoriteDogs: appState.favoriteDogs,
+                                            onToggleFavorite:
+                                                appState.toggleFavorite,
+                                            likers:
+                                                appState.dogLikes[dog.id] ?? [],
+                                            enableEdit: false,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+              // ─────────────────────────────
+              // ⭐ Upgrade Overlay (GLOBAL)
+              // ─────────────────────────────
+              Builder(
+                builder: (context) {
+                  final isOpen = context.select<AppState, bool>(
+                    (s) => s.showUpgradePage,
+                  );
+
+                  if (!isOpen) return const SizedBox.shrink();
+
+                  final appState = context.read<AppState>();
+                  debugPrint("🔥 PETSUPO OVERLAY BUILD");
+                  return Positioned.fill(
+                    child: Material(
+                      color: const Color(0xFF120914),
+                      child: Stack(
+                        children: [
+                          UpgradePage(
+                            onClose: () {
+                              debugPrint("🔥 PETSUPO onClose");
+                              appState.closeUpgradePage();
+                            },
+                          ),
+                          SafeArea(
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: appState.closeUpgradePage,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ],
-            ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
 
