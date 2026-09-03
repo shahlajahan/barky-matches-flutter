@@ -1093,6 +1093,54 @@ class AppState with ChangeNotifier {
   bool _isUserProfileReady = false;
   bool get isUserProfileReady => _isUserProfileReady;
 
+  // ─────────────────────────────
+  // 🔐 STARTUP AUTH RESTORATION
+  // ─────────────────────────────
+  //
+  // Firebase restores a persisted session asynchronously, so
+  // `FirebaseAuth.instance.currentUser` is briefly null at launch even for a
+  // signed-in user. Routing on that transient null is what made a returning
+  // user land on WelcomePage.
+  //
+  // These two flags are owned here — the same object that already owns the
+  // auth subscription, the uid, guest state and profile readiness — so no
+  // second auth state system is introduced. They describe only *whether the
+  // auth stream has spoken yet* and *what it last said*; every existing
+  // guest/blocked/suspended/profile-completion rule is untouched.
+
+  bool _authRestorationSettled = false;
+
+  /// False until the auth stream delivers its first event. While false the
+  /// startup UI must show the launch/loading presentation — never WelcomePage
+  /// and never an authenticated page.
+  bool get authRestorationSettled => _authRestorationSettled;
+
+  bool _hasRestoredAuthUser = false;
+
+  /// The last settled auth-stream value: true when a Firebase user (including
+  /// an anonymous/guest user) is present. Maintained from the stream event
+  /// itself rather than by re-reading the singleton.
+  bool get hasRestoredAuthUser => _hasRestoredAuthUser;
+
+  Timer? _authRestorationTimeout;
+
+  /// Defensive liveness guard only. Firebase reliably emits an initial event,
+  /// but a missed event must not strand the app on a splash screen forever.
+  /// This never decides *whether* a user is authenticated — it only stops
+  /// waiting, after which the ordinary settled logic applies.
+  static const Duration authRestorationTimeout = Duration(seconds: 10);
+
+  void _markAuthRestorationSettled({required String reason}) {
+    if (_authRestorationSettled) return;
+
+    _authRestorationSettled = true;
+    _authRestorationTimeout?.cancel();
+    _authRestorationTimeout = null;
+
+    debugPrint('🔐 AUTH RESTORATION SETTLED → $reason');
+    notifyListeners();
+  }
+
   StartupPhase _startupPhase = StartupPhase.coldStart;
   StartupPhase get startupPhase => _startupPhase;
   bool _firebaseInitialized = false;
@@ -2412,19 +2460,61 @@ class AppState with ChangeNotifier {
     );
   }
 
+  /// Test seam, mirroring the existing `PostCommentService(currentUser: ...)`
+  /// convention: supplies the auth event stream so startup restoration can be
+  /// driven deterministically. Production leaves it null and uses the real
+  /// FirebaseAuth streams selected below, unchanged.
+  @visibleForTesting
+  Stream<User?> Function()? authEventsOverride;
+
+  /// Companion seam to [authEventsOverride] for the "false null" guard, which
+  /// must consult the SDK's own current user. Production reads the real
+  /// singleton exactly as before.
+  @visibleForTesting
+  User? Function()? currentUserOverride;
+
+  /// Restoration-only test seam. Downstream authenticated-session
+  /// coordination (profile load, token refresh retries) reaches the real
+  /// Firebase singletons, which is out of scope for startup-restoration tests
+  /// and unreachable in a unit test. Setting this exercises the restoration
+  /// state machine and routing without that coordination.
+  ///
+  /// Production never sets this: it stays false, so the authenticated session
+  /// is coordinated exactly as before. It does not gate, relax, or bypass any
+  /// verification, blocked/suspended, or profile-completion rule — those all
+  /// live inside the coordination this flag merely defers in tests.
+  @visibleForTesting
+  bool debugSkipAuthenticatedSessionCoordination = false;
+
+  User? _currentUser() {
+    // Presence of the override decides, not its result — a legitimately null
+    // override result must not fall through to the real singleton.
+    final override = currentUserOverride;
+    if (override != null) return override();
+    return FirebaseAuth.instance.currentUser;
+  }
+
   void startAuthListener() {
     if (_authSub != null) {
       debugPrint('🛑 Auth listener already active');
       return;
     }
 
+    // Starts the moment we begin listening, so a stream that never delivers
+    // its initial event cannot leave startup stuck in `restoring` forever.
+    _authRestorationTimeout?.cancel();
+    _authRestorationTimeout = Timer(authRestorationTimeout, () {
+      if (_disposed) return;
+      _markAuthRestorationSettled(reason: 'timeout — no initial auth event');
+    });
+
     debugPrint('🧨 startAuthListener INITIALIZED');
-    _startupAuthWasRestored = FirebaseAuth.instance.currentUser != null;
+    _startupAuthWasRestored = _currentUser() != null;
     _startupAuthRestoreDelayApplied = false;
     if (_startupAuthWasRestored) {
       debugPrint(
         '🌐 AUTH RESTORE START → '
-        'uid=${FirebaseAuth.instance.currentUser?.uid} '
+        'uid=${_currentUser()?.uid} '
         'source=startup currentUser preloaded',
       );
     }
@@ -2432,12 +2522,25 @@ class AppState with ChangeNotifier {
       debugPrint('🌐 PASSIVE AUTH OBSERVER ACTIVE');
     }
 
-    final authEvents = AuthTrap.authProbeMinimalMode
-        ? FirebaseAuth.instance.authStateChanges()
-        : FirebaseAuth.instance.idTokenChanges();
+    final authEvents =
+        authEventsOverride?.call() ??
+        (AuthTrap.authProbeMinimalMode
+            ? FirebaseAuth.instance.authStateChanges()
+            : FirebaseAuth.instance.idTokenChanges());
 
     _authSub = authEvents.listen(
       (user) {
+        // The auth stream has spoken: startup may stop waiting. Recorded
+        // before any of the branches below, all of which can return early.
+        if (user != null) {
+          _hasRestoredAuthUser = true;
+        } else if (_currentUser() == null) {
+          // A null event while the SDK still holds a user is the transient
+          // "false null" handled below — do not report the user as gone.
+          _hasRestoredAuthUser = false;
+        }
+        _markAuthRestorationSettled(reason: 'auth event uid=${user?.uid}');
+
         debugPrint(
           'AUTH STATE CHANGED → user=${user?.uid ?? "NULL"} source=${AuthTrap.authProbeMinimalMode ? "authStateChanges" : "idTokenChanges"}',
         );
@@ -2446,7 +2549,7 @@ class AppState with ChangeNotifier {
         // ─────────────────────────────
 
         debugPrint(
-          '🔥 AUTH LISTENER USER = ${user?.uid} / current=${FirebaseAuth.instance.currentUser?.uid}',
+          '🔥 AUTH LISTENER USER = ${user?.uid} / current=${_currentUser()?.uid}',
         );
         if (user == null) {
           _resetStartupReadiness();
@@ -2458,7 +2561,7 @@ class AppState with ChangeNotifier {
             debugPrint('ℹ️ Auth state is NULL on startup → signed out');
           }
 
-          if (FirebaseAuth.instance.currentUser != null) {
+          if (_currentUser() != null) {
             debugPrint('⚠️ Ignoring false auth null state');
             return;
           }
@@ -2525,6 +2628,7 @@ class AppState with ChangeNotifier {
 
         _scheduledInitUserForUid = user.uid;
         debugPrint('🌐 INITUSER SCHEDULED → uid=${user.uid}');
+        if (debugSkipAuthenticatedSessionCoordination) return;
         unawaited(
           _coordinateAuthenticatedSession(
             user,
@@ -2535,10 +2639,19 @@ class AppState with ChangeNotifier {
       },
       onError: (e, stack) {
         debugPrint('⚠️ idTokenChanges listener error → $e');
+        // Settle so startup does not hang on the splash. The stream error is
+        // not treated as a sign-out: `_hasRestoredAuthUser` keeps whatever the
+        // last real event said, and no signOut() is performed here.
+        _markAuthRestorationSettled(reason: 'auth stream error');
       },
     );
 
-    unawaited(_resyncAuthAfterHotRestart());
+    // The hot-restart resync reconciles against the real FirebaseAuth
+    // singleton, which is meaningless (and unreachable) when the auth stream
+    // has been injected for a test. Production always runs it.
+    if (authEventsOverride == null) {
+      unawaited(_resyncAuthAfterHotRestart());
+    }
   }
 
   Future<void> _startAuthenticatedSessionAfterUidSync(
@@ -5490,6 +5603,9 @@ class AppState with ChangeNotifier {
 
     _startupReadinessRetryTimer?.cancel();
     _startupReadinessRetryTimer = null;
+
+    _authRestorationTimeout?.cancel();
+    _authRestorationTimeout = null;
 
     super.dispose();
   }
