@@ -4580,4 +4580,9 @@
 ,"petShopWorkingHoursHint": "Örnek: 10:00–21:00"
 ,"petShopWorkingHoursInvalidFormat": "10:00–21:00 biçimini kullanın (24 saat, tire ile ayrılmış)."
 ,"petShopWorkingHoursInvalidRange": "Kapanış saati açılış saatinden sonra olmalıdır."
+,"scheduleNavItem": "Program"
+,"drawerSectionMain": "Ana Menü"
+,"drawerSectionSupport": "Destek"
+,"drawerSectionLegal": "Yasal"
+,"faqMenuItem": "SSS"
 }

@@ -10397,4 +10397,19 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get petShopWorkingHoursInvalidRange => 'ساعت پایان باید بعد از ساعت شروع باشد.';
+
+  @override
+  String get scheduleNavItem => 'برنامه';
+
+  @override
+  String get drawerSectionMain => 'منوی اصلی';
+
+  @override
+  String get drawerSectionSupport => 'پشتیبانی';
+
+  @override
+  String get drawerSectionLegal => 'قوانین';
+
+  @override
+  String get faqMenuItem => 'سوالات متداول';
 }

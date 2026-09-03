@@ -3386,4 +3386,9 @@
 ,"petShopWorkingHoursHint": "Пример: 10:00–21:00"
 ,"petShopWorkingHoursInvalidFormat": "Используйте формат 10:00–21:00 (24 часа, через тире)."
 ,"petShopWorkingHoursInvalidRange": "Время закрытия должно быть позже времени открытия."
+,"scheduleNavItem": "Расписание"
+,"drawerSectionMain": "Главное меню"
+,"drawerSectionSupport": "Поддержка"
+,"drawerSectionLegal": "Правовая информация"
+,"faqMenuItem": "Частые вопросы"
 }

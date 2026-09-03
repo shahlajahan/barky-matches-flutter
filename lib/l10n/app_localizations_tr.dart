@@ -10397,4 +10397,19 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get petShopWorkingHoursInvalidRange => 'Kapanış saati açılış saatinden sonra olmalıdır.';
+
+  @override
+  String get scheduleNavItem => 'Program';
+
+  @override
+  String get drawerSectionMain => 'Ana Menü';
+
+  @override
+  String get drawerSectionSupport => 'Destek';
+
+  @override
+  String get drawerSectionLegal => 'Yasal';
+
+  @override
+  String get faqMenuItem => 'SSS';
 }

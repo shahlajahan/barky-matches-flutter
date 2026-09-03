@@ -10397,4 +10397,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get petShopWorkingHoursInvalidRange => 'Closing time must be later than opening time.';
+
+  @override
+  String get scheduleNavItem => 'Schedule';
+
+  @override
+  String get drawerSectionMain => 'Main';
+
+  @override
+  String get drawerSectionSupport => 'Support';
+
+  @override
+  String get drawerSectionLegal => 'Legal';
+
+  @override
+  String get faqMenuItem => 'FAQ';
 }

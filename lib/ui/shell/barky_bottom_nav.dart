@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+
 import '../../app_state.dart';
 import 'nav_tab.dart';
 
@@ -42,6 +44,9 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
         ? context.select<AppState, bool>((state) => state.showBottomNav)
         : context.watch<AppState>().showBottomNav;
     final appState = context.read<AppState>();
+    // Resolved during build, so a locale change rebuilds the labels in place
+    // without restarting the app. Never cached in a field or initState.
+    final l10n = AppLocalizations.of(context)!;
 
     return AnimatedSlide(
       duration: const Duration(milliseconds: 250),
@@ -65,14 +70,14 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
                     _buildItem(
                       context,
                       icon: LucideIcons.home,
-                      label: 'Home',
+                      label: l10n.homeNavItem,
                       tab: NavTab.home,
                     ),
 
                     _buildItem(
                       context,
                       icon: LucideIcons.heart,
-                      label: 'Favorites',
+                      label: l10n.favoritesNavItem,
                       tab: NavTab.favorites,
                     ),
 
@@ -81,14 +86,14 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
                     _buildItem(
                       context,
                       icon: LucideIcons.calendar,
-                      label: 'Schedule',
+                      label: l10n.scheduleNavItem,
                       tab: NavTab.playdateScheduling,
                     ),
 
                     _buildItem(
                       context,
                       icon: LucideIcons.user,
-                      label: 'Profile',
+                      label: l10n.profileNavItem,
                       tab: NavTab.profile,
                     ),
                   ],

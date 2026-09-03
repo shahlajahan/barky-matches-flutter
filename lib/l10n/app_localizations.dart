@@ -19538,6 +19538,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Closing time must be later than opening time.'**
   String get petShopWorkingHoursInvalidRange;
+
+  /// Bottom navigation item for the playdate scheduling tab
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get scheduleNavItem;
+
+  /// Drawer section heading grouping the primary destinations
+  ///
+  /// In en, this message translates to:
+  /// **'Main'**
+  String get drawerSectionMain;
+
+  /// Drawer section heading grouping help and feedback items
+  ///
+  /// In en, this message translates to:
+  /// **'Support'**
+  String get drawerSectionSupport;
+
+  /// Drawer section heading grouping legal documents
+  ///
+  /// In en, this message translates to:
+  /// **'Legal'**
+  String get drawerSectionLegal;
+
+  /// Drawer item opening frequently asked questions
+  ///
+  /// In en, this message translates to:
+  /// **'FAQ'**
+  String get faqMenuItem;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

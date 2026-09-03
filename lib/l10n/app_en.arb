@@ -4594,4 +4594,14 @@
 ,"petShopWorkingHoursHint": "Example: 10:00–21:00"
 ,"petShopWorkingHoursInvalidFormat": "Use the format 10:00–21:00 (24-hour, separated by a dash)."
 ,"petShopWorkingHoursInvalidRange": "Closing time must be later than opening time."
+,"scheduleNavItem": "Schedule"
+,"@scheduleNavItem": { "description": "Bottom navigation item for the playdate scheduling tab" }
+,"drawerSectionMain": "Main"
+,"@drawerSectionMain": { "description": "Drawer section heading grouping the primary destinations" }
+,"drawerSectionSupport": "Support"
+,"@drawerSectionSupport": { "description": "Drawer section heading grouping help and feedback items" }
+,"drawerSectionLegal": "Legal"
+,"@drawerSectionLegal": { "description": "Drawer section heading grouping legal documents" }
+,"faqMenuItem": "FAQ"
+,"@faqMenuItem": { "description": "Drawer item opening frequently asked questions" }
 }

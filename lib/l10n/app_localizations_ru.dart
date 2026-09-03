@@ -10399,4 +10399,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get petShopWorkingHoursInvalidRange => 'Время закрытия должно быть позже времени открытия.';
+
+  @override
+  String get scheduleNavItem => 'Расписание';
+
+  @override
+  String get drawerSectionMain => 'Главное меню';
+
+  @override
+  String get drawerSectionSupport => 'Поддержка';
+
+  @override
+  String get drawerSectionLegal => 'Правовая информация';
+
+  @override
+  String get faqMenuItem => 'Частые вопросы';
 }

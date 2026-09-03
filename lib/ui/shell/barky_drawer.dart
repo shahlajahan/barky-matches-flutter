@@ -31,6 +31,10 @@ class BarkyDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Resolved during build so a locale change rebuilds an already-mounted
+    // drawer in place. Never cached in a field, constructor, or initState.
+    final l10n = AppLocalizations.of(context)!;
+
     return Drawer(
       width: 260,
       child: Container(
@@ -48,7 +52,7 @@ class BarkyDrawer extends StatelessWidget {
               child: Align(
                 alignment: Alignment.bottomLeft,
                 child: Text(
-                  AppLocalizations.of(context)!.petSupoBrand,
+                  l10n.petSupoBrand,
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontSize: 26,
@@ -59,12 +63,12 @@ class BarkyDrawer extends StatelessWidget {
             ),
 
             /// 🟣 MAIN
-            _sectionTitle("Main"),
+            _sectionTitle(l10n.drawerSectionMain),
 
             _tile(
               context,
               LucideIcons.home,
-              "Home",
+              l10n.homeMenuItem,
               onTap: () {
                 context.read<AppState>().setCurrentTab(NavTab.home);
               },
@@ -73,12 +77,12 @@ class BarkyDrawer extends StatelessWidget {
             const Divider(height: 32),
 
             /// 🟣 SUPPORT
-            _sectionTitle("Support"),
+            _sectionTitle(l10n.drawerSectionSupport),
 
             _tile(
               context,
               LucideIcons.messageSquare,
-              "Send Feedback",
+              l10n.sendFeedback,
               onTap: () {
                 final appState = context.read<AppState>();
 
@@ -91,7 +95,7 @@ class BarkyDrawer extends StatelessWidget {
             _tile(
               context,
               LucideIcons.bug,
-              "Report Problem",
+              l10n.userProfileReportProblem,
               onTap: () {
                 final appState = context.read<AppState>();
 
@@ -104,7 +108,7 @@ class BarkyDrawer extends StatelessWidget {
             _tile(
               context,
               LucideIcons.helpCircle,
-              "FAQ",
+              l10n.faqMenuItem,
               onTap: () {
                 final appState = context.read<AppState>();
 
@@ -116,12 +120,12 @@ class BarkyDrawer extends StatelessWidget {
 
             const Divider(height: 32),
 
-            _sectionTitle("Legal"),
+            _sectionTitle(l10n.drawerSectionLegal),
 
             _tile(
               context,
               LucideIcons.shield,
-              "Privacy Policy",
+              l10n.privacyPolicyLabel,
               onTap: () {
                 Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
@@ -132,7 +136,7 @@ class BarkyDrawer extends StatelessWidget {
             _tile(
               context,
               LucideIcons.fileText,
-              "Terms of Service",
+              l10n.termsOfServiceTitle,
               onTap: () {
                 Navigator.of(
                   context,
@@ -144,7 +148,7 @@ class BarkyDrawer extends StatelessWidget {
             _tile(
               context,
               LucideIcons.info,
-              "About Us",
+              l10n.aboutUsTitle,
               onTap: () {
                 Navigator.of(
                   context,
@@ -159,7 +163,7 @@ class BarkyDrawer extends StatelessWidget {
             _tile(
               context,
               LucideIcons.logOut,
-              "Logout",
+              l10n.logoutMenuItem,
               isDestructive: true,
               onTap: () async {
                 await AuthTrap.signOut(reason: 'drawer_logout');
