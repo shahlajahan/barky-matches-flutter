@@ -95,7 +95,24 @@ class UserSubscription {
     };
   }
 
-  /// Parse Firestore Timestamp safely
+  /// Parse a subscription timestamp from every representation this record
+  /// is legitimately stored in.
+  ///
+  /// Firestore hands back a [Timestamp]. The offline Hive cache does not:
+  /// `AppState._refreshSubscriptionHiveCache` serialises the subscription
+  /// through `cleanDeep` (lib/utils/firestore_cleaner.dart), which converts
+  /// `DateTime`/`Timestamp` to an ISO-8601 **String** before storing it. A
+  /// parser that accepted only `Timestamp`/`DateTime` therefore returned
+  /// `null` for every cached `expiresAt`, which silently downgraded a
+  /// restored paid entitlement: `plan` and `status` are plain strings and
+  /// survived the round trip, but `hasValidPaidAccess` requires a non-null
+  /// future expiry, so a cached Gold record presented as
+  /// `plan=gold, status=active` while `isGold` evaluated `false`.
+  ///
+  /// This widens parsing only — it never invents an expiry. `null`,
+  /// unparseable text and unexpected types still yield `null`, so a record
+  /// with no trustworthy expiry continues to fail closed, and an expiry in
+  /// the past still fails the `isAfter(now)` check in [hasValidPaidAccess].
   static DateTime? _parseTimestamp(dynamic value) {
     if (value == null) return null;
 
@@ -105,6 +122,19 @@ class UserSubscription {
 
     if (value is DateTime) {
       return value;
+    }
+
+    // Hive cache round trip (`cleanDeep` → ISO-8601), and any server or
+    // admin tooling that stores the instant as text.
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return null;
+      return DateTime.tryParse(trimmed);
+    }
+
+    // Epoch milliseconds, as emitted by some JS/Admin-SDK writers.
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
     }
 
     return null;

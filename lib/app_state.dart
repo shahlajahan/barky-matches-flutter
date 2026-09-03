@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
 import 'dog.dart';
@@ -4098,7 +4098,8 @@ class AppState with ChangeNotifier {
     );
   }
 
-  Future<AppointmentNotificationNavigationDecision> handleNotificationTapGuarded(
+  Future<AppointmentNotificationNavigationDecision>
+  handleNotificationTapGuarded(
     Map<String, dynamic> payload, {
     AppointmentAvailabilityResolver? resolveAvailability,
     void Function()? onMissingOrMalformed,
@@ -4841,6 +4842,22 @@ class AppState with ChangeNotifier {
   UserSubscription _subscription = UserSubscription.normal();
 
   UserSubscription get subscription => _subscription;
+
+  /// Test-only seam for driving the real entitlement getters below.
+  ///
+  /// The production subscription is set exclusively by
+  /// `loadSubscriptionFromFirestore` and `_applyCachedSubscription`, both of
+  /// which require Firestore and Hive. Widget tests need a way to place a
+  /// genuine [UserSubscription] into a real [AppState] so the shipping
+  /// `isGold`/`canRegisterBusiness` getters — not a reimplementation — decide
+  /// the Business quick action. This setter grants no entitlement of its own:
+  /// the value still passes through the same [SubscriptionAccess] policy.
+  @visibleForTesting
+  void debugSetSubscription(UserSubscription value) {
+    _subscription = value;
+    _isPremium = value.hasValidPaidAccess;
+    notifyListeners();
+  }
 
   SubscriptionAccess get subscriptionAccess =>
       SubscriptionAccess(_subscription);
