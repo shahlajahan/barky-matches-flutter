@@ -1281,6 +1281,11 @@ void main() async {
     AuthTrap.signOut(reason: 'session_expired');
   } // 👈 فقط برای تست
 
+  // Resolve the startup language before the first frame: saved choice, else
+  // device locale, else English. Doing this here (rather than after runApp)
+  // means the app never paints English first and then switches.
+  final String initialLanguageCode = await AppState.loadInitialLanguageCode();
+
   runApp(
     MultiProvider(
       providers: [
@@ -1307,6 +1312,8 @@ void main() async {
               },
 
               notificationService: NotificationService(),
+
+              initialLanguageCode: initialLanguageCode,
             );
 
             if (!kIsWeb) {

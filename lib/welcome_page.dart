@@ -597,12 +597,16 @@ Future<void> debugFirestoreRestOffers() async {
 
                         // 🌍 LANGUAGE
                         Center(
-                          child: FutureBuilder<String>(
-                            future: _loadSavedLanguage(),
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData) return const SizedBox();
-
-                              final selectedLanguage = snapshot.data ?? 'en';
+                          child: Builder(
+                            builder: (context) {
+                              // Reads the canonical locale from AppState
+                              // instead of SharedPreferences, so the selector
+                              // always matches the active language and
+                              // updates immediately after a change.
+                              final selectedLanguage = context
+                                  .watch<app.AppState>()
+                                  .locale
+                                  .languageCode;
 
                               return DropdownButton<String>(
                                 value: selectedLanguage,
@@ -621,12 +625,14 @@ Future<void> debugFirestoreRestOffers() async {
                                     ),
                                   );
                                 }).toList(),
-                                onChanged: (value) {
+                                onChanged: (value) async {
                                   if (value == null) return;
 
-                                  // ✅ بقیه زبان‌ها
-                                  _saveLanguage(value);
-                                  context.read<app.AppState>().setLocale(value);
+                                  // Canonical path: AppState updates state,
+                                  // notifies, and persists.
+                                  await context.read<app.AppState>().setLocale(
+                                    value,
+                                  );
                                 },
                                 dropdownColor: Colors.white,
                               );
@@ -652,17 +658,6 @@ Future<void> debugFirestoreRestOffers() async {
         ],
       ),
     );
-  }
-
-  Future<String> _loadSavedLanguage() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('language') ?? 'en';
-  }
-
-  Future<void> _saveLanguage(String language) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', language);
-    context.read<app.AppState>().setLocale(language);
   }
 }
 

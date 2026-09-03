@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dog.dart';
 import 'notification_service.dart';
@@ -189,8 +190,92 @@ class AppState with ChangeNotifier {
   // ─────────────────────────────
   // 🌍 LANGUAGE / LOCALE
   // ─────────────────────────────
+  //
+  // AppState is the canonical owner of the active locale. UI language
+  // selectors must go through [setLocale] and must never read or write the
+  // preference key themselves.
 
-  Locale _locale = const Locale('en');
+  /// The single SharedPreferences key for the user's language choice.
+  ///
+  /// Deliberately kept as `'language'` — the key already shipped in released
+  /// versions (previously read/written directly by WelcomePage). Renaming it
+  /// would strand every existing user's saved choice.
+  static const String localePreferenceKey = 'language';
+
+  /// The application's supported languages. Must stay in sync with
+  /// `AppLocalizations.supportedLocales`.
+  static const List<String> supportedLanguageCodes = <String>[
+    'en',
+    'fa',
+    'ru',
+    'tr',
+  ];
+
+  static const String fallbackLanguageCode = 'en';
+
+  /// Reduces an arbitrary value to a supported language code, or `null`.
+  ///
+  /// Accepts a bare code or a regional variant in either separator style, so
+  /// `tr_TR`, `fa-IR`, `en_US`, `ru_RU` all normalize to their base language.
+  /// Anything malformed, empty, non-String, or unsupported yields `null` so
+  /// callers can fall through rather than adopting a broken value.
+  static String? normalizeLanguageCode(Object? raw) {
+    if (raw is! String) return null;
+
+    final trimmed = raw.trim().toLowerCase();
+    if (trimmed.isEmpty) return null;
+
+    final base = trimmed.split(RegExp(r'[_-]')).first;
+    return supportedLanguageCodes.contains(base) ? base : null;
+  }
+
+  /// Pure startup resolution: saved preference, else device locale, else
+  /// English. Kept free of plugin/platform access so it is directly testable.
+  ///
+  /// [deviceLocales] is the platform's ordered preference list; the first
+  /// supported entry wins. Country, timezone, SIM and IP are deliberately not
+  /// consulted — only an explicit choice or the device language may select a
+  /// language.
+  static String resolveInitialLanguageCode({
+    Object? savedValue,
+    List<Locale> deviceLocales = const <Locale>[],
+  }) {
+    final saved = normalizeLanguageCode(savedValue);
+    if (saved != null) return saved;
+
+    for (final locale in deviceLocales) {
+      final code = normalizeLanguageCode(locale.languageCode);
+      if (code != null) return code;
+    }
+
+    return fallbackLanguageCode;
+  }
+
+  /// Resolves the startup language, reading the saved preference. Called
+  /// before `runApp` so the first frame already paints the correct language —
+  /// there is no English flash and no extra loading state.
+  static Future<String> loadInitialLanguageCode({
+    List<Locale>? deviceLocales,
+  }) async {
+    Object? saved;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      saved = prefs.getString(localePreferenceKey);
+    } catch (e) {
+      // A preferences failure must never block startup; fall through to the
+      // device locale.
+      debugPrint('⚠️ Could not read saved language: $e');
+      saved = null;
+    }
+
+    return resolveInitialLanguageCode(
+      savedValue: saved,
+      deviceLocales:
+          deviceLocales ?? WidgetsBinding.instance.platformDispatcher.locales,
+    );
+  }
+
+  Locale _locale = const Locale(fallbackLanguageCode);
 
   Locale get locale => _locale;
 
@@ -274,9 +359,35 @@ class AppState with ChangeNotifier {
     _activateGuestSessionState();
   }
 
-  void setLocale(String languageCode) {
-    _locale = Locale(languageCode);
-    notifyListeners();
+  /// The canonical path for an explicit, user-triggered language change.
+  ///
+  /// Distinct from startup initialization ([resolveInitialLanguageCode]),
+  /// which never writes: only a deliberate user selection is persisted.
+  ///
+  /// State is updated and listeners notified synchronously so MaterialApp
+  /// rebuilds immediately, then the choice is persisted. Callers should await
+  /// this so the write is not lost. An unsupported code is ignored rather than
+  /// applied, so a bad value can never strand the UI in an unlocalized state.
+  Future<void> setLocale(String languageCode) async {
+    final normalized = normalizeLanguageCode(languageCode);
+    if (normalized == null) {
+      debugPrint('⚠️ Ignoring unsupported language code: $languageCode');
+      return;
+    }
+
+    if (_locale.languageCode != normalized) {
+      _locale = Locale(normalized);
+      // notifyListeners() is disposal-guarded above.
+      notifyListeners();
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(localePreferenceKey, normalized);
+    } catch (e) {
+      // The in-memory change stands; only persistence failed.
+      debugPrint('❌ Failed to persist language "$normalized": $e');
+    }
   }
 
   bool get isGuest => _currentUserId == 'guest';
@@ -5309,6 +5420,10 @@ class AppState with ChangeNotifier {
 
     String? selectedRequesterDogId,
     bool isPremium = false,
+
+    /// Startup language resolved by [loadInitialLanguageCode] before
+    /// `runApp`. Unsupported/absent values keep the English default.
+    String? initialLanguageCode,
   }) : _favoriteDogs = favoriteDogs,
        _dogLikes = {},
        _currentUserId = currentUserId,
@@ -5318,6 +5433,12 @@ class AppState with ChangeNotifier {
 
        _selectedRequesterDogId = selectedRequesterDogId,
        _isPremium = isPremium {
+    final resolvedLanguage = normalizeLanguageCode(initialLanguageCode);
+    if (resolvedLanguage != null) {
+      // Initialization, not a user choice — deliberately does not persist.
+      _locale = Locale(resolvedLanguage);
+    }
+
     DogsBoxManager.instance.addListener(_handleDogsSnapshotChanged);
     _syncDogsFromManager(notify: false);
   }

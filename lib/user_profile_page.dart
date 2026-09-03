@@ -2091,41 +2091,45 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   void _showLanguageSelector(BuildContext context) {
+    // Routes every option through AppState.setLocale — the canonical path
+    // that both applies and persists the choice. The sheet no longer touches
+    // SharedPreferences, and the navigator is captured before the await so no
+    // BuildContext is used across an async gap.
+    Future<void> selectLanguage(
+      BuildContext sheetContext,
+      String languageCode,
+    ) async {
+      final navigator = Navigator.of(sheetContext);
+      final appState = sheetContext.read<AppState>();
+
+      await appState.setLocale(languageCode);
+
+      navigator.pop();
+    }
+
     showModalBottomSheet(
       context: context,
-      builder: (_) {
+      builder: (sheetContext) {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text(AppLocalizations.of(context)!.english),
-              onTap: () {
-                context.read<AppState>().setLocale('en');
-                Navigator.pop(context);
-              },
+              title: Text(AppLocalizations.of(sheetContext)!.english),
+              onTap: () => selectLanguage(sheetContext, 'en'),
             ),
 
             ListTile(
-              title: Text(AppLocalizations.of(context)!.persianLanguage),
-              onTap: () {
-                context.read<AppState>().setLocale('fa');
-                Navigator.pop(context);
-              },
+              title: Text(AppLocalizations.of(sheetContext)!.persianLanguage),
+              onTap: () => selectLanguage(sheetContext, 'fa'),
             ),
 
             ListTile(
-              title: Text(AppLocalizations.of(context)!.turkish),
-              onTap: () {
-                context.read<AppState>().setLocale('tr');
-                Navigator.pop(context);
-              },
+              title: Text(AppLocalizations.of(sheetContext)!.turkish),
+              onTap: () => selectLanguage(sheetContext, 'tr'),
             ),
             ListTile(
-              title: Text(AppLocalizations.of(context)!.russianLanguage),
-              onTap: () {
-                context.read<AppState>().setLocale('ru');
-                Navigator.pop(context);
-              },
+              title: Text(AppLocalizations.of(sheetContext)!.russianLanguage),
+              onTap: () => selectLanguage(sheetContext, 'ru'),
             ),
           ],
         );
