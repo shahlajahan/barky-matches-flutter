@@ -542,6 +542,75 @@ function sanitizePetShopSectorProjection(sector, projected) {
   return result;
 }
 
+// Canonical business media projection.
+//
+// Deliberately NOT routed through PUBLIC_MAP_SCHEMAS. That table is keyed by
+// child key name, so teaching it about `logo`/`cover`/`gallery` maps would
+// also change how an identically-named nested map projects for every other
+// sector — a silent widening. A dedicated sanitizer keeps the blast radius at
+// exactly this one field, and lets each value's type be checked exactly.
+//
+// `revision` and `generationId` are internal concurrency/incarnation tokens
+// and are never copied into the public document.
+const PUBLIC_BUSINESS_MEDIA_GALLERY_MAX = 10;
+
+// Second, independent barrier against external-URL injection. The canonical
+// writer already derives this URL from a verified Storage object, and
+// firestore.rules makes `businessMedia` server-owned; even so, anything that
+// is not a Firebase Storage download URL is dropped here rather than
+// published. Defense in depth: a future writer bug cannot turn into a public
+// redirect to an attacker-controlled host.
+const FIREBASE_STORAGE_URL_PATTERN =
+  /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/[^/?#]+\/o\/[^?#]+/;
+
+function projectBusinessMediaItem(item) {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  if (typeof item.path !== "string" || !item.path.trim()) return null;
+  if (typeof item.url !== "string" || !item.url.trim()) return null;
+  if (!FIREBASE_STORAGE_URL_PATTERN.test(item.url)) return null;
+
+  const projected = { path: item.path, url: item.url };
+  if (typeof item.contentType === "string" && item.contentType) {
+    projected.contentType = item.contentType;
+  }
+  if (typeof item.size === "number" && Number.isFinite(item.size)) {
+    projected.size = item.size;
+  }
+  if (typeof item.updatedAt === "string" && item.updatedAt) {
+    projected.updatedAt = item.updatedAt;
+  }
+  return projected;
+}
+
+function projectBusinessMedia(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const logo = projectBusinessMediaItem(value.logo);
+  const cover = projectBusinessMediaItem(value.cover);
+
+  const gallery = [];
+  const seenPaths = new Set();
+  if (Array.isArray(value.gallery)) {
+    for (const raw of value.gallery) {
+      const item = projectBusinessMediaItem(raw);
+      if (!item || seenPaths.has(item.path)) continue;
+      seenPaths.add(item.path);
+      gallery.push(item);
+      if (gallery.length >= PUBLIC_BUSINESS_MEDIA_GALLERY_MAX) break;
+    }
+  }
+
+  // Nothing valid to publish: the caller omits the key entirely, so removing
+  // the last image removes the field from businesses_public (the projection is
+  // written with set(), not merge()).
+  if (!logo && !cover && gallery.length === 0) return null;
+
+  const result = { gallery };
+  if (logo) result.logo = logo;
+  if (cover) result.cover = cover;
+  return result;
+}
+
 function buildBusinessPublicProjection(businessId, source = {}, serviceProjection = null) {
   const normalizedServices = normalizeServiceProjection(serviceProjection);
   const sourceWithServices = applyCanonicalServices(
@@ -593,12 +662,19 @@ function buildBusinessPublicProjection(businessId, source = {}, serviceProjectio
     }
   }
 
+  // `businessMedia` is intentionally absent from PUBLIC_BUSINESS_KEYS: pick()
+  // would flatten it with the generic map handling. It is projected explicitly
+  // and included ONLY when it carries something valid, so every business
+  // without canonical media keeps a byte-identical projection.
+  const businessMedia = projectBusinessMedia(sourceWithServices.businessMedia);
+
   const projection = {
     ...pick(sourceWithServices, PUBLIC_BUSINESS_KEYS, { allowUnknownMapKeys: false }),
     businessId: String(sourceWithServices.businessId || businessId),
     profile,
     contact,
     verification,
+    ...(businessMedia ? { businessMedia } : {}),
     publicSectorData,
     projectionVersion: 1,
     sourceUpdatedAt: sourceWithServices.updatedAt || null,
@@ -773,6 +849,7 @@ function hasEmbeddedServices(source) {
 module.exports = {
   buildUserPublicProjection,
   buildBusinessPublicProjection,
+  projectBusinessMedia,
   publicProjectionChanged,
   loadCanonicalServices,
   resolveServiceAuthority,

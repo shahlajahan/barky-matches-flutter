@@ -10414,4 +10414,108 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get faqMenuItem => 'Частые вопросы';
+
+  @override
+  String get businessMediaTitle => 'Медиа бизнеса';
+
+  @override
+  String get businessMediaDescription => 'Добавьте логотип, обложку и фотографии галереи. Всё это необязательно.';
+
+  @override
+  String get businessMediaLogo => 'Логотип';
+
+  @override
+  String get businessMediaCover => 'Обложка';
+
+  @override
+  String get businessMediaGallery => 'Галерея';
+
+  @override
+  String get businessMediaOptional => 'Необязательно';
+
+  @override
+  String get businessMediaAddLogo => 'Добавить логотип';
+
+  @override
+  String get businessMediaChangeLogo => 'Изменить логотип';
+
+  @override
+  String get businessMediaRemoveLogo => 'Удалить логотип';
+
+  @override
+  String get businessMediaAddCover => 'Добавить обложку';
+
+  @override
+  String get businessMediaChangeCover => 'Изменить обложку';
+
+  @override
+  String get businessMediaRemoveCover => 'Удалить обложку';
+
+  @override
+  String get businessMediaAddPhotos => 'Добавить фото';
+
+  @override
+  String get businessMediaRemovePhoto => 'Удалить фото';
+
+  @override
+  String get businessMediaNoLogo => 'Логотипа пока нет';
+
+  @override
+  String get businessMediaNoCover => 'Обложки пока нет';
+
+  @override
+  String get businessMediaNoPhotos => 'В галерее пока нет фото';
+
+  @override
+  String get businessMediaUploading => 'Загрузка…';
+
+  @override
+  String get businessMediaRetry => 'Повторить';
+
+  @override
+  String get businessMediaSaved => 'Сохранено';
+
+  @override
+  String get businessMediaGalleryFull => 'Галерея заполнена. Удалите фото, чтобы добавить новое.';
+
+  @override
+  String get businessMediaRemoveConfirmTitle => 'Удалить это изображение?';
+
+  @override
+  String get businessMediaRemoveConfirmBody => 'Оно больше не будет отображаться в вашем публичном профиле.';
+
+  @override
+  String get businessMediaRemoveConfirmAction => 'Удалить';
+
+  @override
+  String get businessMediaCancel => 'Отмена';
+
+  @override
+  String get businessMediaErrorUpload => 'Не удалось загрузить. Попробуйте ещё раз.';
+
+  @override
+  String get businessMediaErrorFormat => 'Этот формат изображения не поддерживается.';
+
+  @override
+  String get businessMediaErrorTooLarge => 'Это изображение слишком большое.';
+
+  @override
+  String get businessMediaErrorNotOwner => 'Вы не управляете этим бизнесом.';
+
+  @override
+  String get businessMediaErrorStale => 'Данные изменились в другом месте. Обновите и попробуйте снова.';
+
+  @override
+  String get businessMediaErrorSignedOut => 'Пожалуйста, войдите снова.';
+
+  @override
+  String get businessMediaErrorGeneric => 'Что-то пошло не так. Попробуйте ещё раз.';
+
+  @override
+  String get businessMediaImageUnavailable => 'Изображение недоступно';
+
+  @override
+  String businessMediaGalleryCount(int current, int max) {
+    return '$current из $max фото';
+  }
 }

@@ -676,3 +676,191 @@ for (const sector of [
     assert.equal(projected.description, "d");
   });
 }
+
+// ── Canonical business media projection ────────────────────────────────────
+// `businessMedia` is written only by the finalizeBusinessMedia callable
+// (Admin SDK) and is on firestore.rules' server-owned deny list. These tests
+// drive the real buildBusinessPublicProjection, not a reimplementation.
+
+const STORAGE_URL_A =
+  "https://firebasestorage.googleapis.com/v0/b/demo-bucket/o/" +
+  encodeURIComponent("business_gallery/biz-1/logo_1.jpg") +
+  "?alt=media&token=t1";
+const STORAGE_URL_B =
+  "https://firebasestorage.googleapis.com/v0/b/demo-bucket/o/" +
+  encodeURIComponent("business_cover/biz-1/cover_1.jpg") +
+  "?alt=media&token=t2";
+const STORAGE_URL_C =
+  "https://firebasestorage.googleapis.com/v0/b/demo-bucket/o/" +
+  encodeURIComponent("business_gallery/biz-1/gallery_1.jpg") +
+  "?alt=media&token=t3";
+
+function mediaSource(businessMedia) {
+  return {
+    businessId: "biz-1",
+    status: "approved",
+    published: true,
+    sectors: ["petshop"],
+    profile: { displayName: "Shop" },
+    sectorData: { petshop: { shopName: "Shop" } },
+    ...(businessMedia === undefined ? {} : { businessMedia }),
+  };
+}
+
+test("52. valid Pet Shop media survives projection with only intended keys", () => {
+  const projected = buildBusinessPublicProjection(
+    "biz-1",
+    mediaSource({
+      logo: {
+        path: "business_gallery/biz-1/logo_1.jpg",
+        url: STORAGE_URL_A,
+        contentType: "image/jpeg",
+        size: 1024,
+        updatedAt: "2026-09-03T12:00:00.000Z",
+      },
+      cover: { path: "business_cover/biz-1/cover_1.jpg", url: STORAGE_URL_B },
+      gallery: [{ path: "business_gallery/biz-1/gallery_1.jpg", url: STORAGE_URL_C }],
+      revision: 7,
+      generationId: "gen-1",
+      articulated: "nope",
+    })
+  );
+  const media = projected.businessMedia;
+  assert.ok(media, "businessMedia must survive");
+  assert.equal(media.logo.url, STORAGE_URL_A);
+  assert.equal(media.cover.url, STORAGE_URL_B);
+  assert.equal(media.gallery.length, 1);
+  // Internal concurrency/incarnation tokens are never published.
+  assert.equal(media.revision, undefined);
+  assert.equal(media.generationId, undefined);
+  assert.equal(media.articulated, undefined);
+  assert.deepEqual(Object.keys(media).sort(), ["cover", "gallery", "logo"]);
+  assert.deepEqual(
+    Object.keys(media.logo).sort(),
+    ["contentType", "path", "size", "updatedAt", "url"]
+  );
+});
+
+test("53. malformed media is omitted rather than published", () => {
+  const projected = buildBusinessPublicProjection(
+    "biz-1",
+    mediaSource({
+      logo: { path: "business_gallery/biz-1/logo_1.jpg" }, // no url
+      cover: { url: STORAGE_URL_B }, // no path
+      gallery: [
+        null,
+        "string",
+        42,
+        { path: "p", url: "https://evil.example.com/x.jpg" }, // external URL
+        { path: "q", url: "javascript:alert(1)" },
+        { path: "business_gallery/biz-1/gallery_1.jpg", url: STORAGE_URL_C },
+      ],
+    })
+  );
+  assert.equal(projected.businessMedia.logo, undefined);
+  assert.equal(projected.businessMedia.cover, undefined);
+  assert.deepEqual(
+    projected.businessMedia.gallery.map((g) => g.url),
+    [STORAGE_URL_C],
+    "only the genuine Storage URL survives"
+  );
+});
+
+test("53b. wholly invalid or absent media omits the key entirely", () => {
+  for (const media of [
+    undefined,
+    null,
+    "nope",
+    [],
+    42,
+    {},
+    { gallery: [] },
+    { logo: { path: "p", url: "https://evil.example.com/a.jpg" }, gallery: [] },
+  ]) {
+    const projected = buildBusinessPublicProjection("biz-1", mediaSource(media));
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(projected, "businessMedia"),
+      false,
+      `businessMedia must be absent for ${JSON.stringify(media)}`
+    );
+  }
+});
+
+test("54. removing canonical media removes it from the projection", () => {
+  const withMedia = buildBusinessPublicProjection(
+    "biz-1",
+    mediaSource({
+      logo: { path: "business_gallery/biz-1/logo_1.jpg", url: STORAGE_URL_A },
+      gallery: [],
+    })
+  );
+  assert.ok(withMedia.businessMedia);
+  // The canonical writer sets logo to null on removal.
+  const afterRemoval = buildBusinessPublicProjection(
+    "biz-1",
+    mediaSource({ logo: null, cover: null, gallery: [], revision: 2 })
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(afterRemoval, "businessMedia"),
+    false
+  );
+});
+
+test("54b. the gallery is capped and de-duplicated", () => {
+  const gallery = [];
+  for (let i = 0; i < 14; i++) {
+    gallery.push({ path: `business_gallery/biz-1/gallery_${i}.jpg`, url: STORAGE_URL_C });
+  }
+  // Two exact duplicates of an existing path.
+  gallery.push({ path: "business_gallery/biz-1/gallery_0.jpg", url: STORAGE_URL_C });
+  const projected = buildBusinessPublicProjection("biz-1", mediaSource({ gallery }));
+  assert.equal(projected.businessMedia.gallery.length, 10);
+  const paths = projected.businessMedia.gallery.map((g) => g.path);
+  assert.equal(new Set(paths).size, paths.length, "no duplicates published");
+});
+
+test("55. non-Pet-Shop projections are byte-identical without canonical media", () => {
+  for (const sector of ["veterinary", "groomy", "pet_hotel", "adoption_center", "pet_taxi"]) {
+    const source = {
+      businessId: "biz-9",
+      status: "approved",
+      published: true,
+      sectors: [sector],
+      profile: { displayName: "X", logoUrl: "https://legacy.example.com/l.png" },
+      coverImageUrl: "https://legacy.example.com/c.png",
+      images: ["https://legacy.example.com/1.png"],
+      sectorData: { [sector]: { profileContent: { gallery: ["https://legacy.example.com/g.png"] } } },
+    };
+    const before = JSON.stringify(buildBusinessPublicProjection("biz-9", source));
+    const after = JSON.stringify(
+      buildBusinessPublicProjection("biz-9", { ...source })
+    );
+    assert.equal(before, after);
+    const projected = JSON.parse(before);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(projected, "businessMedia"),
+      false,
+      `${sector} must not gain a businessMedia key`
+    );
+    // Legacy display fields are untouched by this change.
+    assert.equal(projected.coverImageUrl, "https://legacy.example.com/c.png");
+    assert.deepEqual(projected.images, ["https://legacy.example.com/1.png"]);
+  }
+});
+
+test("55b. a non-Pet-Shop sector may also carry canonical media", () => {
+  // The field is business-level, not Pet-Shop-only: nothing here is gated on
+  // sector, so a Vet that later adopts the same writer projects identically.
+  const projected = buildBusinessPublicProjection("biz-9", {
+    businessId: "biz-9",
+    status: "approved",
+    published: true,
+    sectors: ["veterinary"],
+    profile: { displayName: "Clinic" },
+    businessMedia: {
+      logo: { path: "business_gallery/biz-9/logo_1.jpg", url: STORAGE_URL_A },
+      gallery: [],
+    },
+  });
+  assert.ok(projected.businessMedia.logo);
+});

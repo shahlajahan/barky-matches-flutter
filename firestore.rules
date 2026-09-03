@@ -165,6 +165,39 @@ service cloud.firestore {
         .hasAny(marketplacePilotServerOwnedBusinessFields());
     }
 
+    // Canonical business media (logo / cover / gallery).
+    //
+    // `businessMedia` is written exclusively by the `finalizeBusinessMedia`
+    // callable (Admin SDK, which bypasses Rules by construction — see
+    // functions/src/business/businessMedia.js). Rules cannot reach Cloud
+    // Storage, so they cannot prove that a referenced object exists, sits in
+    // this business's own namespace, or carries a permitted content type and
+    // size; a Rules-only contract could therefore never stop an owner from
+    // writing an arbitrary external URL into a public media field. Making the
+    // whole map server-owned moves that proof to the one actor that can
+    // actually perform it.
+    //
+    // Like marketplacePilotServerOwnedBusinessFields() above, this is AND-ed
+    // onto the FULL create/update rules — outside the isAdmin()/owner
+    // authorization OR — so it binds every Firebase client-SDK actor
+    // identically, admin included. The legacy display fields
+    // (`profile.logoUrl`, `coverImageUrl`, `images`, `clinicPhotoUrls`, ...)
+    // are deliberately NOT listed: other sectors still write them through
+    // their own dashboards, and narrowing them here would break those
+    // surfaces. They remain a read-only public fallback only.
+    function serverOwnedBusinessMediaFields() {
+      return ['businessMedia'];
+    }
+
+    function omitsBusinessMediaOnCreate(data) {
+      return !data.keys().hasAny(serverOwnedBusinessMediaFields());
+    }
+
+    function preservesBusinessMediaOnUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(serverOwnedBusinessMediaFields());
+    }
+
     // Delete safety, exact: `resource.data` is the business document
     // about to be deleted (Rules evaluate `delete` against the
     // pre-existing document; no separate `get()` needed). Exactly
@@ -1103,10 +1136,12 @@ match /dogs/{dogId}/visits/{visitId} {
             || isValidOrAbsentCompanyType(request.resource.data.legal)
           )
         )
-      ) && omitsMarketplaceSellerActivationOnCreate(request.resource.data);
+      ) && omitsMarketplaceSellerActivationOnCreate(request.resource.data)
+        && omitsBusinessMediaOnCreate(request.resource.data);
       allow update: if (
         isAdmin() || canOwnerUpdateBusinessDocument(businessId)
-      ) && preservesMarketplaceSellerActivationOnUpdate();
+      ) && preservesMarketplaceSellerActivationOnUpdate()
+        && preservesBusinessMediaOnUpdate();
       allow delete: if (
         isAdmin() || isCanonicalBusinessOwner(businessId)
       ) && businessHasNoActiveMarketplaceSellerActivation()

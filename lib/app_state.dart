@@ -89,6 +89,7 @@ enum BusinessSubPage {
   petshopOrders,
   petshopReturns,
   petshopSettings,
+  petshopMedia,
 }
 
 enum HomeOverlay { none, parkPlaydateEntry, notifications }
@@ -527,6 +528,12 @@ class AppState with ChangeNotifier {
 
   void openPetShopSettings() {
     _businessSubPage = BusinessSubPage.petshopSettings;
+    notifyListeners();
+  }
+
+  /// Opens the Pet Shop Business Media sub-page (logo, cover, gallery).
+  void openPetShopMedia() {
+    _businessSubPage = BusinessSubPage.petshopMedia;
     notifyListeners();
   }
 

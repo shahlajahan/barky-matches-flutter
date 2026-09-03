@@ -19568,6 +19568,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'FAQ'**
   String get faqMenuItem;
+
+  /// No description provided for @businessMediaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Business Media'**
+  String get businessMediaTitle;
+
+  /// No description provided for @businessMediaDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a logo, a cover image and gallery photos. All of them are optional.'**
+  String get businessMediaDescription;
+
+  /// No description provided for @businessMediaLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo'**
+  String get businessMediaLogo;
+
+  /// No description provided for @businessMediaCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover Image'**
+  String get businessMediaCover;
+
+  /// No description provided for @businessMediaGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery'**
+  String get businessMediaGallery;
+
+  /// No description provided for @businessMediaOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get businessMediaOptional;
+
+  /// No description provided for @businessMediaAddLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Logo'**
+  String get businessMediaAddLogo;
+
+  /// No description provided for @businessMediaChangeLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Logo'**
+  String get businessMediaChangeLogo;
+
+  /// No description provided for @businessMediaRemoveLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Logo'**
+  String get businessMediaRemoveLogo;
+
+  /// No description provided for @businessMediaAddCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Cover'**
+  String get businessMediaAddCover;
+
+  /// No description provided for @businessMediaChangeCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Cover'**
+  String get businessMediaChangeCover;
+
+  /// No description provided for @businessMediaRemoveCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Cover'**
+  String get businessMediaRemoveCover;
+
+  /// No description provided for @businessMediaAddPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Photos'**
+  String get businessMediaAddPhotos;
+
+  /// No description provided for @businessMediaRemovePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Photo'**
+  String get businessMediaRemovePhoto;
+
+  /// No description provided for @businessMediaNoLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'No logo yet'**
+  String get businessMediaNoLogo;
+
+  /// No description provided for @businessMediaNoCover.
+  ///
+  /// In en, this message translates to:
+  /// **'No cover image yet'**
+  String get businessMediaNoCover;
+
+  /// No description provided for @businessMediaNoPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'No gallery photos yet'**
+  String get businessMediaNoPhotos;
+
+  /// No description provided for @businessMediaUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading…'**
+  String get businessMediaUploading;
+
+  /// No description provided for @businessMediaRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get businessMediaRetry;
+
+  /// No description provided for @businessMediaSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get businessMediaSaved;
+
+  /// No description provided for @businessMediaGalleryFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Your gallery is full. Remove a photo to add another.'**
+  String get businessMediaGalleryFull;
+
+  /// No description provided for @businessMediaRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this image?'**
+  String get businessMediaRemoveConfirmTitle;
+
+  /// No description provided for @businessMediaRemoveConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It will no longer appear on your public profile.'**
+  String get businessMediaRemoveConfirmBody;
+
+  /// No description provided for @businessMediaRemoveConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get businessMediaRemoveConfirmAction;
+
+  /// No description provided for @businessMediaCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get businessMediaCancel;
+
+  /// No description provided for @businessMediaErrorUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload failed. Please try again.'**
+  String get businessMediaErrorUpload;
+
+  /// No description provided for @businessMediaErrorFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'That image format is not supported.'**
+  String get businessMediaErrorFormat;
+
+  /// No description provided for @businessMediaErrorTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'That image is too large.'**
+  String get businessMediaErrorTooLarge;
+
+  /// No description provided for @businessMediaErrorNotOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not manage this business.'**
+  String get businessMediaErrorNotOwner;
+
+  /// No description provided for @businessMediaErrorStale.
+  ///
+  /// In en, this message translates to:
+  /// **'This was updated somewhere else. Reload and try again.'**
+  String get businessMediaErrorStale;
+
+  /// No description provided for @businessMediaErrorSignedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Please sign in again.'**
+  String get businessMediaErrorSignedOut;
+
+  /// No description provided for @businessMediaErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get businessMediaErrorGeneric;
+
+  /// No description provided for @businessMediaImageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Image unavailable'**
+  String get businessMediaImageUnavailable;
+
+  /// Gallery photo count, current of maximum
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {max} photos'**
+  String businessMediaGalleryCount(int current, int max);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -15,6 +15,7 @@ import 'package:barky_matches_fixed/models/order_return.dart';
 import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
 
 import 'package:url_launcher/url_launcher.dart';
+import 'package:barky_matches_fixed/ui/business/petshop/business_media_page.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/edit_petshop_profile_page.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
@@ -264,6 +265,13 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
       return EditPetShopProfilePage(businessId: businessId);
     }
 
+    if (businessSubPage == BusinessSubPage.petshopMedia) {
+      return BusinessMediaPage(
+        businessId: businessId,
+        onClose: context.read<AppState>().closeBusinessSubPage,
+      );
+    }
+
     debugPrint("🧠 DASHBOARD BUILD → businessId=$businessId");
 
     return SafeArea(
@@ -480,6 +488,11 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
             debugPrint("RETURN BUTTON CLICKED");
             context.read<AppState>().openPetShopReturns();
           },
+        ),
+        BusinessQuickActionItem(
+          label: l10n.businessMediaTitle,
+          icon: LucideIcons.image,
+          onTap: context.read<AppState>().openPetShopMedia,
         ),
         BusinessQuickActionItem(
           label: "Settings",

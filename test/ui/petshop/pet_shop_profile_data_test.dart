@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:barky_matches_fixed/ui/petshop/pet_shop_profile_data.dart';
 
 void main() {
+  _mediaTests();
+
   group('PetShopProfileData sector matching', () {
     for (final alias in const ['pet_shop', 'petshop', 'seller', 'store']) {
       test('accepts the supported $alias alias', () {
@@ -356,6 +358,208 @@ void main() {
       );
       expect(shop.workingHours, isNotNull);
       expect(shop.workingHours!['mon'], isNotNull);
+    });
+  });
+}
+
+// ── Canonical business media on the public surfaces ────────────────────────
+// `businessMedia` is written only by the finalizeBusinessMedia callable and
+// republished by the public projection under the same key. It must win over
+// every legacy representation, while those legacy fields keep working for
+// businesses that predate it.
+
+void _mediaTests() {
+  String url(String path) =>
+      'https://firebasestorage.googleapis.com/v0/b/demo/o/'
+      '${Uri.encodeComponent(path)}?alt=media&token=t';
+
+  Map<String, dynamic> item(String path) => {'path': path, 'url': url(path)};
+
+  Map<String, dynamic> base(Map<String, dynamic> extra) => {
+    'sectors': ['petshop'],
+    'profile': {'displayName': 'Shop'},
+    'sectorData': {
+      'petshop': {'shopName': 'Shop'},
+    },
+    ...extra,
+  };
+
+  group('canonical media precedence', () {
+    test('21. the list logo uses canonical media over the legacy field', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'profile': {
+            'displayName': 'Shop',
+            'logoUrl': 'https://legacy.example.com/old-logo.png',
+          },
+          'businessMedia': {
+            'logo': item('business_gallery/biz-1/logo_2.jpg'),
+            'gallery': [],
+          },
+        }),
+      );
+      expect(data.logoUrl, url('business_gallery/biz-1/logo_2.jpg'));
+    });
+
+    test('22. the profile cover uses canonical media over legacy fields', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'coverImageUrl': 'https://legacy.example.com/old-cover.png',
+          'businessMedia': {
+            'cover': item('business_cover/biz-1/cover_2.jpg'),
+            'gallery': [],
+          },
+        }),
+      );
+      expect(data.coverUrl, url('business_cover/biz-1/cover_2.jpg'));
+    });
+
+    test('23. the gallery renders canonical images without duplicates', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'images': ['https://legacy.example.com/legacy-1.png'],
+          'businessMedia': {
+            'gallery': [
+              item('business_gallery/biz-1/gallery_1.jpg'),
+              item('business_gallery/biz-1/gallery_2.jpg'),
+              // A duplicate path must not produce a second tile.
+              item('business_gallery/biz-1/gallery_1.jpg'),
+            ],
+          },
+        }),
+      );
+      expect(data.gallery, [
+        url('business_gallery/biz-1/gallery_1.jpg'),
+        url('business_gallery/biz-1/gallery_2.jpg'),
+      ]);
+      expect(
+        data.gallery,
+        isNot(contains('https://legacy.example.com/legacy-1.png')),
+        reason: 'canonical gallery is authoritative, never merged',
+      );
+    });
+
+    test('23b. the canonical gallery is capped at ten images', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'businessMedia': {
+            'gallery': List.generate(
+              14,
+              (i) => item('business_gallery/biz-1/gallery_$i.jpg'),
+            ),
+          },
+        }),
+      );
+      expect(data.gallery.length, 10);
+    });
+
+    test('legacy media still renders when no canonical media exists', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'coverImageUrl': 'https://legacy.example.com/cover.png',
+          'images': ['https://legacy.example.com/1.png'],
+          'profile': {
+            'displayName': 'Shop',
+            'logoUrl': 'https://legacy.example.com/logo.png',
+          },
+        }),
+      );
+      expect(data.logoUrl, 'https://legacy.example.com/logo.png');
+      expect(data.coverUrl, 'https://legacy.example.com/cover.png');
+      expect(data.gallery, ['https://legacy.example.com/1.png']);
+    });
+
+    test('24. malformed canonical media falls back instead of breaking', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'coverImageUrl': 'https://legacy.example.com/cover.png',
+          'profile': {
+            'displayName': 'Shop',
+            'logoUrl': 'https://legacy.example.com/logo.png',
+          },
+          'businessMedia': {
+            'logo': {'path': 'p'}, // no url
+            'cover': {'url': 'u'}, // no path
+            'gallery': [
+              null,
+              'nope',
+              42,
+              {'path': '', 'url': ''},
+            ],
+          },
+        }),
+      );
+      expect(data.logoUrl, 'https://legacy.example.com/logo.png');
+      expect(data.coverUrl, 'https://legacy.example.com/cover.png');
+      expect(data.gallery, isEmpty);
+    });
+
+    test('24b. a wholly malformed media map never throws', () {
+      for (final media in <dynamic>[
+        null,
+        'x',
+        42,
+        <dynamic>[],
+        <String, dynamic>{},
+      ]) {
+        final data = PetShopProfileData.fromMap(
+          'biz-1',
+          base({'businessMedia': media}),
+        );
+        expect(data.logoUrl, isNull, reason: '$media');
+        expect(data.gallery, isEmpty);
+      }
+    });
+
+    test('canonical media reaches the public projection representation', () {
+      // `businesses_public` republishes the same key, so a reader of the
+      // projected document resolves identically to one reading the source.
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'publicSectorData': {
+            'petshop': {'shopName': 'Shop'},
+          },
+          'sectorData': <String, dynamic>{},
+          'businessMedia': {
+            'logo': item('business_gallery/biz-1/logo_1.jpg'),
+            'gallery': [item('business_gallery/biz-1/gallery_1.jpg')],
+          },
+        }),
+      );
+      expect(data.logoUrl, url('business_gallery/biz-1/logo_1.jpg'));
+      expect(data.gallery.length, 1);
+    });
+
+    test('non-media Pet Shop behaviour is unaffected', () {
+      final data = PetShopProfileData.fromMap(
+        'biz-1',
+        base({
+          'businessMedia': {
+            'logo': item('business_gallery/biz-1/logo_1.jpg'),
+            'gallery': [],
+          },
+          'sectorData': {
+            'petshop': {
+              'shopName': 'Shop',
+              'brands': ['Acme'],
+              'workingHours': '10:00-21:00',
+              'profile': {'bio': 'We love pets'},
+              'categories': ['food'],
+            },
+          },
+        }),
+      );
+      expect(data.description, 'We love pets');
+      expect(data.categories, ['food']);
+      expect(data.workingHours, {'hours': '10:00–21:00'});
+      expect(data.name, 'Shop');
     });
   });
 }

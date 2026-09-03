@@ -10412,4 +10412,108 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get faqMenuItem => 'سوالات متداول';
+
+  @override
+  String get businessMediaTitle => 'رسانه کسب‌وکار';
+
+  @override
+  String get businessMediaDescription => 'لوگو، تصویر جلد و عکس‌های گالری اضافه کنید. همه اختیاری هستند.';
+
+  @override
+  String get businessMediaLogo => 'لوگو';
+
+  @override
+  String get businessMediaCover => 'تصویر جلد';
+
+  @override
+  String get businessMediaGallery => 'گالری';
+
+  @override
+  String get businessMediaOptional => 'اختیاری';
+
+  @override
+  String get businessMediaAddLogo => 'افزودن لوگو';
+
+  @override
+  String get businessMediaChangeLogo => 'تغییر لوگو';
+
+  @override
+  String get businessMediaRemoveLogo => 'حذف لوگو';
+
+  @override
+  String get businessMediaAddCover => 'افزودن جلد';
+
+  @override
+  String get businessMediaChangeCover => 'تغییر جلد';
+
+  @override
+  String get businessMediaRemoveCover => 'حذف جلد';
+
+  @override
+  String get businessMediaAddPhotos => 'افزودن عکس';
+
+  @override
+  String get businessMediaRemovePhoto => 'حذف عکس';
+
+  @override
+  String get businessMediaNoLogo => 'هنوز لوگویی نیست';
+
+  @override
+  String get businessMediaNoCover => 'هنوز تصویر جلدی نیست';
+
+  @override
+  String get businessMediaNoPhotos => 'هنوز عکسی در گالری نیست';
+
+  @override
+  String get businessMediaUploading => 'در حال بارگذاری…';
+
+  @override
+  String get businessMediaRetry => 'تلاش دوباره';
+
+  @override
+  String get businessMediaSaved => 'ذخیره شد';
+
+  @override
+  String get businessMediaGalleryFull => 'گالری شما پر است. برای افزودن عکس جدید، یکی را حذف کنید.';
+
+  @override
+  String get businessMediaRemoveConfirmTitle => 'این تصویر حذف شود؟';
+
+  @override
+  String get businessMediaRemoveConfirmBody => 'دیگر در نمایه عمومی شما نمایش داده نمی‌شود.';
+
+  @override
+  String get businessMediaRemoveConfirmAction => 'حذف';
+
+  @override
+  String get businessMediaCancel => 'انصراف';
+
+  @override
+  String get businessMediaErrorUpload => 'بارگذاری ناموفق بود. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get businessMediaErrorFormat => 'این قالب تصویر پشتیبانی نمی‌شود.';
+
+  @override
+  String get businessMediaErrorTooLarge => 'این تصویر بیش از حد بزرگ است.';
+
+  @override
+  String get businessMediaErrorNotOwner => 'شما مدیر این کسب‌وکار نیستید.';
+
+  @override
+  String get businessMediaErrorStale => 'این مورد جای دیگری به‌روزرسانی شد. صفحه را تازه کنید و دوباره تلاش کنید.';
+
+  @override
+  String get businessMediaErrorSignedOut => 'لطفاً دوباره وارد شوید.';
+
+  @override
+  String get businessMediaErrorGeneric => 'مشکلی پیش آمد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get businessMediaImageUnavailable => 'تصویر در دسترس نیست';
+
+  @override
+  String businessMediaGalleryCount(int current, int max) {
+    return '$current از $max عکس';
+  }
 }

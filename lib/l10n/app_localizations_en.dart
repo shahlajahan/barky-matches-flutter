@@ -10412,4 +10412,108 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get faqMenuItem => 'FAQ';
+
+  @override
+  String get businessMediaTitle => 'Business Media';
+
+  @override
+  String get businessMediaDescription => 'Add a logo, a cover image and gallery photos. All of them are optional.';
+
+  @override
+  String get businessMediaLogo => 'Logo';
+
+  @override
+  String get businessMediaCover => 'Cover Image';
+
+  @override
+  String get businessMediaGallery => 'Gallery';
+
+  @override
+  String get businessMediaOptional => 'Optional';
+
+  @override
+  String get businessMediaAddLogo => 'Add Logo';
+
+  @override
+  String get businessMediaChangeLogo => 'Change Logo';
+
+  @override
+  String get businessMediaRemoveLogo => 'Remove Logo';
+
+  @override
+  String get businessMediaAddCover => 'Add Cover';
+
+  @override
+  String get businessMediaChangeCover => 'Change Cover';
+
+  @override
+  String get businessMediaRemoveCover => 'Remove Cover';
+
+  @override
+  String get businessMediaAddPhotos => 'Add Photos';
+
+  @override
+  String get businessMediaRemovePhoto => 'Remove Photo';
+
+  @override
+  String get businessMediaNoLogo => 'No logo yet';
+
+  @override
+  String get businessMediaNoCover => 'No cover image yet';
+
+  @override
+  String get businessMediaNoPhotos => 'No gallery photos yet';
+
+  @override
+  String get businessMediaUploading => 'Uploading…';
+
+  @override
+  String get businessMediaRetry => 'Retry';
+
+  @override
+  String get businessMediaSaved => 'Saved';
+
+  @override
+  String get businessMediaGalleryFull => 'Your gallery is full. Remove a photo to add another.';
+
+  @override
+  String get businessMediaRemoveConfirmTitle => 'Remove this image?';
+
+  @override
+  String get businessMediaRemoveConfirmBody => 'It will no longer appear on your public profile.';
+
+  @override
+  String get businessMediaRemoveConfirmAction => 'Remove';
+
+  @override
+  String get businessMediaCancel => 'Cancel';
+
+  @override
+  String get businessMediaErrorUpload => 'Upload failed. Please try again.';
+
+  @override
+  String get businessMediaErrorFormat => 'That image format is not supported.';
+
+  @override
+  String get businessMediaErrorTooLarge => 'That image is too large.';
+
+  @override
+  String get businessMediaErrorNotOwner => 'You do not manage this business.';
+
+  @override
+  String get businessMediaErrorStale => 'This was updated somewhere else. Reload and try again.';
+
+  @override
+  String get businessMediaErrorSignedOut => 'Please sign in again.';
+
+  @override
+  String get businessMediaErrorGeneric => 'Something went wrong. Please try again.';
+
+  @override
+  String get businessMediaImageUnavailable => 'Image unavailable';
+
+  @override
+  String businessMediaGalleryCount(int current, int max) {
+    return '$current of $max photos';
+  }
 }

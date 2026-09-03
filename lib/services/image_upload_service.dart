@@ -56,6 +56,26 @@ class ImageUploadService {
     );
   }
 
+  /// Uploads a compressed JPEG to an exact, caller-chosen object path.
+  ///
+  /// Used by the canonical business-media flow, where the object name encodes
+  /// the media role (`logo_`, `cover_`, `gallery_`) and a millisecond stamp.
+  /// The server-side `finalizeBusinessMedia` callable re-validates that path
+  /// against the business's own role contract before it becomes canonical, so
+  /// this method never grants authority on its own — it only performs the
+  /// upload that the deployed owner-bound Storage Rules already permit.
+  static Future<String> uploadBusinessMediaImage({
+    required File file,
+    required String objectPath,
+    required Function(double progress) onProgress,
+  }) {
+    return _uploadCompressedJpeg(
+      file: file,
+      objectPath: objectPath,
+      onProgress: onProgress,
+    );
+  }
+
   static Future<String> _uploadCompressedJpeg({
     required File file,
     required String objectPath,

@@ -147,15 +147,34 @@ class PetShopProfileData {
         ? explicitAddress
         : [district, city].where((value) => value.isNotEmpty).join(', ');
 
-    final gallery = <String>{
-      ..._stringList(data['images']),
-      ..._stringList(data['gallery']),
-      ..._stringList(profileContent['gallery']),
-      ..._stringList(profileContent['shopPhotoUrls']),
-      ..._stringList(shopProfile['gallery']),
-    }.where((value) => value.trim().isNotEmpty).toList();
+    // Canonical media wins over every legacy representation.
+    //
+    // `businessMedia` is written only by the finalizeBusinessMedia callable
+    // (Admin SDK) and republished verbatim by the public projection, so its
+    // entries are the only ones proven to point at a verified Storage object
+    // owned by this business. The legacy fields below stay as a read-only
+    // fallback for businesses that predate the canonical writer and for the
+    // other sectors that still write them directly — but they never override
+    // canonical state.
+    final canonicalMedia = _map(data['businessMedia']);
+    final canonicalGallery = _mediaUrlList(canonicalMedia['gallery']);
+    final canonicalLogo = _mediaUrl(canonicalMedia['logo']);
+    final canonicalCover = _mediaUrl(canonicalMedia['cover']);
+
+    // The canonical gallery is authoritative when present: mixing it with the
+    // legacy lists is what would produce duplicate tiles for the same photo.
+    final gallery = canonicalGallery.isNotEmpty
+        ? canonicalGallery
+        : <String>{
+            ..._stringList(data['images']),
+            ..._stringList(data['gallery']),
+            ..._stringList(profileContent['gallery']),
+            ..._stringList(profileContent['shopPhotoUrls']),
+            ..._stringList(shopProfile['gallery']),
+          }.where((value) => value.trim().isNotEmpty).toList();
 
     final coverUrl = _firstText([
+      canonicalCover,
       data['coverImageUrl'],
       data['coverUrl'],
       profile['coverImageUrl'],
@@ -166,6 +185,7 @@ class PetShopProfileData {
       if (gallery.isNotEmpty) gallery.first,
     ]);
     final logoUrl = _firstText([
+      canonicalLogo,
       profile['logoUrl'],
       profile['imageUrl'],
       data['logoUrl'],
@@ -230,6 +250,35 @@ class PetShopProfileData {
           data['isVerified'] == true ||
           _map(data['verification'])['isVerified'] == true,
     );
+  }
+
+  /// The download URL of one canonical media entry, or `''` when the entry is
+  /// absent or malformed. Nothing is repaired: a half-written item is simply
+  /// not shown, so the legacy fallback below it can take over.
+  static String _mediaUrl(dynamic value) {
+    if (value is! Map) return '';
+    final url = value['url'];
+    final path = value['path'];
+    if (url is! String || url.trim().isEmpty) return '';
+    if (path is! String || path.trim().isEmpty) return '';
+    return url.trim();
+  }
+
+  /// Canonical gallery URLs, de-duplicated by Storage path and capped at the
+  /// same limit the authoritative writer enforces.
+  static List<String> _mediaUrlList(dynamic value) {
+    if (value is! Iterable) return const [];
+    final urls = <String>[];
+    final seenPaths = <String>{};
+    for (final entry in value) {
+      final url = _mediaUrl(entry);
+      if (url.isEmpty) continue;
+      final path = (entry as Map)['path'] as String;
+      if (!seenPaths.add(path)) continue;
+      urls.add(url);
+      if (urls.length >= 10) break;
+    }
+    return urls;
   }
 
   static String _normalizeSector(String value) =>

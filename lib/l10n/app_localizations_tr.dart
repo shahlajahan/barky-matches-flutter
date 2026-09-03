@@ -10412,4 +10412,108 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get faqMenuItem => 'SSS';
+
+  @override
+  String get businessMediaTitle => 'İşletme Medyası';
+
+  @override
+  String get businessMediaDescription => 'Logo, kapak görseli ve galeri fotoğrafları ekleyin. Hepsi isteğe bağlıdır.';
+
+  @override
+  String get businessMediaLogo => 'Logo';
+
+  @override
+  String get businessMediaCover => 'Kapak Görseli';
+
+  @override
+  String get businessMediaGallery => 'Galeri';
+
+  @override
+  String get businessMediaOptional => 'İsteğe bağlı';
+
+  @override
+  String get businessMediaAddLogo => 'Logo Ekle';
+
+  @override
+  String get businessMediaChangeLogo => 'Logoyu Değiştir';
+
+  @override
+  String get businessMediaRemoveLogo => 'Logoyu Kaldır';
+
+  @override
+  String get businessMediaAddCover => 'Kapak Ekle';
+
+  @override
+  String get businessMediaChangeCover => 'Kapağı Değiştir';
+
+  @override
+  String get businessMediaRemoveCover => 'Kapağı Kaldır';
+
+  @override
+  String get businessMediaAddPhotos => 'Fotoğraf Ekle';
+
+  @override
+  String get businessMediaRemovePhoto => 'Fotoğrafı Kaldır';
+
+  @override
+  String get businessMediaNoLogo => 'Henüz logo yok';
+
+  @override
+  String get businessMediaNoCover => 'Henüz kapak görseli yok';
+
+  @override
+  String get businessMediaNoPhotos => 'Henüz galeri fotoğrafı yok';
+
+  @override
+  String get businessMediaUploading => 'Yükleniyor…';
+
+  @override
+  String get businessMediaRetry => 'Tekrar dene';
+
+  @override
+  String get businessMediaSaved => 'Kaydedildi';
+
+  @override
+  String get businessMediaGalleryFull => 'Galeriniz dolu. Yenisini eklemek için bir fotoğrafı kaldırın.';
+
+  @override
+  String get businessMediaRemoveConfirmTitle => 'Bu görsel kaldırılsın mı?';
+
+  @override
+  String get businessMediaRemoveConfirmBody => 'Herkese açık profilinizde artık görünmeyecek.';
+
+  @override
+  String get businessMediaRemoveConfirmAction => 'Kaldır';
+
+  @override
+  String get businessMediaCancel => 'İptal';
+
+  @override
+  String get businessMediaErrorUpload => 'Yükleme başarısız. Lütfen tekrar deneyin.';
+
+  @override
+  String get businessMediaErrorFormat => 'Bu görsel biçimi desteklenmiyor.';
+
+  @override
+  String get businessMediaErrorTooLarge => 'Bu görsel çok büyük.';
+
+  @override
+  String get businessMediaErrorNotOwner => 'Bu işletmeyi siz yönetmiyorsunuz.';
+
+  @override
+  String get businessMediaErrorStale => 'Bu, başka bir yerde güncellendi. Yenileyip tekrar deneyin.';
+
+  @override
+  String get businessMediaErrorSignedOut => 'Lütfen tekrar giriş yapın.';
+
+  @override
+  String get businessMediaErrorGeneric => 'Bir sorun oluştu. Lütfen tekrar deneyin.';
+
+  @override
+  String get businessMediaImageUnavailable => 'Görsel kullanılamıyor';
+
+  @override
+  String businessMediaGalleryCount(int current, int max) {
+    return '$max fotoğraftan $current tanesi';
+  }
 }

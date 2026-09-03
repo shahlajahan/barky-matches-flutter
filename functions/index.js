@@ -34,6 +34,10 @@ const {
 const revenue = require("./revenue");
 const payoutEngine = require("./payout");
 
+const {
+  finalizeBusinessMedia: finalizeBusinessMediaImpl,
+  BusinessMediaError,
+} = require("./src/business/businessMedia");
 const { requireAdmin } = require("./src/moderation/adminAuth");
 const {
   suspendBusinessCore,
@@ -33280,5 +33284,37 @@ exports.qualifyPartnerReferralOnBusinessUpdate = onDocumentUpdated(
       status: result.status,
     });
     return null;
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Canonical business media (logo / cover / gallery)
+// ---------------------------------------------------------------------------
+// Thin wrapper only. All logic — ownership re-derivation, Storage object
+// verification, transactional canonical transition and post-commit cleanup —
+// lives in functions/src/business/businessMedia.js, which never sees the
+// request object and takes db/storage/uuid/clock by injection so it is fully
+// unit-testable. `businessMedia` is on firestore.rules' server-owned deny
+// list, so this Admin SDK path is the only writer that can ever set it.
+exports.finalizeBusinessMedia = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    try {
+      return await finalizeBusinessMediaImpl({
+        db: admin.firestore(),
+        storage: admin.storage(),
+        auth: request.auth,
+        data: request.data,
+        bucketName: admin.storage().bucket().name,
+        uuid: () => crypto.randomUUID(),
+        logger,
+      });
+    } catch (error) {
+      if (error instanceof BusinessMediaError) {
+        throw new HttpsError(error.code, error.message);
+      }
+      logger.error("finalizeBusinessMedia_failed", { message: error && error.message });
+      throw new HttpsError("internal", "Could not update business media.");
+    }
   }
 );
