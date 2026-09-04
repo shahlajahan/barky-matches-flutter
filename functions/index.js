@@ -338,6 +338,9 @@ const {
   getComplianceDocumentEvidence,
 } = require("./src/marketplace/compliance/complianceEvidenceAccess");
 const {
+  evaluateProductComplianceDecision,
+} = require("./src/marketplace/compliance/complianceProductEvaluation");
+const {
   reviewProductModeration,
 } = require("./src/marketplace/compliance/productModeration");
 const {
@@ -20272,6 +20275,22 @@ exports.submitComplianceDocument = onCall({ region: "europe-west3" }, async (req
 // `allow read, write: if false` in storage.rules; nothing here relaxes it.
 // 512MiB/30s: the handler reads metadata and signs a URL — it never loads the
 // object into memory — so this is generous headroom, not a working budget.
+// Marketplace Revision 30 §J Slice 5 — the explicit first-decision path.
+// The hourly sweep only refreshes ALREADY-LIVE products, so without this a
+// pending product could never obtain the decision §H requires before it may
+// be approved. Computes a decision and nothing else: no approval, no
+// activation, no classification, no publication.
+exports.evaluateProductComplianceDecision = onCall(
+  { region: "europe-west3", memory: "512MiB", timeoutSeconds: 60 },
+  async (request) =>
+    evaluateProductComplianceDecision({
+      db: admin.firestore(),
+      auth: request.auth,
+      data: request.data,
+      logger,
+    })
+);
+
 exports.getComplianceDocumentEvidence = onCall(
   { region: "europe-west3", memory: "512MiB", timeoutSeconds: 30 },
   async (request) =>
