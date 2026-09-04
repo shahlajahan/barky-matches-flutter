@@ -4652,5 +4652,13 @@
 ,"complianceDocumentTypeTrademarkEvidence": "Marka belgesi"
 ,"complianceDocumentTypeManufacturerEvidence": "Üretici belgesi"
 ,"complianceDocumentTypeImporterEvidence": "İthalat belgesi"
+,"complianceEvidenceStageAwaitingSubmission": "Alındı. Geçerlilik tarihini ekleyip incelemeye gönderin."
+,"complianceEvidenceStageReviewClosed": "Bu belge için sizden başka bir işlem beklenmiyor."
+,"complianceEvidenceStageUnknown": "Mevcut durum okunamadı. Lütfen birazdan bu ekranı yeniden açın."
+,"complianceEvidenceSubmitForReview": "İncelemeye gönder"
+,"complianceEvidenceSubmittingForReview": "İncelemeye gönderiliyor…"
+,"complianceEvidenceValidUntilLabel": "Geçerlilik bitiş tarihi"
+,"complianceEvidenceValidUntilRequired": "Bu belgenin geçerlilik bitiş tarihini seçin."
+,"complianceEvidencePickValidUntil": "Tarih seç"
 ,"networkErrorTryAgain": "Ağ hatası. Lütfen tekrar deneyin."
 }

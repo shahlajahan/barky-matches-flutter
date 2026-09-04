@@ -4653,5 +4653,13 @@
 ,"complianceDocumentTypeTrademarkEvidence": "مدرک علامت تجاری"
 ,"complianceDocumentTypeManufacturerEvidence": "مدرک تولیدکننده"
 ,"complianceDocumentTypeImporterEvidence": "مدرک واردات"
+,"complianceEvidenceStageAwaitingSubmission": "دریافت شد. تاریخ اعتبار را افزوده و برای بررسی ارسال کنید."
+,"complianceEvidenceStageReviewClosed": "این مدرک دیگر به اقدامی از سوی شما نیاز ندارد."
+,"complianceEvidenceStageUnknown": "وضعیت فعلی خوانده نشد. لطفاً کمی بعد این صفحه را دوباره باز کنید."
+,"complianceEvidenceSubmitForReview": "ارسال برای بررسی"
+,"complianceEvidenceSubmittingForReview": "در حال ارسال برای بررسی…"
+,"complianceEvidenceValidUntilLabel": "معتبر تا"
+,"complianceEvidenceValidUntilRequired": "تاریخ پایان اعتبار این مدرک را انتخاب کنید."
+,"complianceEvidencePickValidUntil": "انتخاب تاریخ"
 ,"networkErrorTryAgain": "خطای شبکه. لطفاً دوباره تلاش کنید."
 }

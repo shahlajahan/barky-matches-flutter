@@ -10617,5 +10617,29 @@ class AppLocalizationsFa extends AppLocalizations {
   String get complianceDocumentTypeImporterEvidence => 'مدرک واردات';
 
   @override
+  String get complianceEvidenceStageAwaitingSubmission => 'دریافت شد. تاریخ اعتبار را افزوده و برای بررسی ارسال کنید.';
+
+  @override
+  String get complianceEvidenceStageReviewClosed => 'این مدرک دیگر به اقدامی از سوی شما نیاز ندارد.';
+
+  @override
+  String get complianceEvidenceStageUnknown => 'وضعیت فعلی خوانده نشد. لطفاً کمی بعد این صفحه را دوباره باز کنید.';
+
+  @override
+  String get complianceEvidenceSubmitForReview => 'ارسال برای بررسی';
+
+  @override
+  String get complianceEvidenceSubmittingForReview => 'در حال ارسال برای بررسی…';
+
+  @override
+  String get complianceEvidenceValidUntilLabel => 'معتبر تا';
+
+  @override
+  String get complianceEvidenceValidUntilRequired => 'تاریخ پایان اعتبار این مدرک را انتخاب کنید.';
+
+  @override
+  String get complianceEvidencePickValidUntil => 'انتخاب تاریخ';
+
+  @override
   String get networkErrorTryAgain => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
 }

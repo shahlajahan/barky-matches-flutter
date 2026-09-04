@@ -10619,5 +10619,29 @@ class AppLocalizationsRu extends AppLocalizations {
   String get complianceDocumentTypeImporterEvidence => 'Подтверждение импорта';
 
   @override
+  String get complianceEvidenceStageAwaitingSubmission => 'Получено. Укажите срок действия и отправьте на проверку.';
+
+  @override
+  String get complianceEvidenceStageReviewClosed => 'По этому документу от вас больше ничего не требуется.';
+
+  @override
+  String get complianceEvidenceStageUnknown => 'Не удалось определить текущее состояние. Откройте этот экран чуть позже.';
+
+  @override
+  String get complianceEvidenceSubmitForReview => 'Отправить на проверку';
+
+  @override
+  String get complianceEvidenceSubmittingForReview => 'Отправка на проверку…';
+
+  @override
+  String get complianceEvidenceValidUntilLabel => 'Действителен до';
+
+  @override
+  String get complianceEvidenceValidUntilRequired => 'Выберите дату, до которой действует документ.';
+
+  @override
+  String get complianceEvidencePickValidUntil => 'Выбрать дату';
+
+  @override
   String get networkErrorTryAgain => 'Ошибка сети. Попробуйте ещё раз.';
 }

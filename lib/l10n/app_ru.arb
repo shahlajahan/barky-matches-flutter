@@ -3458,5 +3458,13 @@
 ,"complianceDocumentTypeTrademarkEvidence": "Подтверждение товарного знака"
 ,"complianceDocumentTypeManufacturerEvidence": "Подтверждение производителя"
 ,"complianceDocumentTypeImporterEvidence": "Подтверждение импорта"
+,"complianceEvidenceStageAwaitingSubmission": "Получено. Укажите срок действия и отправьте на проверку."
+,"complianceEvidenceStageReviewClosed": "По этому документу от вас больше ничего не требуется."
+,"complianceEvidenceStageUnknown": "Не удалось определить текущее состояние. Откройте этот экран чуть позже."
+,"complianceEvidenceSubmitForReview": "Отправить на проверку"
+,"complianceEvidenceSubmittingForReview": "Отправка на проверку…"
+,"complianceEvidenceValidUntilLabel": "Действителен до"
+,"complianceEvidenceValidUntilRequired": "Выберите дату, до которой действует документ."
+,"complianceEvidencePickValidUntil": "Выбрать дату"
 ,"networkErrorTryAgain": "Ошибка сети. Попробуйте ещё раз."
 }

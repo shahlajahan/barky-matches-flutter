@@ -19971,6 +19971,54 @@ abstract class AppLocalizations {
   /// **'Import evidence'**
   String get complianceDocumentTypeImporterEvidence;
 
+  /// No description provided for @complianceEvidenceStageAwaitingSubmission.
+  ///
+  /// In en, this message translates to:
+  /// **'Received. Add the validity date and send it for review.'**
+  String get complianceEvidenceStageAwaitingSubmission;
+
+  /// No description provided for @complianceEvidenceStageReviewClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This document no longer needs anything from you.'**
+  String get complianceEvidenceStageReviewClosed;
+
+  /// No description provided for @complianceEvidenceStageUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not read the current state. Please reopen this screen in a moment.'**
+  String get complianceEvidenceStageUnknown;
+
+  /// No description provided for @complianceEvidenceSubmitForReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Send for review'**
+  String get complianceEvidenceSubmitForReview;
+
+  /// No description provided for @complianceEvidenceSubmittingForReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending for review…'**
+  String get complianceEvidenceSubmittingForReview;
+
+  /// No description provided for @complianceEvidenceValidUntilLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid until'**
+  String get complianceEvidenceValidUntilLabel;
+
+  /// No description provided for @complianceEvidenceValidUntilRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the date this document is valid until.'**
+  String get complianceEvidenceValidUntilRequired;
+
+  /// No description provided for @complianceEvidencePickValidUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose date'**
+  String get complianceEvidencePickValidUntil;
+
   /// No description provided for @networkErrorTryAgain.
   ///
   /// In en, this message translates to:

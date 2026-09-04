@@ -10617,5 +10617,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get complianceDocumentTypeImporterEvidence => 'Import evidence';
 
   @override
+  String get complianceEvidenceStageAwaitingSubmission => 'Received. Add the validity date and send it for review.';
+
+  @override
+  String get complianceEvidenceStageReviewClosed => 'This document no longer needs anything from you.';
+
+  @override
+  String get complianceEvidenceStageUnknown => 'We could not read the current state. Please reopen this screen in a moment.';
+
+  @override
+  String get complianceEvidenceSubmitForReview => 'Send for review';
+
+  @override
+  String get complianceEvidenceSubmittingForReview => 'Sending for review…';
+
+  @override
+  String get complianceEvidenceValidUntilLabel => 'Valid until';
+
+  @override
+  String get complianceEvidenceValidUntilRequired => 'Choose the date this document is valid until.';
+
+  @override
+  String get complianceEvidencePickValidUntil => 'Choose date';
+
+  @override
   String get networkErrorTryAgain => 'Network error. Please try again.';
 }

@@ -95,58 +95,148 @@ class _ComplianceEvidenceUploadPageState
   /// without it, coming back to this screen would show `idle` while an upload
   /// was still being scanned, and would then permit the blind re-upload §I
   /// forbids. Read-only — the client can never write these documents.
-  StreamSubscription<String?>? _serverStatusSub;
-  String? _serverStatus;
+  StreamSubscription<ComplianceSessionSnapshot>? _sessionSub;
+  StreamSubscription<String?>? _documentSub;
+  ComplianceSessionSnapshot _session = const ComplianceSessionSnapshot(
+    status: null,
+    documentId: null,
+  );
+
+  /// The canonical promoted document id, taken verbatim from the session's
+  /// server-written `consumedByDocumentId`. Never composed or guessed.
+  String? _documentId;
+  String? _documentStatus;
+
+  /// Latch against a duplicate `submitComplianceDocument`. The stream can
+  /// re-deliver the same snapshot on any rebuild, reconnection or navigation
+  /// return, so the guard cannot live in the stream handler alone.
+  bool _submittingForReview = false;
+
+  /// Document ids this screen has already submitted successfully.
+  ///
+  /// The in-call latch alone is not enough: it releases as soon as the call
+  /// returns, while the document's own status may still read `clean` for a
+  /// moment (the stream has not delivered `pending_review` yet, or the read
+  /// is denied/slow). Every re-delivered snapshot, rebuild or navigation
+  /// return would then offer "send for review" again on a document already
+  /// sent. This set makes a successful submission final for the life of the
+  /// screen, independently of how the status stream behaves.
+  final Set<String> _submittedDocumentIds = <String>{};
+
+  DateTime? _validUntil;
 
   @override
   void initState() {
     super.initState();
-    _serverStatusSub = _service
-        .watchLatestSessionStatus(widget.businessId)
-        .listen(
-          (status) {
-            if (!mounted) return;
-            setState(() => _serverStatus = status);
-          },
-          // A denied or unavailable read must never be reported as "no
-          // upload in progress" — that would re-open blind re-upload. It
-          // simply leaves the local stage authoritative.
-          onError: (_) {},
-        );
+    _sessionSub = _service.watchLatestSession(widget.businessId).listen(
+      (snapshot) {
+        if (!mounted) return;
+        setState(() {
+          _session = snapshot;
+          final id = snapshot.documentId;
+          if (id != null && id != _documentId) {
+            _documentId = id;
+            _documentStatus = null;
+            _documentSub?.cancel();
+            _documentSub = _service.watchDocumentStatus(id).listen(
+              (status) {
+                if (!mounted) return;
+                setState(() => _documentStatus = status);
+              },
+              // A read that fails must never read as "nothing is
+              // happening": leaving the status null keeps the
+              // session-derived stage authoritative, which is
+              // awaitingSubmission at worst, never idle.
+              onError: (_) {},
+            );
+          }
+        });
+      },
+      // A denied or unavailable read must never be reported as "no
+      // upload in progress" — that would re-open blind re-upload. It
+      // simply leaves the local stage authoritative.
+      onError: (_) {},
+    );
   }
 
   @override
   void dispose() {
-    _serverStatusSub?.cancel();
+    _sessionSub?.cancel();
+    _documentSub?.cancel();
     super.dispose();
   }
 
-  /// The stage actually shown. The server's view wins whenever it reports
-  /// work still in flight or a settled outcome, so a locally-`idle` screen
-  /// can never contradict a live session.
+  /// The stage actually shown.
+  ///
+  /// Precedence, and why: a local in-progress stage wins first, because only
+  /// this widget knows it is mid-call. Otherwise the DOCUMENT's own status
+  /// decides once a document exists — it is the only record that can
+  /// distinguish `clean` from `pending_review`, and the session cannot. The
+  /// session is consulted last. A session status of `consumed` therefore
+  /// yields `awaitingSubmission`, never `awaitingReview`: the upload session
+  /// being spent says nothing about whether anyone has been asked to review
+  /// the resulting document.
   ComplianceEvidenceStage get _effectiveStage {
-    final fromServer = stageForSessionStatus(_serverStatus);
     if (_stage == ComplianceEvidenceStage.requestingSession ||
         _stage == ComplianceEvidenceStage.uploading) {
       return _stage;
     }
-    if (fromServer != ComplianceEvidenceStage.idle) return fromServer;
+    if (_submittingForReview) return ComplianceEvidenceStage.awaitingSubmission;
+    if (_documentStatus != null) {
+      return stageForDocumentStatus(_documentStatus);
+    }
+    final fromSession = stageForSessionStatus(_session.status);
+    if (fromSession != ComplianceEvidenceStage.idle) return fromSession;
     return _stage;
   }
 
-  bool get _inFlight {
+  /// Positive allowlist. Any stage not explicitly enumerated as
+  /// upload-enabled — including [ComplianceEvidenceStage.unknownState] and
+  /// any stage a future change adds — disables every input.
+  bool get _uploadControlsEnabled =>
+      !_submitting &&
+      !_submittingForReview &&
+      complianceUploadEnabledStages.contains(_effectiveStage);
+
+  bool get _submitForReviewEnabled =>
+      !_submittingForReview &&
+      !_submitting &&
+      complianceSubmitEnabledStages.contains(_effectiveStage) &&
+      _documentId != null &&
+      !_submittedDocumentIds.contains(_documentId) &&
+      _submissionRelationship != null &&
+      _validUntil != null;
+
+  /// The relationship this document is submitted under.
+  ///
+  /// Taken from the session's server-recorded `declaredSellerRelationship`
+  /// first: that is the relationship the upload was actually authorized for,
+  /// and it is the only one available after navigation or an app restart,
+  /// when the local dropdown selection is gone and — correctly — disabled.
+  /// The local selection is a fallback for the same-visit case only, and can
+  /// never override what the server recorded.
+  SellerRelationship? get _submissionRelationship =>
+      _session.declaredSellerRelationship ?? _relationship;
+
+  /// Whether ANY operation is in progress or the state is not one that
+  /// explicitly permits acting. Deliberately expressed as "not enabled"
+  /// rather than "in one of these bad states": a status the client does not
+  /// recognise, an absent one, or a stage introduced later all land here.
+  bool get _inFlight => !_uploadControlsEnabled;
+
+  /// Genuinely mid-operation, as opposed to merely not-enabled. Drives only
+  /// the "please wait" notice, never any control's enablement.
+  bool get _processingInFlight {
     final stage = _effectiveStage;
     return _submitting ||
+        _submittingForReview ||
         stage == ComplianceEvidenceStage.requestingSession ||
         stage == ComplianceEvidenceStage.uploading ||
-        stage == ComplianceEvidenceStage.processing ||
-        // A session the server still holds open authorizes exactly one
-        // object write. Starting another now would orphan one of them.
-        complianceInFlightSessionStatuses.contains(_serverStatus);
+        stage == ComplianceEvidenceStage.processing;
   }
 
   bool get _canSubmit =>
-      !_inFlight &&
+      _uploadControlsEnabled &&
       _relationship != null &&
       _documentType != null &&
       _picked != null;
@@ -242,6 +332,65 @@ class _ComplianceEvidenceUploadPageState
     }
   }
 
+  Future<void> _pickValidUntil() async {
+    if (!complianceSubmitEnabledStages.contains(_effectiveStage)) return;
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 365)),
+      firstDate: now,
+      lastDate: DateTime(now.year + 20),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _validUntil = picked;
+      _failure = null;
+    });
+  }
+
+  /// Revision 30 §G's `clean -> pending_review` transition, performed by the
+  /// existing `submitComplianceDocument` callable.
+  ///
+  /// Explicit, not automatic: the callable requires `validUntil`, a value
+  /// only the seller knows, so no client could fire this on promotion without
+  /// inventing a validity date.
+  Future<void> _submitForReview() async {
+    // Latch first, before any await. The session stream re-delivers on every
+    // rebuild, reconnect and navigation return, so a guard that lived only in
+    // the stream handler would fire again on each of those.
+    if (_submittingForReview || !_submitForReviewEnabled) return;
+    _submittingForReview = true;
+
+    final documentId = _documentId!;
+    final relationship = _submissionRelationship!;
+    final validUntil = _validUntil!;
+    setState(() => _failure = null);
+
+    try {
+      await _service.submitDocumentForReview(
+        documentId: documentId,
+        sellerRelationship: relationship,
+        validUntil: validUntil,
+      );
+      // Record the success so no re-delivered `clean` snapshot can offer to
+      // submit this same document again. Deliberately NOT setting an
+      // awaitingReview stage locally: the document's own status is the
+      // authority, and the stream delivers it. Claiming pending_review
+      // before the record says so is exactly the defect this correction
+      // closes, so the screen simply stops offering the action instead.
+      _submittedDocumentIds.add(documentId);
+    } on ComplianceEvidenceException catch (error) {
+      if (!mounted) return;
+      setState(() => _failure = error.kind);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failure = ComplianceEvidenceFailureKind.generic);
+    } finally {
+      _submittingForReview = false;
+      if (mounted) setState(() {});
+    }
+  }
+
   String _documentTypeLabel(AppLocalizations l10n, ComplianceDocumentType t) {
     switch (t) {
       case ComplianceDocumentType.purchaseInvoice:
@@ -320,8 +469,18 @@ class _ComplianceEvidenceUploadPageState
         return l10n.complianceEvidenceStageUploading;
       case ComplianceEvidenceStage.processing:
         return l10n.complianceEvidenceStageProcessing;
+      case ComplianceEvidenceStage.awaitingSubmission:
+        // Truthful for `clean`: the document exists and the seller still has
+        // to send it. Never "waiting for review" — nobody has been asked yet.
+        return _submittingForReview
+            ? l10n.complianceEvidenceSubmittingForReview
+            : l10n.complianceEvidenceStageAwaitingSubmission;
       case ComplianceEvidenceStage.awaitingReview:
         return l10n.complianceEvidenceStageAwaitingReview;
+      case ComplianceEvidenceStage.reviewClosed:
+        return l10n.complianceEvidenceStageReviewClosed;
+      case ComplianceEvidenceStage.unknownState:
+        return l10n.complianceEvidenceStageUnknown;
       case ComplianceEvidenceStage.failedRetryable:
         return l10n.complianceEvidenceStageFailedRetryable;
       case ComplianceEvidenceStage.failedTerminal:
@@ -429,11 +588,42 @@ class _ComplianceEvidenceUploadPageState
               child: Text(l10n.complianceEvidenceSubmit),
             ),
 
-            if (_inFlight) ...[
+            // Only while work is genuinely in flight. `awaitingSubmission`
+            // also disables the upload controls, but nothing is being
+            // processed then — the seller is the one who must act, and
+            // telling them to wait would be false.
+            if (_processingInFlight) ...[
               const SizedBox(height: 12),
               Text(
                 l10n.complianceEvidenceUploadInProgressNotice,
                 key: const Key('complianceEvidenceInProgressNotice'),
+              ),
+            ],
+
+            // Shown only while the promoted document is genuinely `clean`.
+            if (complianceSubmitEnabledStages.contains(_effectiveStage) &&
+                !_submittedDocumentIds.contains(_documentId)) ...[
+              const SizedBox(height: 20),
+              Text(
+                l10n.complianceEvidenceValidUntilRequired,
+                key: const Key('complianceEvidenceValidUntilHint'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                key: const Key('complianceEvidenceValidUntilButton'),
+                onPressed: _submittingForReview ? null : _pickValidUntil,
+                child: Text(
+                  _validUntil == null
+                      ? l10n.complianceEvidencePickValidUntil
+                      : '${l10n.complianceEvidenceValidUntilLabel}: '
+                            '${_validUntil!.toIso8601String().split('T').first}',
+                ),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                key: const Key('complianceEvidenceSubmitForReviewButton'),
+                onPressed: _submitForReviewEnabled ? _submitForReview : null,
+                child: Text(l10n.complianceEvidenceSubmitForReview),
               ),
             ],
 

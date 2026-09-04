@@ -220,6 +220,39 @@ class ComplianceUploadSession {
   }
 }
 
+/// One reading of the seller's latest session: its status, and the canonical
+/// promoted document id if promotion has committed.
+class ComplianceSessionSnapshot {
+  const ComplianceSessionSnapshot({
+    required this.status,
+    required this.documentId,
+    this.declaredSellerRelationship,
+  });
+
+  /// `null` only when no session record exists at all.
+  final String? status;
+
+  /// The server-written `consumedByDocumentId`, present only after promotion.
+  final String? documentId;
+
+  /// The relationship the server recorded at intake. Submission must use
+  /// THIS value, not a fresh dropdown choice: the document has to be
+  /// submitted under the relationship its own upload was authorized for, and
+  /// after navigation or a restart the seller's local selection is gone.
+  final SellerRelationship? declaredSellerRelationship;
+}
+
+/// Parses a stored wire value back to the enum, or null if unrecognized.
+/// Unrecognized never falls back to a default — that would submit a document
+/// under a relationship nobody declared.
+SellerRelationship? sellerRelationshipFromWire(Object? value) {
+  if (value is! String) return null;
+  for (final r in SellerRelationship.values) {
+    if (r.wireValue == value) return r;
+  }
+  return null;
+}
+
 /// The frozen upload-session lifecycle, as the seller sees it. These map
 /// one-to-one onto `COMPLIANCE_UPLOAD_SESSION_STATUS`; no state is invented,
 /// and none of them means "approved".
@@ -237,9 +270,28 @@ enum ComplianceEvidenceStage {
   /// must not re-upload while this is true.
   processing,
 
-  /// Promotion committed: the document exists and awaits review. Explicitly
-  /// NOT approval.
+  /// The scan and promotion committed, so a `complianceDocuments` record
+  /// exists at status `clean`. It has NOT been submitted for review yet:
+  /// Revision 30 §G's lifecycle is `clean -> pending_review -> approved |
+  /// rejected`, and only `submitComplianceDocument` performs the first
+  /// transition. The seller still has an action to take.
+  awaitingSubmission,
+
+  /// The document is genuinely at `pending_review`. Explicitly NOT approval.
   awaitingReview,
+
+  /// The document has left the seller's hands entirely — a recognized status
+  /// beyond `pending_review`. Slice 3 cannot produce one and deliberately
+  /// presents no review OUTCOME: rendering approved/rejected/revoked copy is
+  /// Slice 4's admin-review surface, not this screen's.
+  reviewClosed,
+
+  /// FAIL-CLOSED. The server reported a status this client does not
+  /// recognise — a newly introduced state, a malformed value, or a missing
+  /// one on a record that does exist. Never treated as idle, fresh, ready or
+  /// retryable: every control is disabled until the client understands the
+  /// state again.
+  unknownState,
 
   /// A terminal failure the seller may retry with a fresh file.
   failedRetryable,
@@ -258,8 +310,22 @@ const Set<String> complianceInFlightSessionStatuses = {
   'promotion_pending',
 };
 
+/// Sentinel emitted when a session record exists but its `status` field is
+/// absent or not a string. Distinct from `null`, which means "this business
+/// has no session at all" — the genuinely fresh case, where controls must
+/// stay enabled or the feature is unusable.
+const String complianceUnrecognizedStatus = '__unrecognized__';
+
 /// Maps a raw session status onto the stage the UI shows.
+///
+/// FAIL-CLOSED BY CONSTRUCTION. `null` — and only `null` — means "no session
+/// exists" and yields `idle`. Every other unrecognized value, including a
+/// status a future server release introduces, yields [ComplianceEvidenceStage
+/// .unknownState], which disables every control. A `default:` arm that
+/// returned `idle` would silently re-open blind upload the moment the
+/// backend gained a state, so it does not exist here.
 ComplianceEvidenceStage stageForSessionStatus(String? status) {
+  if (status == null) return ComplianceEvidenceStage.idle;
   switch (status) {
     case 'upload_authorized':
     case 'uploaded':
@@ -268,7 +334,13 @@ ComplianceEvidenceStage stageForSessionStatus(String? status) {
     case 'promotion_pending':
       return ComplianceEvidenceStage.processing;
     case 'consumed':
-      return ComplianceEvidenceStage.awaitingReview;
+      // `consumed` is a SESSION status. It means the upload session was spent
+      // and a document was created at `clean` — it does NOT mean the document
+      // is `pending_review`. The document's own status decides that, and the
+      // page reads it separately. Mapping this to awaitingReview would tell
+      // the seller their document is queued for review when in fact nobody
+      // has been asked to review it.
+      return ComplianceEvidenceStage.awaitingSubmission;
     case 'infected':
       return ComplianceEvidenceStage.failedTerminal;
     case 'expired':
@@ -277,9 +349,44 @@ ComplianceEvidenceStage stageForSessionStatus(String? status) {
     case 'scan_failed':
       return ComplianceEvidenceStage.failedRetryable;
     default:
-      return ComplianceEvidenceStage.idle;
+      return ComplianceEvidenceStage.unknownState;
   }
 }
+
+/// Maps a raw `complianceDocuments` status onto the stage the UI shows.
+/// Same fail-closed discipline: `null` means "no document yet", everything
+/// unrecognized disables every control.
+ComplianceEvidenceStage stageForDocumentStatus(String? status) {
+  if (status == null) return ComplianceEvidenceStage.idle;
+  switch (status) {
+    case 'clean':
+      return ComplianceEvidenceStage.awaitingSubmission;
+    case 'pending_review':
+      return ComplianceEvidenceStage.awaitingReview;
+    case 'approved':
+    case 'rejected':
+    case 'revoked':
+    case 'expired':
+    case 'superseded':
+      return ComplianceEvidenceStage.reviewClosed;
+    default:
+      return ComplianceEvidenceStage.unknownState;
+  }
+}
+
+/// The only stages in which the seller may start a NEW upload. A positive
+/// allowlist, never a "not in this deny-list" test: a stage added later is
+/// disabled until it is explicitly enumerated here.
+const Set<ComplianceEvidenceStage> complianceUploadEnabledStages = {
+  ComplianceEvidenceStage.idle,
+  ComplianceEvidenceStage.failedRetryable,
+};
+
+/// The only stage in which the seller may submit a promoted document for
+/// review. Likewise a positive allowlist.
+const Set<ComplianceEvidenceStage> complianceSubmitEnabledStages = {
+  ComplianceEvidenceStage.awaitingSubmission,
+};
 
 /// Uploads bytes to an already-authorized session path. Injectable so widget
 /// tests never touch real Storage.
@@ -410,7 +517,11 @@ class ComplianceEvidenceService {
   /// state after navigation or an app restart and to suppress a blind
   /// re-upload while one is still in flight. Read-only; the client can never
   /// write these documents.
-  Stream<String?> watchLatestSessionStatus(String businessId) {
+  ///
+  /// A record whose `status` is absent or not a string yields
+  /// [complianceUnrecognizedStatus], never `null` — `null` is reserved for
+  /// "no session exists", the one case in which controls stay enabled.
+  Stream<ComplianceSessionSnapshot> watchLatestSession(String businessId) {
     return _firestore
         .collection('complianceUploadSessions')
         .where('businessId', isEqualTo: businessId)
@@ -418,10 +529,101 @@ class ComplianceEvidenceService {
         .limit(1)
         .snapshots()
         .map((snap) {
-          if (snap.docs.isEmpty) return null;
-          final status = snap.docs.first.data()['status'];
-          return status is String ? status : null;
+          if (snap.docs.isEmpty) {
+            return const ComplianceSessionSnapshot(
+              status: null,
+              documentId: null,
+            );
+          }
+          final data = snap.docs.first.data();
+          final status = data['status'];
+          // The canonical promoted document id, and the ONLY identifier this
+          // client ever submits. It is written by the server inside the same
+          // transaction that sets `status: consumed`, so its presence proves
+          // promotion actually committed. The session's own `documentId` is
+          // pre-allocated at session creation and exists even when promotion
+          // never happened (infected, scan_failed) — submitting that one
+          // would name a document that does not exist. Nothing is composed,
+          // derived or queried for here.
+          final consumedBy = data['consumedByDocumentId'];
+          return ComplianceSessionSnapshot(
+            status: status is String && status.isNotEmpty
+                ? status
+                : complianceUnrecognizedStatus,
+            documentId: consumedBy is String && consumedBy.isNotEmpty
+                ? consumedBy
+                : null,
+            declaredSellerRelationship: sellerRelationshipFromWire(
+              data['declaredSellerRelationship'],
+            ),
+          );
         });
+  }
+
+  /// The seller's own promoted document, read by its canonical id. This is
+  /// the authoritative source for whether the document is still `clean` or
+  /// has genuinely reached `pending_review`.
+  Stream<String?> watchDocumentStatus(String documentId) {
+    return _firestore
+        .collection('complianceDocuments')
+        .doc(documentId)
+        .snapshots()
+        .map((snap) {
+          if (!snap.exists) return null;
+          final status = (snap.data() ?? const {})['status'];
+          return status is String && status.isNotEmpty
+              ? status
+              : complianceUnrecognizedStatus;
+        });
+  }
+
+  /// Submits an already-promoted document for review — the `clean ->
+  /// pending_review` transition of Revision 30 §G, performed by the existing
+  /// `submitComplianceDocument` callable exactly as that contract is frozen.
+  ///
+  /// `validUntil` is REQUIRED by the server (its own conservative interim
+  /// policy default). That is why submission is an explicit seller action
+  /// rather than something this client could fire automatically on promotion:
+  /// only the seller knows the document's validity date, and no client may
+  /// invent one.
+  Future<String> submitDocumentForReview({
+    required String documentId,
+    required SellerRelationship sellerRelationship,
+    required DateTime validUntil,
+    DateTime? issuedAt,
+    DateTime? validFrom,
+  }) async {
+    try {
+      final raw = await _callableInvoker('submitComplianceDocument', {
+        'documentId': documentId,
+        'sellerRelationship': sellerRelationship.wireValue,
+        'validUntil': validUntil.toUtc().toIso8601String(),
+        if (issuedAt != null) 'issuedAt': issuedAt.toUtc().toIso8601String(),
+        if (validFrom != null) 'validFrom': validFrom.toUtc().toIso8601String(),
+      });
+      if (raw is! Map) {
+        throw const ComplianceEvidenceException(
+          ComplianceEvidenceFailureKind.unavailableRetry,
+        );
+      }
+      final status = raw['status'];
+      // A response that does not confirm pending_review is never treated as
+      // success: the UI must not claim review is pending on a guess.
+      if (status != 'pending_review') {
+        throw const ComplianceEvidenceException(
+          ComplianceEvidenceFailureKind.unavailableRetry,
+        );
+      }
+      return status as String;
+    } on ComplianceEvidenceException {
+      rethrow;
+    } on FirebaseFunctionsException catch (error) {
+      throw ComplianceEvidenceException(_mapFailure(error));
+    } catch (_) {
+      throw const ComplianceEvidenceException(
+        ComplianceEvidenceFailureKind.generic,
+      );
+    }
   }
 
   ComplianceEvidenceFailureKind _mapFailure(FirebaseFunctionsException error) {

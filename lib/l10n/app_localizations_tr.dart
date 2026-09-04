@@ -10617,5 +10617,29 @@ class AppLocalizationsTr extends AppLocalizations {
   String get complianceDocumentTypeImporterEvidence => 'İthalat belgesi';
 
   @override
+  String get complianceEvidenceStageAwaitingSubmission => 'Alındı. Geçerlilik tarihini ekleyip incelemeye gönderin.';
+
+  @override
+  String get complianceEvidenceStageReviewClosed => 'Bu belge için sizden başka bir işlem beklenmiyor.';
+
+  @override
+  String get complianceEvidenceStageUnknown => 'Mevcut durum okunamadı. Lütfen birazdan bu ekranı yeniden açın.';
+
+  @override
+  String get complianceEvidenceSubmitForReview => 'İncelemeye gönder';
+
+  @override
+  String get complianceEvidenceSubmittingForReview => 'İncelemeye gönderiliyor…';
+
+  @override
+  String get complianceEvidenceValidUntilLabel => 'Geçerlilik bitiş tarihi';
+
+  @override
+  String get complianceEvidenceValidUntilRequired => 'Bu belgenin geçerlilik bitiş tarihini seçin.';
+
+  @override
+  String get complianceEvidencePickValidUntil => 'Tarih seç';
+
+  @override
   String get networkErrorTryAgain => 'Ağ hatası. Lütfen tekrar deneyin.';
 }

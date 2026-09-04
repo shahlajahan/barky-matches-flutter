@@ -407,9 +407,18 @@ void main() {
         stageForSessionStatus('promotion_pending'),
         ComplianceEvidenceStage.processing,
       );
+      // CORRECTED (Slice 3 audit): `consumed` is a SESSION status meaning the
+      // upload session was spent and a document was created at `clean`. It is
+      // NOT `pending_review` — nobody has been asked to review anything until
+      // submitComplianceDocument runs. Mapping it to awaitingReview was the
+      // defect this suite now guards against.
       expect(
         stageForSessionStatus('consumed'),
-        ComplianceEvidenceStage.awaitingReview,
+        ComplianceEvidenceStage.awaitingSubmission,
+      );
+      expect(
+        stageForSessionStatus('consumed'),
+        isNot(ComplianceEvidenceStage.awaitingReview),
       );
       expect(
         stageForSessionStatus('infected'),
@@ -426,10 +435,12 @@ void main() {
           ComplianceEvidenceStage.failedRetryable,
         );
       }
+      // `null` — and only null — means "no session exists", the genuinely
+      // fresh case. Every other unrecognized value fails closed.
       expect(stageForSessionStatus(null), ComplianceEvidenceStage.idle);
       expect(
         stageForSessionStatus('unknown_future_state'),
-        ComplianceEvidenceStage.idle,
+        ComplianceEvidenceStage.unknownState,
       );
     });
 
@@ -447,10 +458,20 @@ void main() {
       ]) {
         expect(names.toLowerCase(), isNot(contains(forbidden)));
       }
-      // `consumed` — the furthest intake can reach — is awaiting review.
+      // `consumed` — the furthest the UPLOAD can reach on its own — is
+      // awaiting the seller's own submission, not awaiting review.
       expect(
         stageForSessionStatus('consumed'),
+        ComplianceEvidenceStage.awaitingSubmission,
+      );
+      // Only the DOCUMENT's own status can say pending_review.
+      expect(
+        stageForDocumentStatus('pending_review'),
         ComplianceEvidenceStage.awaitingReview,
+      );
+      expect(
+        stageForDocumentStatus('clean'),
+        ComplianceEvidenceStage.awaitingSubmission,
       );
     });
 
@@ -475,6 +496,8 @@ void main() {
     });
   });
 
+  _submissionContractTests();
+
   group('client limits match the backend', () {
     test('mime types, size and filename bounds are the frozen values', () {
       expect(complianceAllowedMimeTypes, [
@@ -491,6 +514,210 @@ void main() {
       final b = generateComplianceUploadIdempotencyKey();
       expect(a, isNotEmpty);
       expect(a, isNot(equals(b)));
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Slice 3 corrective audit — the clean -> pending_review submission contract
+// ---------------------------------------------------------------------------
+
+void _submissionContractTests() {
+  group('submitComplianceDocument contract', () {
+    test('sends exactly the fields the callable accepts', () async {
+      String? name;
+      Map<String, dynamic>? sent;
+      final service = ComplianceEvidenceService(
+        callableInvoker: (n, d) async {
+          name = n;
+          sent = d;
+          return {'documentId': 'doc-1', 'status': 'pending_review'};
+        },
+        uploader: (a, b, c) async {},
+      );
+      await service.submitDocumentForReview(
+        documentId: 'doc-1',
+        sellerRelationship: SellerRelationship.reseller,
+        validUntil: DateTime.utc(2027, 1, 1),
+      );
+      expect(name, 'submitComplianceDocument');
+      expect(sent!.keys.toSet(), {
+        'documentId',
+        'sellerRelationship',
+        'validUntil',
+      });
+      expect(sent!['documentId'], 'doc-1');
+      expect(sent!['sellerRelationship'], 'reseller');
+      expect(sent!['validUntil'], '2027-01-01T00:00:00.000Z');
+    });
+
+    test(
+      'a response that does not confirm pending_review is not success',
+      () async {
+        for (final bad in <Object?>[
+          null,
+          'not-a-map',
+          <String, dynamic>{},
+          {'documentId': 'doc-1'},
+          {'documentId': 'doc-1', 'status': 'clean'},
+          {'documentId': 'doc-1', 'status': 'approved'},
+        ]) {
+          final service = ComplianceEvidenceService(
+            callableInvoker: (a, b) async => bad,
+            uploader: (a, b, c) async {},
+          );
+          await expectLater(
+            service.submitDocumentForReview(
+              documentId: 'doc-1',
+              sellerRelationship: SellerRelationship.reseller,
+              validUntil: DateTime.utc(2027, 1, 1),
+            ),
+            throwsA(isA<ComplianceEvidenceException>()),
+            reason: '${bad ?? 'null'} must never be read as pending_review',
+          );
+        }
+      },
+    );
+
+    test('the idempotency conflict is surfaced, not swallowed', () async {
+      final service = ComplianceEvidenceService(
+        callableInvoker: (a, b) async => throw FirebaseFunctionsException(
+          code: 'failed-precondition',
+          message:
+              'idempotency_conflict: this document has already been submitted',
+        ),
+        uploader: (a, b, c) async {},
+      );
+      await expectLater(
+        service.submitDocumentForReview(
+          documentId: 'doc-1',
+          sellerRelationship: SellerRelationship.reseller,
+          validUntil: DateTime.utc(2027, 1, 1),
+        ),
+        throwsA(
+          isA<ComplianceEvidenceException>().having(
+            (e) => e.kind,
+            'kind',
+            ComplianceEvidenceFailureKind.sessionConflict,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('fail-closed status mapping', () {
+    test('session: only null is idle; every unknown value blocks', () {
+      expect(stageForSessionStatus(null), ComplianceEvidenceStage.idle);
+      for (final unknown in [
+        'created',
+        'a_future_state',
+        complianceUnrecognizedStatus,
+        '',
+        'CONSUMED',
+        'Consumed',
+      ]) {
+        expect(
+          stageForSessionStatus(unknown),
+          ComplianceEvidenceStage.unknownState,
+          reason: '"$unknown" must fail closed',
+        );
+        expect(
+          complianceUploadEnabledStages,
+          isNot(contains(stageForSessionStatus(unknown))),
+        );
+      }
+    });
+
+    test('document: only null is idle; every unknown value blocks', () {
+      expect(stageForDocumentStatus(null), ComplianceEvidenceStage.idle);
+      expect(
+        stageForDocumentStatus('clean'),
+        ComplianceEvidenceStage.awaitingSubmission,
+      );
+      expect(
+        stageForDocumentStatus('pending_review'),
+        ComplianceEvidenceStage.awaitingReview,
+      );
+      for (final closed in [
+        'approved',
+        'rejected',
+        'revoked',
+        'expired',
+        'superseded',
+      ]) {
+        expect(
+          stageForDocumentStatus(closed),
+          ComplianceEvidenceStage.reviewClosed,
+        );
+      }
+      for (final unknown in [
+        'brand_new',
+        complianceUnrecognizedStatus,
+        '',
+        'PENDING_REVIEW',
+      ]) {
+        expect(
+          stageForDocumentStatus(unknown),
+          ComplianceEvidenceStage.unknownState,
+          reason: '"$unknown" must fail closed',
+        );
+      }
+    });
+
+    test('the enabled sets are positive allowlists, not deny-lists', () {
+      expect(complianceUploadEnabledStages, {
+        ComplianceEvidenceStage.idle,
+        ComplianceEvidenceStage.failedRetryable,
+      });
+      expect(complianceSubmitEnabledStages, {
+        ComplianceEvidenceStage.awaitingSubmission,
+      });
+      // Nothing that could mean "in progress" or "not understood" is enabled.
+      for (final blocked in [
+        ComplianceEvidenceStage.requestingSession,
+        ComplianceEvidenceStage.uploading,
+        ComplianceEvidenceStage.processing,
+        ComplianceEvidenceStage.awaitingReview,
+        ComplianceEvidenceStage.reviewClosed,
+        ComplianceEvidenceStage.unknownState,
+        ComplianceEvidenceStage.failedTerminal,
+      ]) {
+        expect(complianceUploadEnabledStages, isNot(contains(blocked)));
+      }
+      for (final blocked in [
+        ComplianceEvidenceStage.idle,
+        ComplianceEvidenceStage.awaitingReview,
+        ComplianceEvidenceStage.unknownState,
+        ComplianceEvidenceStage.failedTerminal,
+        ComplianceEvidenceStage.reviewClosed,
+      ]) {
+        expect(complianceSubmitEnabledStages, isNot(contains(blocked)));
+      }
+    });
+
+    test(
+      'every frozen stage is classified by exactly one allowlist or none',
+      () {
+        for (final stage in ComplianceEvidenceStage.values) {
+          final inUpload = complianceUploadEnabledStages.contains(stage);
+          final inSubmit = complianceSubmitEnabledStages.contains(stage);
+          expect(
+            inUpload && inSubmit,
+            isFalse,
+            reason: '$stage cannot enable both operations at once',
+          );
+        }
+      },
+    );
+
+    test('an unrecognized relationship never falls back to a default', () {
+      expect(
+        sellerRelationshipFromWire('reseller'),
+        SellerRelationship.reseller,
+      );
+      for (final bad in <Object?>[null, '', 'Reseller', 'RESELLER', 42, {}]) {
+        expect(sellerRelationshipFromWire(bad), isNull);
+      }
     });
   });
 }

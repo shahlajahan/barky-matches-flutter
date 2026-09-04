@@ -14,16 +14,35 @@ import 'package:flutter_test/flutter_test.dart';
 /// production Firebase, Functions or Storage is touched.
 
 class _FakeService extends ComplianceEvidenceService {
-  _FakeService({this.onCreate, this.statusStream, this.failWith})
-    : super(
-        callableInvoker: (a, b) async => null,
-        uploader: (a, b, c) async {},
-      );
+  _FakeService({
+    this.onCreate,
+    this.statusStream,
+    this.failWith,
+    this.consumedDocumentId,
+    this.declaredRelationship,
+    this.documentStatusStream,
+    this.submitFailsWith,
+  }) : super(
+         callableInvoker: (a, b) async => null,
+         uploader: (a, b, c) async {},
+       );
 
   final Future<ComplianceUploadSession> Function(Map<String, Object?> args)?
   onCreate;
   final Stream<String?>? statusStream;
   final ComplianceEvidenceFailureKind? failWith;
+
+  /// The canonical promoted document id the session reports, and the
+  /// document's own status — the two records the corrected page reads.
+  final String? consumedDocumentId;
+  final SellerRelationship? declaredRelationship;
+  final Stream<String?>? documentStatusStream;
+  final ComplianceEvidenceFailureKind? submitFailsWith;
+
+  int submitCalls = 0;
+  final List<String> submittedDocumentIds = [];
+  final List<String> submittedRelationships = [];
+  final List<DateTime> submittedValidUntils = [];
 
   int createCalls = 0;
   int uploadCalls = 0;
@@ -72,8 +91,42 @@ class _FakeService extends ComplianceEvidenceService {
   }
 
   @override
-  Stream<String?> watchLatestSessionStatus(String businessId) {
-    return statusStream ?? Stream<String?>.value(null);
+  Stream<ComplianceSessionSnapshot> watchLatestSession(String businessId) {
+    final statuses = statusStream ?? Stream<String?>.value(null);
+    return statuses.map(
+      // Faithful to the server: `consumedByDocumentId` is written only in
+      // the promotion transaction, so it exists only once the session is
+      // `consumed`. A fake that always reported it would let tests pass on
+      // an id the real backend would not yet have written.
+      (status) => ComplianceSessionSnapshot(
+        status: status,
+        documentId: status == 'consumed' ? consumedDocumentId : null,
+        declaredSellerRelationship: declaredRelationship,
+      ),
+    );
+  }
+
+  @override
+  Stream<String?> watchDocumentStatus(String documentId) {
+    return documentStatusStream ?? Stream<String?>.value(null);
+  }
+
+  @override
+  Future<String> submitDocumentForReview({
+    required String documentId,
+    required SellerRelationship sellerRelationship,
+    required DateTime validUntil,
+    DateTime? issuedAt,
+    DateTime? validFrom,
+  }) async {
+    submitCalls += 1;
+    submittedDocumentIds.add(documentId);
+    submittedRelationships.add(sellerRelationship.wireValue);
+    submittedValidUntils.add(validUntil);
+    if (submitFailsWith != null) {
+      throw ComplianceEvidenceException(submitFailsWith!);
+    }
+    return 'pending_review';
   }
 }
 
@@ -97,6 +150,11 @@ Future<void> pumpPage(
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       home: ComplianceEvidenceUploadPage(
+        // A UniqueKey per pump. Without it Flutter reuses the existing State
+        // across pumpWidget calls in the same test, so a second scenario
+        // would silently keep the first scenario's streams and assert
+        // nothing. This bit once already.
+        key: UniqueKey(),
         businessId: businessId,
         service: service,
         pickFile:
@@ -109,6 +167,14 @@ Future<void> pumpPage(
       ),
     ),
   );
+  await tester.pumpAndSettle();
+}
+
+/// The page is a lazily-built ListView, so a widget below the fold is not in
+/// the tree until it is scrolled into range. Assertions about late content
+/// must build it first rather than silently finding nothing.
+Future<void> revealAll(WidgetTester tester) async {
+  await tester.drag(find.byType(ListView), const Offset(0, -600));
   await tester.pumpAndSettle();
 }
 
@@ -413,13 +479,21 @@ void main() {
   });
 
   testWidgets(
-    'a consumed session reads as awaiting review, never as approved',
+    'a consumed session reads as awaiting the seller own submission, never as awaiting review',
     (tester) async {
+      // THE CORRECTED DEFECT. `consumed` is a SESSION status: the upload
+      // session was spent and a document now exists at `clean`. Nobody has
+      // been asked to review it. Showing "waiting for review" here told the
+      // seller their work was finished while they still had to submit.
       final service = _FakeService(
         statusStream: Stream<String?>.value('consumed'),
+        consumedDocumentId: 'doc-1',
+        documentStatusStream: Stream<String?>.value('clean'),
       );
       await pumpPage(tester, service: service);
-      expect(find.textContaining('waiting for review'), findsOneWidget);
+      await revealAll(tester);
+      expect(find.textContaining('send it for review'), findsOneWidget);
+      expect(find.textContaining('waiting for review'), findsNothing);
 
       // Scoped to the STATE text specifically. A whole-page scan would match
       // the not-approval notice itself, which legitimately contains the word
@@ -436,6 +510,7 @@ void main() {
         'effective',
         'eligible',
         'live',
+        'waiting for review',
       ]) {
         expect(
           stageText,
@@ -586,6 +661,9 @@ void main() {
     expect(service.businessIds, ['biz-OTHER']);
   });
 
+  _defect1Tests();
+  _defect2Tests();
+
   testWidgets('renders in all four supported locales', (tester) async {
     for (final locale in [
       const Locale('en'),
@@ -605,5 +683,383 @@ void main() {
         findsOneWidget,
       );
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Slice 3 corrective audit — Defect 1: the clean -> pending_review submission
+// ---------------------------------------------------------------------------
+
+Future<void> _reachAwaitingSubmission(
+  WidgetTester tester,
+  _FakeService service,
+) async {
+  // No dropdown interaction: at awaitingSubmission every input is correctly
+  // frozen, and the relationship comes from the session record the server
+  // wrote at intake — which is also the only source that survives a restart.
+  await pumpPage(tester, service: service);
+  await revealAll(tester);
+}
+
+void _defect1Tests() {
+  testWidgets('a successful upload alone can never show "waiting for review"', (
+    tester,
+  ) async {
+    // The session is consumed and the document exists — but at `clean`. This
+    // is exactly the end state a successful upload reaches on its own.
+    final service = _FakeService(
+      statusStream: Stream<String?>.value('consumed'),
+      consumedDocumentId: 'doc-1',
+      documentStatusStream: Stream<String?>.value('clean'),
+    );
+    await pumpPage(tester, service: service);
+    await revealAll(tester);
+    expect(find.textContaining('waiting for review'), findsNothing);
+    expect(service.submitCalls, 0, reason: 'submission is the seller\'s act');
+  });
+
+  testWidgets('pending_review copy appears only once the document says so', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      statusStream: Stream<String?>.value('consumed'),
+      consumedDocumentId: 'doc-1',
+      documentStatusStream: Stream<String?>.value('pending_review'),
+    );
+    await pumpPage(tester, service: service);
+    await revealAll(tester);
+    expect(find.textContaining('waiting for review'), findsOneWidget);
+    // And once it is under review the seller has nothing left to submit.
+    expect(
+      find.byKey(const Key('complianceEvidenceSubmitForReviewButton')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'submission uses the canonical consumedByDocumentId and fires exactly once',
+    (tester) async {
+      final service = _FakeService(
+        statusStream: Stream<String?>.value('consumed'),
+        consumedDocumentId: 'canonical-doc-42',
+        declaredRelationship: SellerRelationship.reseller,
+        documentStatusStream: Stream<String?>.value('clean'),
+      );
+      await _reachAwaitingSubmission(tester, service);
+
+      await tester.tap(
+        find.byKey(const Key('complianceEvidenceValidUntilButton')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await revealAll(tester);
+
+      final submit = find.byKey(
+        const Key('complianceEvidenceSubmitForReviewButton'),
+      );
+      // Three taps in the same frame — the latch, not a rebuild, must stop
+      // the second and third.
+      await tester.tap(submit);
+      await tester.tap(submit, warnIfMissed: false);
+      await tester.tap(submit, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(service.submitCalls, 1);
+      expect(service.submittedDocumentIds, ['canonical-doc-42']);
+      expect(service.submittedRelationships, ['reseller']);
+      expect(service.submittedValidUntils.length, 1);
+    },
+  );
+
+  testWidgets(
+    'submission uses the relationship the SERVER recorded, not a stale local choice',
+    (tester) async {
+      // The seller picks `reseller` while the screen is fresh, then the
+      // session arrives declaring `importer` — the relationship the upload
+      // was actually authorized under. The document must be submitted under
+      // the server's value: it is the one the intake matrix was checked
+      // against, and the only one that survives a restart.
+      final controller = StreamController<String?>();
+      final service = _FakeService(
+        statusStream: controller.stream,
+        consumedDocumentId: 'doc-9',
+        declaredRelationship: SellerRelationship.importer,
+        documentStatusStream: Stream<String?>.value('clean'),
+      );
+      await pumpPage(tester, service: service);
+      controller.add(null);
+      await tester.pumpAndSettle();
+
+      await selectRelationship(tester, SellerRelationship.reseller);
+
+      controller.add('consumed');
+      await tester.pumpAndSettle();
+      await revealAll(tester);
+
+      await tester.tap(
+        find.byKey(const Key('complianceEvidenceValidUntilButton')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await revealAll(tester);
+      await tester.tap(
+        find.byKey(const Key('complianceEvidenceSubmitForReviewButton')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(service.submitCalls, 1);
+      expect(service.submittedRelationships, ['importer']);
+      await controller.close();
+    },
+  );
+
+  testWidgets('submission is impossible before promotion names a document', (
+    tester,
+  ) async {
+    // Session consumed but no consumedByDocumentId yet: nothing to submit,
+    // and the client must not invent or compose an id.
+    final service = _FakeService(
+      statusStream: Stream<String?>.value('consumed'),
+      consumedDocumentId: null,
+    );
+    await _reachAwaitingSubmission(tester, service);
+    final submit = find.byKey(
+      const Key('complianceEvidenceSubmitForReviewButton'),
+    );
+    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+    expect(service.submitCalls, 0);
+  });
+
+  testWidgets('a failed submission never displays pending_review', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      statusStream: Stream<String?>.value('consumed'),
+      consumedDocumentId: 'doc-1',
+      declaredRelationship: SellerRelationship.reseller,
+      documentStatusStream: Stream<String?>.value('clean'),
+      submitFailsWith: ComplianceEvidenceFailureKind.unavailableRetry,
+    );
+    await _reachAwaitingSubmission(tester, service);
+    await tester.tap(
+      find.byKey(const Key('complianceEvidenceValidUntilButton')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await revealAll(tester);
+    await tester.tap(
+      find.byKey(const Key('complianceEvidenceSubmitForReviewButton')),
+    );
+    await tester.pumpAndSettle();
+    await revealAll(tester);
+
+    expect(service.submitCalls, 1);
+    expect(find.textContaining('waiting for review'), findsNothing);
+    expect(
+      find.byKey(const Key('complianceEvidenceFailureText')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a retry after a failure does not double-submit', (tester) async {
+    final service = _FakeService(
+      statusStream: Stream<String?>.value('consumed'),
+      consumedDocumentId: 'doc-1',
+      declaredRelationship: SellerRelationship.reseller,
+      documentStatusStream: Stream<String?>.value('clean'),
+      submitFailsWith: ComplianceEvidenceFailureKind.unavailableRetry,
+    );
+    await _reachAwaitingSubmission(tester, service);
+    await tester.tap(
+      find.byKey(const Key('complianceEvidenceValidUntilButton')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await revealAll(tester);
+
+    final submit = find.byKey(
+      const Key('complianceEvidenceSubmitForReviewButton'),
+    );
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+    await revealAll(tester);
+    // A deliberate retry is one more call, never two, and always the same id.
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+
+    expect(service.submitCalls, 2);
+    expect(service.submittedDocumentIds, ['doc-1', 'doc-1']);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Slice 3 corrective audit — Defect 2: unknown status fails closed
+// ---------------------------------------------------------------------------
+
+void _defect2Tests() {
+  testWidgets('an unrecognized SESSION status disables every upload control', (
+    tester,
+  ) async {
+    for (final status in [
+      'a_status_from_a_future_release',
+      complianceUnrecognizedStatus,
+      '',
+    ]) {
+      final service = _FakeService(statusStream: Stream<String?>.value(status));
+      await pumpPage(tester, service: service);
+
+      expect(
+        tester
+            .widget<DropdownButtonFormField<SellerRelationship>>(
+              find.byKey(const Key('complianceEvidenceRelationshipDropdown')),
+            )
+            .onChanged,
+        isNull,
+        reason: '"$status" must not permit choosing a relationship',
+      );
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.byKey(const Key('complianceEvidencePickButton')),
+            )
+            .onPressed,
+        isNull,
+        reason: '"$status" must not permit picking a file',
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('complianceEvidenceSubmitButton')),
+            )
+            .onPressed,
+        isNull,
+        reason: '"$status" must not permit uploading',
+      );
+      expect(service.createCalls, 0);
+    }
+  });
+
+  testWidgets('an unrecognized DOCUMENT status disables submit and retry', (
+    tester,
+  ) async {
+    for (final status in [
+      'brand_new_review_state',
+      complianceUnrecognizedStatus,
+    ]) {
+      final service = _FakeService(
+        statusStream: Stream<String?>.value('consumed'),
+        consumedDocumentId: 'doc-1',
+        documentStatusStream: Stream<String?>.value(status),
+      );
+      await pumpPage(tester, service: service);
+      await revealAll(tester);
+
+      // No submit affordance at all in a state the client cannot interpret.
+      expect(
+        find.byKey(const Key('complianceEvidenceSubmitForReviewButton')),
+        findsNothing,
+        reason: '"$status" must not expose a submit control',
+      );
+      // And no new upload either.
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.byKey(const Key('complianceEvidencePickButton')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(service.submitCalls, 0);
+    }
+  });
+
+  testWidgets('an unknown state shows a generic message that leaks nothing', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      statusStream: Stream<String?>.value('some_unmapped_state'),
+    );
+    await pumpPage(tester, service: service);
+    await revealAll(tester);
+    expect(
+      find.textContaining('could not read the current state'),
+      findsOneWidget,
+    );
+    for (final leak in [
+      'some_unmapped_state',
+      'compliance_quarantine',
+      'complianceUploadSessions',
+      'doc-1',
+      'businessId',
+    ]) {
+      expect(
+        find.textContaining(leak),
+        findsNothing,
+        reason: '"$leak" must never be shown to a seller',
+      );
+    }
+  });
+
+  testWidgets('only the enumerated stages ever enable an operation', (
+    tester,
+  ) async {
+    // Exhaustive over the frozen vocabulary plus deliberately bogus values.
+    const everySessionStatus = [
+      'upload_authorized',
+      'uploaded',
+      'validating',
+      'scan_pending',
+      'promotion_pending',
+      'consumed',
+      'expired',
+      'cancelled',
+      'validation_failed',
+      'scan_failed',
+      'infected',
+      'created',
+      'totally_made_up',
+    ];
+    for (final status in everySessionStatus) {
+      final service = _FakeService(statusStream: Stream<String?>.value(status));
+      await pumpPage(tester, service: service);
+      final pickEnabled =
+          tester
+              .widget<OutlinedButton>(
+                find.byKey(const Key('complianceEvidencePickButton')),
+              )
+              .onPressed !=
+          null;
+      final shouldBeEnabled = complianceUploadEnabledStages.contains(
+        stageForSessionStatus(status),
+      );
+      expect(
+        pickEnabled,
+        shouldBeEnabled,
+        reason:
+            '"$status" -> ${stageForSessionStatus(status)}: enablement must '
+            'follow the positive allowlist exactly',
+      );
+    }
+  });
+
+  testWidgets('a fresh business with no session at all can still upload', (
+    tester,
+  ) async {
+    // The one case null legitimately means "nothing has happened yet". If
+    // fail-closed handling swallowed this too, the feature would be unusable.
+    final service = _FakeService(statusStream: Stream<String?>.value(null));
+    await pumpPage(tester, service: service);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const Key('complianceEvidencePickButton')),
+          )
+          .onPressed,
+      isNotNull,
+    );
   });
 }

@@ -4672,5 +4672,13 @@
 ,"complianceDocumentTypeTrademarkEvidence": "Trademark evidence"
 ,"complianceDocumentTypeManufacturerEvidence": "Manufacturer evidence"
 ,"complianceDocumentTypeImporterEvidence": "Import evidence"
+,"complianceEvidenceStageAwaitingSubmission": "Received. Add the validity date and send it for review."
+,"complianceEvidenceStageReviewClosed": "This document no longer needs anything from you."
+,"complianceEvidenceStageUnknown": "We could not read the current state. Please reopen this screen in a moment."
+,"complianceEvidenceSubmitForReview": "Send for review"
+,"complianceEvidenceSubmittingForReview": "Sending for review…"
+,"complianceEvidenceValidUntilLabel": "Valid until"
+,"complianceEvidenceValidUntilRequired": "Choose the date this document is valid until."
+,"complianceEvidencePickValidUntil": "Choose date"
 ,"networkErrorTryAgain": "Network error. Please try again."
 }
