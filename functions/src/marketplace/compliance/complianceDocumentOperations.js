@@ -153,6 +153,31 @@ const MAX_REQUEST_ID_LENGTH = 128;
 // Small shared helpers
 // ---------------------------------------------------------------------
 
+// Marketplace Revision 30 §J Slice 4 — rejection reason normalization.
+//
+// The frozen contract is a single free-text `rejectionReason`; no category or
+// taxonomy exists and none is invented here. What is added is the normal
+// form: trim surrounding whitespace, require something left, and apply the
+// existing MAX_REASON_LENGTH to the TRIMMED value.
+//
+// The normalized value is what gets persisted, compared and audited, so
+// "  reason  " and "reason" are the same rejection rather than an
+// idempotency conflict — the inconsistency that would otherwise appear the
+// first time an admin retried with a stray space.
+function normalizeRejectionReason(value, fieldName) {
+  if (typeof value !== "string") {
+    throw new HttpsError("invalid-argument", `${fieldName} is required`);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new HttpsError("invalid-argument", `${fieldName} is required`);
+  }
+  if (trimmed.length > MAX_REASON_LENGTH) {
+    throw new HttpsError("invalid-argument", `${fieldName} is too long`);
+  }
+  return trimmed;
+}
+
 function assertNonEmptyString(value, fieldName, maxLength) {
   if (typeof value !== "string" || value.length === 0) {
     throw new HttpsError("invalid-argument", `${fieldName} is required`);
@@ -439,7 +464,7 @@ async function reviewComplianceDocument({ db, auth, data }) {
   }
   let rejectionReason = null;
   if (decision === DECISION.REJECT) {
-    rejectionReason = assertNonEmptyString(data.rejectionReason, "rejectionReason", MAX_REASON_LENGTH);
+    rejectionReason = normalizeRejectionReason(data.rejectionReason, "rejectionReason");
   } else if (data.rejectionReason !== undefined) {
     throw new HttpsError("invalid-argument", "rejectionReason is only valid when rejecting");
   }
@@ -458,7 +483,11 @@ async function reviewComplianceDocument({ db, auth, data }) {
     const current = snap.data();
 
     if (current.status === targetStatus) {
-      if (decision === DECISION.REJECT && current.rejectionReason !== rejectionReason) {
+      const storedReason =
+        typeof current.rejectionReason === "string"
+          ? current.rejectionReason.trim()
+          : current.rejectionReason;
+      if (decision === DECISION.REJECT && storedReason !== rejectionReason) {
         throw new HttpsError(
           "failed-precondition",
           "idempotency_conflict: this document was already rejected with a different reason"
@@ -1361,6 +1390,7 @@ async function reviewComplianceScope({ db, auth, data }) {
 }
 
 module.exports = {
+  normalizeRejectionReason,
   submitComplianceDocument,
   reviewComplianceDocument,
   requestComplianceInformation,

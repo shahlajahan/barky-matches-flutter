@@ -335,6 +335,9 @@ const {
   reviewComplianceScope,
 } = require("./src/marketplace/compliance/complianceDocumentOperations");
 const {
+  getComplianceDocumentEvidence,
+} = require("./src/marketplace/compliance/complianceEvidenceAccess");
+const {
   reviewProductModeration,
 } = require("./src/marketplace/compliance/productModeration");
 const {
@@ -20262,6 +20265,23 @@ exports.complianceUploadReconciliation = onSchedule(
 
 exports.submitComplianceDocument = onCall({ region: "europe-west3" }, async (request) =>
   submitComplianceDocument({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+// Marketplace Revision 30 §J Slice 4 — the ONLY authorized route by which an
+// admin may view a promoted evidence object. `compliance_docs/**` stays
+// `allow read, write: if false` in storage.rules; nothing here relaxes it.
+// 512MiB/30s: the handler reads metadata and signs a URL — it never loads the
+// object into memory — so this is generous headroom, not a working budget.
+exports.getComplianceDocumentEvidence = onCall(
+  { region: "europe-west3", memory: "512MiB", timeoutSeconds: 30 },
+  async (request) =>
+    getComplianceDocumentEvidence({
+      db: admin.firestore(),
+      bucket: admin.storage().bucket(COMPLIANCE_STORAGE_BUCKET_NAME),
+      auth: request.auth,
+      data: request.data,
+      logger,
+    })
 );
 
 exports.reviewComplianceDocument = onCall({ region: "europe-west3" }, async (request) =>
