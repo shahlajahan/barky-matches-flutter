@@ -10518,4 +10518,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String businessMediaGalleryCount(int current, int max) {
     return '$current из $max фото';
   }
+
+  @override
+  String get marketplaceDisabledError => 'Отправка товаров на маркетплейс пока недоступна. Попробуйте позже.';
+
+  @override
+  String get invalidSellerRelationshipError => 'Выберите корректный тип отношения продавца к товару.';
+
+  @override
+  String get invalidProductDataError => 'Некоторые данные товара некорректны. Проверьте форму и повторите.';
+
+  @override
+  String get mediaUploadFailedError => 'Не удалось загрузить медиа товара. Попробуйте ещё раз.';
+
+  @override
+  String get productSubmissionFailedError => 'Не удалось отправить товар. Попробуйте ещё раз.';
+
+  @override
+  String get networkErrorTryAgain => 'Ошибка сети. Попробуйте ещё раз.';
 }

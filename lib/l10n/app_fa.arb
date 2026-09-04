@@ -4620,5 +4620,10 @@
 ,"businessMediaErrorGeneric": "مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
 ,"businessMediaImageUnavailable": "تصویر در دسترس نیست"
 ,"businessMediaGalleryCount": "{current} از {max} عکس"
-
+,"marketplaceDisabledError": "ثبت محصول در بازارگاه هنوز باز نیست. لطفاً بعداً دوباره تلاش کنید."
+,"invalidSellerRelationshipError": "برای این محصول یک نسبت فروشنده معتبر انتخاب کنید."
+,"invalidProductDataError": "برخی از اطلاعات محصول نامعتبر است. لطفاً فرم را بررسی کنید."
+,"mediaUploadFailedError": "رسانه محصول بارگذاری نشد. لطفاً دوباره تلاش کنید."
+,"productSubmissionFailedError": "محصول ثبت نشد. لطفاً دوباره تلاش کنید."
+,"networkErrorTryAgain": "خطای شبکه. لطفاً دوباره تلاش کنید."
 }

@@ -3425,5 +3425,10 @@
 ,"businessMediaErrorGeneric": "Что-то пошло не так. Попробуйте ещё раз."
 ,"businessMediaImageUnavailable": "Изображение недоступно"
 ,"businessMediaGalleryCount": "{current} из {max} фото"
-
+,"marketplaceDisabledError": "Отправка товаров на маркетплейс пока недоступна. Попробуйте позже."
+,"invalidSellerRelationshipError": "Выберите корректный тип отношения продавца к товару."
+,"invalidProductDataError": "Некоторые данные товара некорректны. Проверьте форму и повторите."
+,"mediaUploadFailedError": "Не удалось загрузить медиа товара. Попробуйте ещё раз."
+,"productSubmissionFailedError": "Не удалось отправить товар. Попробуйте ещё раз."
+,"networkErrorTryAgain": "Ошибка сети. Попробуйте ещё раз."
 }

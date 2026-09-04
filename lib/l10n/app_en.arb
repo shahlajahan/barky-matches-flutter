@@ -4639,5 +4639,10 @@
 ,"businessMediaImageUnavailable": "Image unavailable"
 ,"businessMediaGalleryCount": "{current} of {max} photos"
 ,"@businessMediaGalleryCount": { "description": "Gallery photo count, current of maximum", "placeholders": { "current": { "type": "int" }, "max": { "type": "int" } } }
-
+,"marketplaceDisabledError": "Marketplace submissions are not open yet. Please try again later."
+,"invalidSellerRelationshipError": "Select a valid seller relationship for this product."
+,"invalidProductDataError": "Some product details are invalid. Please review the form and try again."
+,"mediaUploadFailedError": "Product media could not be uploaded. Please try again."
+,"productSubmissionFailedError": "The product could not be submitted. Please try again."
+,"networkErrorTryAgain": "Network error. Please try again."
 }

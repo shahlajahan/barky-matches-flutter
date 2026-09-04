@@ -19772,6 +19772,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{current} of {max} photos'**
   String businessMediaGalleryCount(int current, int max);
+
+  /// No description provided for @marketplaceDisabledError.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace submissions are not open yet. Please try again later.'**
+  String get marketplaceDisabledError;
+
+  /// No description provided for @invalidSellerRelationshipError.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a valid seller relationship for this product.'**
+  String get invalidSellerRelationshipError;
+
+  /// No description provided for @invalidProductDataError.
+  ///
+  /// In en, this message translates to:
+  /// **'Some product details are invalid. Please review the form and try again.'**
+  String get invalidProductDataError;
+
+  /// No description provided for @mediaUploadFailedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Product media could not be uploaded. Please try again.'**
+  String get mediaUploadFailedError;
+
+  /// No description provided for @productSubmissionFailedError.
+  ///
+  /// In en, this message translates to:
+  /// **'The product could not be submitted. Please try again.'**
+  String get productSubmissionFailedError;
+
+  /// No description provided for @networkErrorTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Please try again.'**
+  String get networkErrorTryAgain;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

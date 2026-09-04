@@ -1630,7 +1630,8 @@ class _AddProductPageState extends State<AddProductPage> {
       // `false` are all treated identically as inactive, fail closed.
       final marketplaceSellerActivation =
           businessData['marketplaceSellerActivation'];
-      final isMarketplaceSellerActive = marketplaceSellerActivation is Map &&
+      final isMarketplaceSellerActive =
+          marketplaceSellerActivation is Map &&
           marketplaceSellerActivation['active'] == true;
       if (!isMarketplaceSellerActive) {
         throw const ProductSubmitException('marketplace-seller-inactive');
@@ -1822,10 +1823,7 @@ class _AddProductPageState extends State<AddProductPage> {
           }
           await FirebaseFunctions.instanceFor(region: 'europe-west3')
               .httpsCallable('unpublishPilotProductForRevision')
-              .call({
-                'businessId': businessId,
-                'productId': originalProductId,
-              });
+              .call({'businessId': businessId, 'productId': originalProductId});
         }
       }
 
@@ -1959,14 +1957,37 @@ class _AddProductPageState extends State<AddProductPage> {
       debugPrint("🧭 operation=${savePlan?.mode.name ?? 'unresolved'}");
       debugPrint("📍 STACK: $stack");
       final l10n = AppLocalizations.of(context)!;
-      final errorCode = e is ProductSubmitException ? e.code : null;
+      // Stable error contract. Previously the code was extracted only from
+      // ProductSubmitException, so every FirebaseException — including a
+      // precise Firestore `permission-denied` — yielded a null code and fell
+      // through to the generic message. `productSubmissionReasonOf` reads a
+      // callable's `details.reasonCode`, then the raw Firebase code, then the
+      // legacy code, so a known failure is never collapsed into the generic
+      // "something went wrong".
+      final errorCode = productSubmissionReasonOf(e);
       final message = switch (errorCode) {
-        'permission-denied' || 'unauthenticated' => l10n.accessDenied,
-        'business-not-found' => l10n.businessNotFound,
-        'sku-collision' => l10n.productAlreadyExistsTitle,
+        ProductSubmissionReason.marketplaceDisabled =>
+          l10n.marketplaceDisabledError,
+        ProductSubmissionReason.sellerActivationRequired ||
+        'marketplace-seller-inactive' =>
+          l10n.marketplaceSellerActivationRequired,
+        ProductSubmissionReason.invalidSellerRelationship =>
+          l10n.invalidSellerRelationshipError,
+        ProductSubmissionReason.invalidProductData =>
+          l10n.invalidProductDataError,
+        ProductSubmissionReason.duplicateSku ||
+        'sku-collision' ||
+        'already-exists' => l10n.productAlreadyExistsTitle,
+        ProductSubmissionReason.permissionDenied ||
+        'permission-denied' ||
+        'unauthenticated' => l10n.accessDenied,
+        ProductSubmissionReason.uploadFailed => l10n.mediaUploadFailedError,
+        ProductSubmissionReason.productSubmissionFailed =>
+          l10n.productSubmissionFailedError,
+        'business-not-found' || 'not-found' => l10n.businessNotFound,
         'original-product-missing' => l10n.businessNotFound,
         'sku-locked' => l10n.skuLockedAfterCreation,
-        'marketplace-seller-inactive' => l10n.marketplaceSellerActivationRequired,
+        'unavailable' || 'deadline-exceeded' => l10n.networkErrorTryAgain,
         _ => l10n.somethingWentWrong,
       };
       _snack(message, isError: true);

@@ -10516,4 +10516,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String businessMediaGalleryCount(int current, int max) {
     return '$max fotoğraftan $current tanesi';
   }
+
+  @override
+  String get marketplaceDisabledError => 'Pazar yeri gönderimleri henüz açık değil. Lütfen daha sonra tekrar deneyin.';
+
+  @override
+  String get invalidSellerRelationshipError => 'Bu ürün için geçerli bir satıcı ilişkisi seçin.';
+
+  @override
+  String get invalidProductDataError => 'Bazı ürün bilgileri geçersiz. Lütfen formu kontrol edip tekrar deneyin.';
+
+  @override
+  String get mediaUploadFailedError => 'Ürün medyası yüklenemedi. Lütfen tekrar deneyin.';
+
+  @override
+  String get productSubmissionFailedError => 'Ürün gönderilemedi. Lütfen tekrar deneyin.';
+
+  @override
+  String get networkErrorTryAgain => 'Ağ hatası. Lütfen tekrar deneyin.';
 }

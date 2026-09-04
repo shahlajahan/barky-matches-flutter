@@ -10516,4 +10516,22 @@ class AppLocalizationsFa extends AppLocalizations {
   String businessMediaGalleryCount(int current, int max) {
     return '$current از $max عکس';
   }
+
+  @override
+  String get marketplaceDisabledError => 'ثبت محصول در بازارگاه هنوز باز نیست. لطفاً بعداً دوباره تلاش کنید.';
+
+  @override
+  String get invalidSellerRelationshipError => 'برای این محصول یک نسبت فروشنده معتبر انتخاب کنید.';
+
+  @override
+  String get invalidProductDataError => 'برخی از اطلاعات محصول نامعتبر است. لطفاً فرم را بررسی کنید.';
+
+  @override
+  String get mediaUploadFailedError => 'رسانه محصول بارگذاری نشد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get productSubmissionFailedError => 'محصول ثبت نشد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get networkErrorTryAgain => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
 }

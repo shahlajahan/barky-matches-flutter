@@ -1,3 +1,5 @@
+import 'product_submit_exception.dart';
+
 enum ProductWriteMode { create, sameIdEdit, skuChangingEdit }
 
 class ProductSavePlan {
@@ -33,6 +35,68 @@ class ProductSavePlan {
       mode: mode,
     );
   }
+}
+
+/// Stable, machine-readable reason codes a product submission may fail with.
+///
+/// Declared here, ahead of the submission path that will emit them, so the
+/// client error contract is a single frozen vocabulary rather than a set of
+/// ad-hoc strings discovered at each call site. Codes not yet reachable in
+/// production are included deliberately: the mapping must already be correct
+/// on the day the emitting path is enabled.
+class ProductSubmissionReason {
+  const ProductSubmissionReason._();
+
+  static const String marketplaceDisabled = 'marketplace_disabled';
+  static const String sellerActivationRequired = 'seller_activation_required';
+  static const String invalidSellerRelationship = 'invalid_seller_relationship';
+  static const String invalidProductData = 'invalid_product_data';
+  static const String duplicateSku = 'duplicate_sku';
+  static const String permissionDenied = 'permission_denied';
+  static const String uploadFailed = 'upload_failed';
+  static const String productSubmissionFailed = 'product_submission_failed';
+
+  static const Set<String> values = {
+    marketplaceDisabled,
+    sellerActivationRequired,
+    invalidSellerRelationship,
+    invalidProductData,
+    duplicateSku,
+    permissionDenied,
+    uploadFailed,
+    productSubmissionFailed,
+  };
+}
+
+/// Extracts a stable, mappable code from an arbitrary thrown object.
+///
+/// Order: a recognized `details.reasonCode` from a callable, then the raw
+/// `FirebaseException`/`FirebaseFunctionsException` code, then the legacy
+/// [ProductSubmitException] code. Returns null only when the error carries
+/// nothing recognizable, so callers can distinguish a known, mappable
+/// failure from a genuinely unexpected one instead of collapsing both into
+/// one generic message — the defect this contract exists to close.
+String? productSubmissionReasonOf(Object error) {
+  if (error is ProductSubmitException) return error.code;
+  dynamic dynamicError = error;
+  try {
+    final details = dynamicError.details;
+    if (details is Map) {
+      final reason = details['reasonCode'];
+      if (reason is String && ProductSubmissionReason.values.contains(reason)) {
+        return reason;
+      }
+    }
+  } catch (_) {
+    // No `details` on this error type; fall through to the raw code.
+  }
+  try {
+    final code = dynamicError.code;
+    if (code is String && code.isNotEmpty) return code;
+  } catch (_) {
+    // Not a Firebase-shaped error.
+  }
+  return null;
 }
 
 List<String> normalizeCarrierCodes(Iterable<String> carriers) {

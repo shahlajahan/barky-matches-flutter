@@ -4619,5 +4619,10 @@
 ,"businessMediaErrorGeneric": "Bir sorun oluştu. Lütfen tekrar deneyin."
 ,"businessMediaImageUnavailable": "Görsel kullanılamıyor"
 ,"businessMediaGalleryCount": "{max} fotoğraftan {current} tanesi"
-
+,"marketplaceDisabledError": "Pazar yeri gönderimleri henüz açık değil. Lütfen daha sonra tekrar deneyin."
+,"invalidSellerRelationshipError": "Bu ürün için geçerli bir satıcı ilişkisi seçin."
+,"invalidProductDataError": "Bazı ürün bilgileri geçersiz. Lütfen formu kontrol edip tekrar deneyin."
+,"mediaUploadFailedError": "Ürün medyası yüklenemedi. Lütfen tekrar deneyin."
+,"productSubmissionFailedError": "Ürün gönderilemedi. Lütfen tekrar deneyin."
+,"networkErrorTryAgain": "Ağ hatası. Lütfen tekrar deneyin."
 }

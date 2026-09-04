@@ -10516,4 +10516,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String businessMediaGalleryCount(int current, int max) {
     return '$current of $max photos';
   }
+
+  @override
+  String get marketplaceDisabledError => 'Marketplace submissions are not open yet. Please try again later.';
+
+  @override
+  String get invalidSellerRelationshipError => 'Select a valid seller relationship for this product.';
+
+  @override
+  String get invalidProductDataError => 'Some product details are invalid. Please review the form and try again.';
+
+  @override
+  String get mediaUploadFailedError => 'Product media could not be uploaded. Please try again.';
+
+  @override
+  String get productSubmissionFailedError => 'The product could not be submitted. Please try again.';
+
+  @override
+  String get networkErrorTryAgain => 'Network error. Please try again.';
 }
