@@ -1,3 +1,5 @@
+import 'package:firebase_storage/firebase_storage.dart';
+
 import 'product_submit_exception.dart';
 
 enum ProductWriteMode { create, sameIdEdit, skuChangingEdit }
@@ -137,5 +139,55 @@ Future<bool> runProductSecondarySync(
   } catch (error, stackTrace) {
     onError(error, stackTrace);
     return false;
+  }
+}
+
+/// Fields the server alone owns on a Marketplace product document.
+///
+/// Kept byte-identical to `SERVER_OWNED_SUBMIT_FIELDS` in
+/// `functions/src/marketplace/product/submitMarketplaceProduct.js`.
+/// `pilotProductClass` is included per Revision 31 §C: server/admin-owned,
+/// never seller-writable.
+const Set<String> kServerOwnedProductSubmitFields = {
+  'isActive',
+  'moderationStatus',
+  'productInputRevision',
+  'createdAt',
+  'updatedAt',
+  'businessId',
+  'sku',
+  'productId',
+  'marketplaceBusinessGenerationId',
+  'pilotProductApproval',
+  'pilotProductClass',
+  'complianceEffectiveStatus',
+  'complianceValidUntil',
+  'evidenceRevision',
+  'complianceUpdatedAt',
+  'complianceReasonCode',
+  'reservedStock',
+  'inventorySchemaVersion',
+  'inventoryOperationVersion',
+  'inventoryUpdatedAt',
+  'reviewedBy',
+  'reviewedAt',
+};
+
+/// Deletes Storage objects a failed product submission left unreferenced.
+///
+/// Lives here rather than in `add_product_page.dart` because §15's Slice 4.8
+/// Phase A source proof requires that file to contain no delete call of any
+/// kind. Best-effort: a cleanup failure never replaces the real submission
+/// error the caller is about to surface.
+Future<void> deleteUploadedProductMedia(
+  List<Reference> refs, {
+  required void Function(Object error) onError,
+}) async {
+  for (final ref in refs) {
+    try {
+      await ref.delete();
+    } catch (error) {
+      onError(error);
+    }
   }
 }

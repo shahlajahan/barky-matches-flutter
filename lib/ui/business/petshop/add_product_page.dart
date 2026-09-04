@@ -32,6 +32,10 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'product_save_plan.dart';
 import 'product_submit_exception.dart';
 
+/// Region hosting the Marketplace callables. Declared after the import
+/// block and away from the annotated test-visible symbol group below.
+const String _marketplaceFunctionsRegion = 'europe-west3';
+
 // Marketplace P1-A Slice 4.8 Phase A implementation correction (§0.16
 // remaining-work items 3 — Revision 18; §15 items 404/405/414; failed
 // independent audit, test-matrix correction): extracted as small, pure,
@@ -352,6 +356,10 @@ class _AddProductPageState extends State<AddProductPage> {
   // AddProductPage) — the single frozen cap value, shared with
   // buildProductWritePayload's own independent enforcement (§15 item 412).
   static const int _maxMediaEntries = maxProductMediaEntries;
+
+  // Deterministic media cleanup: media is uploaded before the submission
+  // call, so an ordinary rejection would otherwise orphan the objects.
+  final List<Reference> _uploadedRefsThisAttempt = <Reference>[];
 
   File? _image;
   bool _loading = false;
@@ -1544,6 +1552,8 @@ class _AddProductPageState extends State<AddProductPage> {
       return;
     }
 
+    _uploadedRefsThisAttempt.clear();
+
     if (!_validate()) {
       debugPrint("❌ VALIDATION FAILED");
       return;
@@ -1763,11 +1773,6 @@ class _AddProductPageState extends State<AddProductPage> {
         sellerRelationship: _sellerRelationship,
       );
 
-      final targetRef = firestore
-          .collection("businesses")
-          .doc(businessId)
-          .collection("products")
-          .doc(targetProductId);
       final originalRef = originalProductId == null
           ? null
           : firestore
@@ -1829,68 +1834,75 @@ class _AddProductPageState extends State<AddProductPage> {
 
       debugPrint("🧠 BEFORE TRANSACTION");
 
-      await firestore.runTransaction((tx) async {
-        if (savePlan.mode == ProductWriteMode.create) {
-          final targetSnapshot = await tx.get(targetRef);
-          if (targetSnapshot.exists) {
-            throw const ProductSubmitException('sku-collision');
+      if (savePlan.mode == ProductWriteMode.create) {
+        // Server-authoritative creation (Revision 31 §E prerequisite 1).
+        final fullPayload = buildProductWritePayload(
+          product: product,
+          productInputRevision: 0,
+          marketplaceBusinessGenerationId: marketplaceBusinessGenerationId,
+        );
+        final draft = Map<String, dynamic>.from(fullPayload)
+          ..removeWhere(
+            (key, value) => kServerOwnedProductSubmitFields.contains(key),
+          );
+        await FirebaseFunctions.instanceFor(
+          region: _marketplaceFunctionsRegion,
+        ).httpsCallable('submitMarketplaceProduct').call(<String, dynamic>{
+          'businessId': businessId,
+          'sku': sku,
+          'sellerRelationship': _sellerRelationship,
+          'draft': draft,
+        });
+      } else {
+        await firestore.runTransaction((tx) async {
+          final originalSnapshot = await tx.get(originalRef!);
+          if (!originalSnapshot.exists ||
+              originalSnapshot.data()?['businessId'] != businessId) {
+            throw const ProductSubmitException('original-product-missing');
           }
-          // §0.14 create allowlist: productInputRevision is exactly 0,
-          // unconditionally. §0.15 (Revision 17): a moved-to-a-different-ID
-          // edit's own new-target write follows this identical rule below —
-          // this branch establishes it once.
-          final payload = buildProductWritePayload(
-            product: product,
-            productInputRevision: 0,
-            marketplaceBusinessGenerationId: marketplaceBusinessGenerationId,
-          );
-          tx.set(targetRef, payload, SetOptions(merge: true));
-          return;
-        }
 
-        final originalSnapshot = await tx.get(originalRef!);
-        if (!originalSnapshot.exists ||
-            originalSnapshot.data()?['businessId'] != businessId) {
-          throw const ProductSubmitException('original-product-missing');
-        }
+          if (savePlan.mode == ProductWriteMode.sameIdEdit) {
+            // §0.14 "productInputRevision computation (edit only)": read the
+            // target document's own current value via this same tx.get() —
+            // never a value cached before this transaction's own read.
+            final existingData = originalSnapshot.data() ?? <String, dynamic>{};
+            final existingRevision = normalizedExistingRevision(existingData);
+            final matchingChanged = matchingFieldsChanged(
+              existingData,
+              product,
+            );
+            final payload = buildProductWritePayload(
+              product: product,
+              productInputRevision: computeProductInputRevision(
+                existingRevision: existingRevision,
+                matchingChanged: matchingChanged,
+              ),
+              marketplaceBusinessGenerationId: marketplaceBusinessGenerationId,
+            );
+            tx.set(originalRef, payload, SetOptions(merge: true));
+            return;
+          }
 
-        if (savePlan.mode == ProductWriteMode.sameIdEdit) {
-          // §0.14 "productInputRevision computation (edit only)": read the
-          // target document's own current value via this same tx.get() —
-          // never a value cached before this transaction's own read.
-          final existingData = originalSnapshot.data() ?? <String, dynamic>{};
-          final existingRevision = normalizedExistingRevision(existingData);
-          final matchingChanged = matchingFieldsChanged(existingData, product);
-          final payload = buildProductWritePayload(
-            product: product,
-            productInputRevision: computeProductInputRevision(
-              existingRevision: existingRevision,
-              matchingChanged: matchingChanged,
-            ),
-            marketplaceBusinessGenerationId: marketplaceBusinessGenerationId,
-          );
-          tx.set(originalRef, payload, SetOptions(merge: true));
-          return;
-        }
-
-        // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_
-        // compliance_review_implementation_plan_2026-08-21.md §0.17
-        // Phase 12, §9.E, committed Revision 19): the SKU-changing-edit
-        // write branch — a single client-driven transaction that wrote
-        // a new document at a new deterministic ID and deleted the
-        // original — is retired. SKU is now immutable on every edit
-        // (the field is disabled above whenever isEdit is true, and
-        // firestore.rules independently enforces raw-equality
-        // regardless of this client's own behavior). The only remaining
-        // possibility of reaching this branch is malformed/programmatic
-        // state, already guarded against earlier in this method
-        // (immediately after `savePlan` is resolved) — this is the
-        // required defense-in-depth fail-closed backstop: reject before
-        // any write, never fall through to the removed write pattern.
-        throw const ProductSubmitException('sku-locked');
-      });
+          // Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_
+          // compliance_review_implementation_plan_2026-08-21.md §0.17
+          // Phase 12, §9.E, committed Revision 19): the SKU-changing-edit
+          // write branch — a single client-driven transaction that wrote
+          // a new document at a new deterministic ID and deleted the
+          // original — is retired. SKU is now immutable on every edit
+          // (the field is disabled above whenever isEdit is true, and
+          // firestore.rules independently enforces raw-equality
+          // regardless of this client's own behavior). The only remaining
+          // possibility of reaching this branch is malformed/programmatic
+          // state, already guarded against earlier in this method
+          // (immediately after `savePlan` is resolved) — this is the
+          // required defense-in-depth fail-closed backstop: reject before
+          // any write, never fall through to the removed write pattern.
+          throw const ProductSubmitException('sku-locked');
+        });
+      }
 
       debugPrint("✅ TRANSACTION SUCCESS");
+      _uploadedRefsThisAttempt.clear();
 
       if (barcode.isNotEmpty) {
         final synchronized = await runProductSecondarySync(
@@ -1956,6 +1968,9 @@ class _AddProductPageState extends State<AddProductPage> {
       );
       debugPrint("🧭 operation=${savePlan?.mode.name ?? 'unresolved'}");
       debugPrint("📍 STACK: $stack");
+      await _cleanupUploadedMediaAfterFailure();
+
+      if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
       // Stable error contract. Previously the code was extracted only from
       // ProductSubmitException, so every FirebaseException — including a
@@ -2000,6 +2015,17 @@ class _AddProductPageState extends State<AddProductPage> {
       }
       debugPrint("🏁 SUBMIT FINISHED");
     }
+  }
+
+  /// Removes every Storage object this submission attempt uploaded.
+  Future<void> _cleanupUploadedMediaAfterFailure() async {
+    if (_uploadedRefsThisAttempt.isEmpty) return;
+    final refs = List<Reference>.from(_uploadedRefsThisAttempt);
+    _uploadedRefsThisAttempt.clear();
+    await deleteUploadedProductMedia(
+      refs,
+      onError: (error) => debugPrint('ORPHAN MEDIA CLEANUP FAILED: $error'),
+    );
   }
 
   Future<List<ProductMedia>> _uploadMedia() async {
@@ -2050,6 +2076,7 @@ class _AddProductPageState extends State<AddProductPage> {
       });
 
       await uploadTask;
+      _uploadedRefsThisAttempt.add(ref);
 
       final rawUrl = await ref.getDownloadURL();
       String? thumbnailUrl;

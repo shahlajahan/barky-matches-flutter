@@ -151,6 +151,18 @@ const MARKETPLACE_LISTING_ENABLED = defineString(
   { default: "" }
 );
 
+// Marketplace Revision 33 §B — the seller product-submission gate. Separate
+// from MARKETPLACE_LISTING_ENABLED on purpose: that flag opens the public
+// customer catalogue, and opening seller submission must never open the
+// storefront. Disabled by default; only the exact string "true" enables it
+// (see isSubmissionEnabled). Enabling it approves and publishes nothing —
+// submitted products are unpublished drafts awaiting review — and it does
+// not affect PRODUCT_MODERATION_REVIEW_ENABLED.
+const MARKETPLACE_PRODUCT_SUBMISSION_ENABLED = defineString(
+  "MARKETPLACE_PRODUCT_SUBMISSION_ENABLED",
+  { default: "" }
+);
+
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
 });
@@ -332,6 +344,9 @@ const {
   grantMarketplaceSellerActivation,
   revokeMarketplaceSellerActivation,
 } = require("./src/marketplace/compliance/marketplaceSellerActivation");
+const {
+  submitMarketplaceProduct,
+} = require("./src/marketplace/product/submitMarketplaceProduct");
 const {
   approvePilotProduct,
   revokePilotProductApproval,
@@ -20286,6 +20301,25 @@ exports.unpublishPilotProductForRevision = onCall({ region: "europe-west3" }, as
     db: admin.firestore(),
     auth: request.auth,
     data: request.data,
+  })
+);
+
+// Marketplace Revision 31 prerequisite 1 (docs/plans/marketplace_p1a_
+// compliance_review_implementation_plan_2026-08-21.md §0.28 L(1), §0.29 E)
+// — the server-authoritative seller product submission path, replacing the
+// legacy client transaction whose non-existent-document SKU pre-check was
+// denied by the products `allow read` rule for every first-ever product.
+// Thin exports.* wiring only; all logic lives in
+// functions/src/marketplace/product/submitMarketplaceProduct.js. Gated by
+// its own disabled-by-default MARKETPLACE_PRODUCT_SUBMISSION_ENABLED flag —
+// never the public catalogue's flag — so nothing in this path can run
+// before its own separate rollout gate is opened.
+exports.submitMarketplaceProduct = onCall({ region: "europe-west3" }, async (request) =>
+  submitMarketplaceProduct({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+    submissionFlagValue: MARKETPLACE_PRODUCT_SUBMISSION_ENABLED.value(),
   })
 );
 

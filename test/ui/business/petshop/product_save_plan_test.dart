@@ -255,23 +255,44 @@ void main() {
     expect(transactionBody, isNot(contains('tx.delete')));
   });
 
-  test('SKU collision on create is still rejected before any write', () {
+  // Revision 32 (§0.30 A/C) — retires the create-scoped portion of §15
+  // items 461/473, which required a *client-side* `targetSnapshot.exists`
+  // collision guard. Creation is now routed to the server-authoritative
+  // `submitMarketplaceProduct` callable, whose collision check runs inside
+  // an Admin SDK transaction where it cannot be raced.
+  //
+  // These replacements deliberately do NOT assert exclusivity: as at
+  // Revision 32 §C-bis, `firestore.rules` still permits a direct client-SDK
+  // product create, so the app's routing is the only thing that changed.
+  // Exclusive server authority arrives with the dedicated Rules slice, and
+  // no test here may claim it earlier. Collision behaviour, concurrency and
+  // server-owned initial state are proven behaviourally in
+  // functions/test/submitMarketplaceProduct.test.js.
+  test('the create path is routed to the server-authoritative callable', () {
     final source = File(
       'lib/ui/business/petshop/add_product_page.dart',
     ).readAsStringSync();
 
-    // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
-    // Revision 19): only the create branch's own collision guard
-    // remains — the SKU-changing-edit branch's own duplicate collision
-    // check is gone along with the rest of that retired write branch,
-    // so this count is corrected from 2 to exactly 1.
-    expect(
-      RegExp(
-        r'targetSnapshot\.exists\)[\s\S]*?ProductSubmitException\('
-        r"'sku-collision'",
-      ).allMatches(source).length,
-      1,
-    );
+    expect(source, contains("httpsCallable('submitMarketplaceProduct')"));
+
+    // The retired client-side collision guard is genuinely gone, so the
+    // denied non-existent-document read it depended on is gone with it.
+    expect(source, isNot(contains('targetSnapshot')));
+    expect(source, isNot(contains("ProductSubmitException('sku-collision')")));
+  });
+
+  test('the client builds no reference to the target product on create', () {
+    final source = File(
+      'lib/ui/business/petshop/add_product_page.dart',
+    ).readAsStringSync();
+
+    // The defect this closes: a client read of a not-yet-existing product
+    // was denied because the products `allow read` rule dereferences
+    // `resource.data` while `resource` is null. No client reference to the
+    // create target is built at all now, so the app exposes no
+    // non-existent-document probe. This is a statement about the app's own
+    // behaviour, not about what Rules still permit.
+    expect(source, isNot(contains('targetRef')));
   });
 
   // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
@@ -393,31 +414,34 @@ void main() {
     ];
 
     test(
-      'both remaining tx.set(...) call sites use SetOptions(merge: true)',
+      'the one remaining client tx.set(...) call site uses SetOptions(merge: true)',
       () {
-        // Marketplace P1-A Slice 4.10 (§0.17 Phase 12, §9.E, committed
-        // Revision 19): corrected from 3 to 2 — the SKU-changing-edit
-        // branch's own tx.set(targetRef, ...) call is retired along with
-        // the rest of that write branch; only create's and same-ID-edit's
-        // own tx.set calls remain.
+        // Revision 32 (§0.30 A/B) — corrected from 2 to 1. Item 418's
+        // merge:true requirement is NOT retired: it remains fully in force
+        // for the same-ID edit branch, which is still client-side. Only its
+        // create-branch scope moved to the server, where the payload is
+        // built from an explicit seller allowlist and can contain no
+        // reserved compliance field at all.
         final matches = RegExp(
           r'tx\.set\([^;]*?SetOptions\(merge:\s*true\)',
           dotAll: true,
         ).allMatches(source);
-        expect(matches.length, 2);
+        expect(matches.length, 1);
       },
     );
 
     test('no tx.set(...) call site is a bare full-document set', () {
       // Every tx.set( call must be immediately followed, before its own
       // closing ");", by SetOptions(merge: true) — a bare set() would
-      // close without ever mentioning SetOptions. Corrected from 3 to 2
-      // for the same reason as the test immediately above.
+      // close without ever mentioning SetOptions. Corrected from 2 to 1
+      // for the same reason as the test immediately above (Revision 32,
+      // §0.30 A/B): only the same-ID edit branch still writes from the
+      // client. The guarantee itself is unchanged.
       final setCalls = RegExp(
         r'tx\.set\([^;]*?\);',
         dotAll: true,
       ).allMatches(source).map((m) => m.group(0)!).toList();
-      expect(setCalls, hasLength(2));
+      expect(setCalls, hasLength(1));
       for (final call in setCalls) {
         expect(call, contains('SetOptions(merge: true)'));
       }
@@ -2515,7 +2539,10 @@ void main() {
         final l10n = AppLocalizations.of(
           tester.element(find.byType(AddProductPage)),
         )!;
-        expect(find.text(l10n.marketplaceSellerActivationRequired), findsOneWidget);
+        expect(
+          find.text(l10n.marketplaceSellerActivationRequired),
+          findsOneWidget,
+        );
         expect(fakeFirestore.productWriteCallCount, 0);
       },
     );
@@ -3581,318 +3608,97 @@ void main() {
   // to petshop_dashboard_page.dart, defaults to real production
   // Firebase behavior, never touched by any production caller).
   // =========================================================================
-  group('Petshop dashboard Marketplace seller-activation gate (closing-audit correction)', () {
-    setUpAll(() async {
-      TestWidgetsFlutterBinding.ensureInitialized();
-      setupFirebaseCoreMocks();
-      await Firebase.initializeApp();
-    });
+  group(
+    'Petshop dashboard Marketplace seller-activation gate (closing-audit correction)',
+    () {
+      setUpAll(() async {
+        TestWidgetsFlutterBinding.ensureInitialized();
+        setupFirebaseCoreMocks();
+        await Firebase.initializeApp();
+      });
 
-    const dashboardBusinessId = 'dashboard-biz-1';
+      const dashboardBusinessId = 'dashboard-biz-1';
 
-    AppState buildAppState({required bool forEdit, Product? editingProduct}) {
-      final appState = AppState(
-        favoriteDogs: const <Dog>[],
-        favoriteDogsNotifier: ValueNotifier<List<Dog>>(<Dog>[]),
-        likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
-        onToggleFavorite: (_) {},
-        notificationService: NotificationService(),
-      );
-      appState.setApprovedBusiness(
-        businessId: dashboardBusinessId,
-        sectors: const ['pet_shop'],
-      );
-      if (forEdit) {
-        appState.openEditProduct(
-          editingProduct ??
-              Product(
-                id: '${dashboardBusinessId}_SKU-1',
-                businessId: dashboardBusinessId,
-                name: 'Existing product',
-                description: 'desc',
-                price: 10,
-                currency: 'TRY',
-                media: const [],
-                stock: 1,
-                category: 'Food > Dry Food',
-                isActive: false,
-              ),
+      AppState buildAppState({required bool forEdit, Product? editingProduct}) {
+        final appState = AppState(
+          favoriteDogs: const <Dog>[],
+          favoriteDogsNotifier: ValueNotifier<List<Dog>>(<Dog>[]),
+          likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
+          onToggleFavorite: (_) {},
+          notificationService: NotificationService(),
         );
-      } else {
-        appState.openAddProduct();
+        appState.setApprovedBusiness(
+          businessId: dashboardBusinessId,
+          sectors: const ['pet_shop'],
+        );
+        if (forEdit) {
+          appState.openEditProduct(
+            editingProduct ??
+                Product(
+                  id: '${dashboardBusinessId}_SKU-1',
+                  businessId: dashboardBusinessId,
+                  name: 'Existing product',
+                  description: 'desc',
+                  price: 10,
+                  currency: 'TRY',
+                  media: const [],
+                  stock: 1,
+                  category: 'Food > Dry Food',
+                  isActive: false,
+                ),
+          );
+        } else {
+          appState.openAddProduct();
+        }
+        return appState;
       }
-      return appState;
-    }
 
-    Future<void> pumpDashboard(
-      WidgetTester tester, {
-      required AppState appState,
-      required Stream<DocumentSnapshot> Function(String) businessStreamOverride,
-    }) async {
-      final previousOnError = FlutterError.onError;
-      FlutterError.onError = (details) {
-        final message = details.exception.toString();
-        if (message.contains('overflowed')) return;
-        previousOnError?.call(details);
-      };
-      addTearDown(() => FlutterError.onError = previousOnError);
-      tester.view.physicalSize = const Size(1200, 4000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(appState.dispose);
+      Future<void> pumpDashboard(
+        WidgetTester tester, {
+        required AppState appState,
+        required Stream<DocumentSnapshot> Function(String)
+        businessStreamOverride,
+      }) async {
+        final previousOnError = FlutterError.onError;
+        FlutterError.onError = (details) {
+          final message = details.exception.toString();
+          if (message.contains('overflowed')) return;
+          previousOnError?.call(details);
+        };
+        addTearDown(() => FlutterError.onError = previousOnError);
+        tester.view.physicalSize = const Size(1200, 4000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(appState.dispose);
 
-      await tester.pumpWidget(
-        ChangeNotifierProvider<AppState>.value(
-          value: appState,
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: PetShopDashboardPage(
-              businessStreamOverride: businessStreamOverride,
+        await tester.pumpWidget(
+          ChangeNotifierProvider<AppState>.value(
+            value: appState,
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: PetShopDashboardPage(
+                businessStreamOverride: businessStreamOverride,
+              ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    Stream<DocumentSnapshot> fakeBusinessStream(FakeFirebaseFirestore db, String businessId) {
-      return db.collection('businesses').doc(businessId).snapshots();
-    }
+      Stream<DocumentSnapshot> fakeBusinessStream(
+        FakeFirebaseFirestore db,
+        String businessId,
+      ) {
+        return db.collection('businesses').doc(businessId).snapshots();
+      }
 
-    testWidgets('1/11. active:true exposes the real AddProductPage, localized inactive message absent', (
-      tester,
-    ) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': true},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsOneWidget);
-      final l10n = AppLocalizations.of(tester.element(find.byType(PetShopDashboardPage)))!;
-      expect(find.text(l10n.marketplaceSellerActivationRequired), findsNothing);
-    });
-
-    testWidgets('2/11. active:false blocks Add Product and renders the localized inactive message', (
-      tester,
-    ) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': false},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-      final l10n = AppLocalizations.of(tester.element(find.byType(PetShopDashboardPage)))!;
-      expect(find.text(l10n.marketplaceSellerActivationRequired), findsOneWidget);
-    });
-
-    testWidgets('3. missing activation blocks Add Product', (tester) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({'name': 'x'});
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('4. null activation blocks Add Product', (tester) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': null,
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('5. non-map activation blocks Add Product', (tester) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': 'active',
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('6. missing active field blocks Add Product', (tester) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'grantedBy': 'admin-1'},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('7. non-boolean active blocks Add Product', (tester) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': 1},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('8. a live active→inactive stream transition removes the Add Product action', (
-      tester,
-    ) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': true},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsOneWidget);
-
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': false},
-      });
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('9. a live inactive→active stream transition restores the Add Product action', (
-      tester,
-    ) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': false},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': true},
-      });
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsOneWidget);
-    });
-
-    testWidgets('10a. the create (Add Product) navigation path is gated', (tester) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': false},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets('10b. the edit (editProduct sub-page) navigation path is gated identically', (
-      tester,
-    ) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': false},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: true),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-      final l10n = AppLocalizations.of(tester.element(find.byType(PetShopDashboardPage)))!;
-      expect(find.text(l10n.marketplaceSellerActivationRequired), findsOneWidget);
-    });
-
-    testWidgets('10c. an active business reaches the real AddProductPage on the edit path too', (
-      tester,
-    ) async {
-      final db = FakeFirebaseFirestore();
-      await db.collection('businesses').doc(dashboardBusinessId).set({
-        'marketplaceSellerActivation': {'active': true},
-      });
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: true),
-        businessStreamOverride: (id) => fakeBusinessStream(db, id),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsOneWidget);
-    });
-
-    testWidgets('12. the loading state (before the stream first emits) shows no seller action', (
-      tester,
-    ) async {
-      final controller = StreamController<DocumentSnapshot>();
-      addTearDown(controller.close);
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (_) => controller.stream,
-      );
-      // Exactly one pump, deliberately before the stream ever emits —
-      // the widget's own `!snapshot.hasData` branch must be showing.
-      await tester.pump();
-      expect(find.byType(AddProductPage), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    });
-
-    testWidgets('13. a stream error fails closed — no seller action is exposed', (tester) async {
-      final controller = StreamController<DocumentSnapshot>();
-      addTearDown(controller.close);
-      await pumpDashboard(
-        tester,
-        appState: buildAppState(forEdit: false),
-        businessStreamOverride: (_) => controller.stream,
-      );
-      controller.addError(Exception('simulated stream failure'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AddProductPage), findsNothing);
-    });
-
-    testWidgets(
-      '14. no false success/accidental AddProductPage navigation occurs while inactive, across every malformed shape',
-      (tester) async {
-        for (final activation in [null, 'active', 1, <String, dynamic>{}, [true]]) {
+      testWidgets(
+        '1/11. active:true exposes the real AddProductPage, localized inactive message absent',
+        (tester) async {
           final db = FakeFirebaseFirestore();
           await db.collection('businesses').doc(dashboardBusinessId).set({
-            'marketplaceSellerActivation': activation,
+            'marketplaceSellerActivation': {'active': true},
           });
           await pumpDashboard(
             tester,
@@ -3900,15 +3706,278 @@ void main() {
             businessStreamOverride: (id) => fakeBusinessStream(db, id),
           );
           await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsOneWidget);
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(PetShopDashboardPage)),
+          )!;
           expect(
-            find.byType(AddProductPage),
+            find.text(l10n.marketplaceSellerActivationRequired),
             findsNothing,
-            reason: 'shape $activation must never reach AddProductPage',
           );
-        }
-      },
-    );
-  });
+        },
+      );
+
+      testWidgets(
+        '2/11. active:false blocks Add Product and renders the localized inactive message',
+        (tester) async {
+          final db = FakeFirebaseFirestore();
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': false},
+          });
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: false),
+            businessStreamOverride: (id) => fakeBusinessStream(db, id),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsNothing);
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(PetShopDashboardPage)),
+          )!;
+          expect(
+            find.text(l10n.marketplaceSellerActivationRequired),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets('3. missing activation blocks Add Product', (tester) async {
+        final db = FakeFirebaseFirestore();
+        await db.collection('businesses').doc(dashboardBusinessId).set({
+          'name': 'x',
+        });
+        await pumpDashboard(
+          tester,
+          appState: buildAppState(forEdit: false),
+          businessStreamOverride: (id) => fakeBusinessStream(db, id),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddProductPage), findsNothing);
+      });
+
+      testWidgets('4. null activation blocks Add Product', (tester) async {
+        final db = FakeFirebaseFirestore();
+        await db.collection('businesses').doc(dashboardBusinessId).set({
+          'marketplaceSellerActivation': null,
+        });
+        await pumpDashboard(
+          tester,
+          appState: buildAppState(forEdit: false),
+          businessStreamOverride: (id) => fakeBusinessStream(db, id),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddProductPage), findsNothing);
+      });
+
+      testWidgets('5. non-map activation blocks Add Product', (tester) async {
+        final db = FakeFirebaseFirestore();
+        await db.collection('businesses').doc(dashboardBusinessId).set({
+          'marketplaceSellerActivation': 'active',
+        });
+        await pumpDashboard(
+          tester,
+          appState: buildAppState(forEdit: false),
+          businessStreamOverride: (id) => fakeBusinessStream(db, id),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddProductPage), findsNothing);
+      });
+
+      testWidgets('6. missing active field blocks Add Product', (tester) async {
+        final db = FakeFirebaseFirestore();
+        await db.collection('businesses').doc(dashboardBusinessId).set({
+          'marketplaceSellerActivation': {'grantedBy': 'admin-1'},
+        });
+        await pumpDashboard(
+          tester,
+          appState: buildAppState(forEdit: false),
+          businessStreamOverride: (id) => fakeBusinessStream(db, id),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddProductPage), findsNothing);
+      });
+
+      testWidgets('7. non-boolean active blocks Add Product', (tester) async {
+        final db = FakeFirebaseFirestore();
+        await db.collection('businesses').doc(dashboardBusinessId).set({
+          'marketplaceSellerActivation': {'active': 1},
+        });
+        await pumpDashboard(
+          tester,
+          appState: buildAppState(forEdit: false),
+          businessStreamOverride: (id) => fakeBusinessStream(db, id),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddProductPage), findsNothing);
+      });
+
+      testWidgets(
+        '8. a live active→inactive stream transition removes the Add Product action',
+        (tester) async {
+          final db = FakeFirebaseFirestore();
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': true},
+          });
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: false),
+            businessStreamOverride: (id) => fakeBusinessStream(db, id),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsOneWidget);
+
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': false},
+          });
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsNothing);
+        },
+      );
+
+      testWidgets(
+        '9. a live inactive→active stream transition restores the Add Product action',
+        (tester) async {
+          final db = FakeFirebaseFirestore();
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': false},
+          });
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: false),
+            businessStreamOverride: (id) => fakeBusinessStream(db, id),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsNothing);
+
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': true},
+          });
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsOneWidget);
+        },
+      );
+
+      testWidgets('10a. the create (Add Product) navigation path is gated', (
+        tester,
+      ) async {
+        final db = FakeFirebaseFirestore();
+        await db.collection('businesses').doc(dashboardBusinessId).set({
+          'marketplaceSellerActivation': {'active': false},
+        });
+        await pumpDashboard(
+          tester,
+          appState: buildAppState(forEdit: false),
+          businessStreamOverride: (id) => fakeBusinessStream(db, id),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AddProductPage), findsNothing);
+      });
+
+      testWidgets(
+        '10b. the edit (editProduct sub-page) navigation path is gated identically',
+        (tester) async {
+          final db = FakeFirebaseFirestore();
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': false},
+          });
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: true),
+            businessStreamOverride: (id) => fakeBusinessStream(db, id),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsNothing);
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(PetShopDashboardPage)),
+          )!;
+          expect(
+            find.text(l10n.marketplaceSellerActivationRequired),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        '10c. an active business reaches the real AddProductPage on the edit path too',
+        (tester) async {
+          final db = FakeFirebaseFirestore();
+          await db.collection('businesses').doc(dashboardBusinessId).set({
+            'marketplaceSellerActivation': {'active': true},
+          });
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: true),
+            businessStreamOverride: (id) => fakeBusinessStream(db, id),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '12. the loading state (before the stream first emits) shows no seller action',
+        (tester) async {
+          final controller = StreamController<DocumentSnapshot>();
+          addTearDown(controller.close);
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: false),
+            businessStreamOverride: (_) => controller.stream,
+          );
+          // Exactly one pump, deliberately before the stream ever emits —
+          // the widget's own `!snapshot.hasData` branch must be showing.
+          await tester.pump();
+          expect(find.byType(AddProductPage), findsNothing);
+          expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        '13. a stream error fails closed — no seller action is exposed',
+        (tester) async {
+          final controller = StreamController<DocumentSnapshot>();
+          addTearDown(controller.close);
+          await pumpDashboard(
+            tester,
+            appState: buildAppState(forEdit: false),
+            businessStreamOverride: (_) => controller.stream,
+          );
+          controller.addError(Exception('simulated stream failure'));
+          await tester.pumpAndSettle();
+          expect(find.byType(AddProductPage), findsNothing);
+        },
+      );
+
+      testWidgets(
+        '14. no false success/accidental AddProductPage navigation occurs while inactive, across every malformed shape',
+        (tester) async {
+          for (final activation in [
+            null,
+            'active',
+            1,
+            <String, dynamic>{},
+            [true],
+          ]) {
+            final db = FakeFirebaseFirestore();
+            await db.collection('businesses').doc(dashboardBusinessId).set({
+              'marketplaceSellerActivation': activation,
+            });
+            await pumpDashboard(
+              tester,
+              appState: buildAppState(forEdit: false),
+              businessStreamOverride: (id) => fakeBusinessStream(db, id),
+            );
+            await tester.pumpAndSettle();
+            expect(
+              find.byType(AddProductPage),
+              findsNothing,
+              reason: 'shape $activation must never reach AddProductPage',
+            );
+          }
+        },
+      );
+    },
+  );
 }
 
 /// Failed independent audit correction (item 486, latest audit's two
