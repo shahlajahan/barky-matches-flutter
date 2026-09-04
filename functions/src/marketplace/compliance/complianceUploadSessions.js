@@ -29,6 +29,9 @@ const {
   buildComplianceUploadObjectId,
   doesRequestMatchStoredSession,
   isComplianceUploadCanaryEnabledForBusiness,
+  COMPLIANCE_INTAKE_PAIR_REASON,
+  classifyComplianceIntakePair,
+  isValidComplianceGenerationId,
 } = require("./complianceValidators");
 const { checkAndReserveUploadQuota } = require("./complianceUploadQuota");
 
@@ -85,7 +88,15 @@ function assertValidRequestShape(data) {
       "Request contains an unrecognized field"
     );
   }
-  const { businessId, originalFilename, declaredMimeType, declaredSizeBytes, documentType, clientIdempotencyKey } = data;
+  const {
+    businessId,
+    originalFilename,
+    declaredMimeType,
+    declaredSizeBytes,
+    documentType,
+    clientIdempotencyKey,
+    sellerRelationship,
+  } = data;
 
   if (typeof businessId !== "string" || businessId.length === 0) {
     throw new HttpsError("invalid-argument", "businessId is required");
@@ -120,6 +131,31 @@ function assertValidRequestShape(data) {
     throw new HttpsError("invalid-argument", "clientIdempotencyKey is invalid");
   }
 
+  // Revision 30 §D — the declared relationship, and the relationship/
+  // document-type pair, are validated against the frozen intake matrix
+  // before any session is created. This is a structural check against the
+  // committed table only: it decides whether the seller may upload this
+  // kind of file at all, and decides nothing about acceptance, sufficiency
+  // or verification (§C: a relationship claim is never itself evidence).
+  const pairReason = classifyComplianceIntakePair(sellerRelationship, documentType);
+  if (pairReason !== COMPLIANCE_INTAKE_PAIR_REASON.OK) {
+    // A document type the frozen table assigns to no relationship at all is
+    // reported distinctly: it is a pending owner/counsel policy question,
+    // not a caller mistake, and must never be silently accepted.
+    if (pairReason === COMPLIANCE_INTAKE_PAIR_REASON.POLICY_UNRESOLVED) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This document type is not yet enabled for compliance upload",
+        { reasonCode: pairReason }
+      );
+    }
+    throw new HttpsError(
+      "invalid-argument",
+      "documentType is not permitted for the declared sellerRelationship",
+      { reasonCode: pairReason }
+    );
+  }
+
   // Sanitize the display-only filename: strip any path separators so it
   // can never be mistaken for — or later misused to construct — a path,
   // even though the actual objectId is always server-generated and never
@@ -133,6 +169,7 @@ function assertValidRequestShape(data) {
     declaredSizeBytes,
     documentType,
     clientIdempotencyKey: clientIdempotencyKey || null,
+    declaredSellerRelationship: sellerRelationship,
   };
 }
 
@@ -152,13 +189,54 @@ function deriveSessionId({ businessId, uid, clientIdempotencyKey }) {
     .digest("hex");
 }
 
-async function createComplianceUploadSession({ db, auth, data, now, canaryAllowlist }) {
+async function createComplianceUploadSession({ db, auth, data, now, canaryAllowlist, logger = console }) {
   if (!auth || !auth.uid) {
     throw new HttpsError("unauthenticated", "Login required");
   }
 
   const request = assertValidRequestShape(data);
-  await assertCallerOwnsBusiness({ db, businessId: request.businessId, uid: auth.uid });
+
+  // Revision 30 §F / Slice 2 — ownership and the generation binding are
+  // re-derived server-side from the canonical business document. The
+  // shared `assertCallerOwnsBusiness` is deliberately NOT used here: it
+  // reports "not-found" and "permission-denied" distinctly, which is the
+  // right contract for the deletion path (whose client maps those to
+  // separate messages) but is a business-existence probe on an intake
+  // endpoint an unauthorized caller can invoke freely. Both outcomes are
+  // collapsed into one indistinguishable response below, with the
+  // distinction kept only in identifier-free structured logs.
+  const businessSnap = await db
+    .collection("businesses")
+    .doc(request.businessId)
+    .get();
+  const businessData = businessSnap.exists ? businessSnap.data() || {} : null;
+  const ownerUid = businessData ? businessData.ownerUid : undefined;
+  if (!businessData || typeof ownerUid !== "string" || ownerUid !== auth.uid) {
+    logger.warn("compliance_intake_owner_check_failed", {
+      reason: !businessData ? "business_absent" : "not_owner",
+    });
+    throw new HttpsError(
+      "permission-denied",
+      "You are not the owner of this business"
+    );
+  }
+
+  // An absent, empty or wrong-typed generation is never read as "this
+  // business simply has no generation"; per §F it is read as "ownership of
+  // this evidence cannot be proven", and denies. The value is captured onto
+  // the session so every later stage — the Storage write, finalization and
+  // promotion — can prove the business has not been deleted and recreated
+  // underneath an in-flight upload.
+  const marketplaceBusinessGenerationId = businessData.marketplaceBusinessGenerationId;
+  if (!isValidComplianceGenerationId(marketplaceBusinessGenerationId)) {
+    logger.warn("compliance_intake_generation_invalid", {
+      reason: marketplaceBusinessGenerationId === undefined ? "absent" : "malformed",
+    });
+    throw new HttpsError(
+      "failed-precondition",
+      "This business is not eligible for compliance document upload"
+    );
+  }
 
   // Slice 2.1 correction (part G) — server-side, default-deny canary
   // boundary. Checked AFTER auth/ownership (so a stranger still gets
@@ -218,6 +296,15 @@ async function createComplianceUploadSession({ db, auth, data, now, canaryAllowl
     declaredMimeType: request.declaredMimeType,
     declaredSizeBytes: request.declaredSizeBytes,
     documentType: request.documentType,
+    // Revision 30 §F — the generation this session is bound to. Server-
+    // derived, never client-supplied, and re-verified before promotion.
+    marketplaceBusinessGenerationId,
+    // The seller's CLAIM, recorded for audit and for the intake matrix
+    // check that already ran above. Deliberately named apart from the
+    // document's own authoritative `sellerRelationship` (below, still
+    // null): §G keeps `submitComplianceDocument` the one and only writer
+    // of that field, and intake must never mark a relationship verified.
+    declaredSellerRelationship: request.declaredSellerRelationship,
     sellerRelationship: null, // captured later, at submit time (Slice 3)
     clientIdempotencyKey: request.clientIdempotencyKey,
     allowedMimeTypes: COMPLIANCE_UPLOAD_SESSION_ALLOWED_MIME_TYPES,

@@ -53,7 +53,14 @@ function addToCanaryAllowlist(businessId) {
 
 async function seedBusiness(ownerUid) {
   const businessId = nextBusinessId();
-  await db.collection("businesses").doc(businessId).set({ ownerUid });
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid,
+    // Revision 30 §F (Slice 2) — intake now re-derives and requires the
+    // generation binding, so every business fixture that expects to reach
+    // session creation must carry one, exactly as a real business does
+    // once seller activation initialises it.
+    marketplaceBusinessGenerationId: `gen-${businessId}`,
+  });
   addToCanaryAllowlist(businessId);
   return businessId;
 }
@@ -64,6 +71,10 @@ const validRequest = (businessId) => ({
   declaredMimeType: "application/pdf",
   declaredSizeBytes: 2048,
   documentType: "purchase_invoice",
+  // Revision 30 §D (Slice 2) — the declared relationship is required and
+  // must list this documentType in the frozen intake matrix. reseller's
+  // row lists purchase_invoice as its minimum evidence type.
+  sellerRelationship: "reseller",
 });
 
 // 1. unauthenticated upload-session creation fails
@@ -112,17 +123,36 @@ itest("the owner of a different business cannot create a session for this one", 
   );
 });
 
-itest("a nonexistent business fails not-found, not a silent pass", async () => {
-  await assert.rejects(
-    functions.createComplianceUploadSession.run({
-      auth: { uid: "seller-1" },
-      data: validRequest("does-not-exist-business-id"),
-    }),
-    (error) => {
-      assert.equal(error.code, "not-found");
-      return true;
+// Revision 30 Slice 2 supersedes the original "fails not-found" expectation.
+// A distinct not-found response on an endpoint any authenticated caller may
+// invoke is a business-existence probe: it tells a stranger whether a given
+// businessId exists. Both outcomes now return one indistinguishable
+// permission-denied, and the distinction survives only in identifier-free
+// structured logs. The important half of the original test — that a
+// nonexistent business never silently passes — is retained and strengthened
+// by asserting the responses are byte-identical.
+itest("a nonexistent business and a non-owned business are indistinguishable, and neither passes", async () => {
+  const owned = await seedBusiness("someone-else");
+
+  const capture = async (businessId) => {
+    try {
+      await functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: validRequest(businessId),
+      });
+      return null; // a pass is itself the failure
+    } catch (error) {
+      return { code: error.code, message: error.message };
     }
-  );
+  };
+
+  const absent = await capture("does-not-exist-business-id");
+  const nonOwned = await capture(owned);
+
+  assert.notEqual(absent, null, "a nonexistent business must never pass");
+  assert.notEqual(nonOwned, null, "a non-owned business must never pass");
+  assert.deepEqual(absent, nonOwned, "existence must not be inferable");
+  assert.equal(absent.code, "permission-denied");
 });
 
 // 4. unknown request fields fail
@@ -525,7 +555,14 @@ async function withCanaryAllowlist(value, fn) {
 // Seeds a business WITHOUT the blanket allow-listing seedBusiness() does.
 async function seedBusinessWithoutCanary(ownerUid) {
   const businessId = nextBusinessId();
-  await db.collection("businesses").doc(businessId).set({ ownerUid });
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid,
+    // Revision 30 §F (Slice 2) — intake now re-derives and requires the
+    // generation binding, so every business fixture that expects to reach
+    // session creation must carry one, exactly as a real business does
+    // once seller activation initialises it.
+    marketplaceBusinessGenerationId: `gen-${businessId}`,
+  });
   return businessId;
 }
 

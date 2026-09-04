@@ -57,6 +57,8 @@ const {
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
   PRODUCT_COMPLIANCE_DECISION_MAX_REQUIRED_SLOTS,
   PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS,
+  COMPLIANCE_INTAKE_EVIDENCE_MATRIX,
+  COMPLIANCE_INTAKE_UNRESOLVED_DOCUMENT_TYPES,
 } = require("./complianceConstants");
 
 function isEnumMember(value, enumObject) {
@@ -208,6 +210,57 @@ function parseComplianceUploadCanaryAllowlist(rawAllowlist) {
     .filter((entry) => entry.length > 0);
 }
 
+// Revision 30 §D / Slice 2 — intake-time relationship/document-type pair
+// check against the frozen matrix. Returns a stable reason code rather than
+// a bare boolean so the caller can distinguish "this type is unknown to the
+// contract entirely" from "this type exists but no relationship row lists
+// it yet" from "this type is simply not listed for THIS relationship" —
+// three different operator actions, and only the middle one is a pending
+// policy question rather than a client error.
+//
+// Deliberately value-blind about truth: a permitted pair means only that
+// the seller may upload the file, never that the relationship is verified
+// or the document accepted.
+const COMPLIANCE_INTAKE_PAIR_REASON = Object.freeze({
+  OK: "ok",
+  INVALID_RELATIONSHIP: "invalid_seller_relationship",
+  INVALID_DOCUMENT_TYPE: "invalid_document_type",
+  POLICY_UNRESOLVED: "document_type_policy_unresolved",
+  NOT_PERMITTED: "document_type_not_permitted_for_relationship",
+});
+
+function classifyComplianceIntakePair(sellerRelationship, documentType) {
+  if (!isValidSellerRelationship(sellerRelationship)) {
+    return COMPLIANCE_INTAKE_PAIR_REASON.INVALID_RELATIONSHIP;
+  }
+  if (!isValidComplianceDocumentType(documentType)) {
+    return COMPLIANCE_INTAKE_PAIR_REASON.INVALID_DOCUMENT_TYPE;
+  }
+  if (COMPLIANCE_INTAKE_UNRESOLVED_DOCUMENT_TYPES.includes(documentType)) {
+    return COMPLIANCE_INTAKE_PAIR_REASON.POLICY_UNRESOLVED;
+  }
+  const accepted = COMPLIANCE_INTAKE_EVIDENCE_MATRIX[sellerRelationship];
+  if (!Array.isArray(accepted) || !accepted.includes(documentType)) {
+    return COMPLIANCE_INTAKE_PAIR_REASON.NOT_PERMITTED;
+  }
+  return COMPLIANCE_INTAKE_PAIR_REASON.OK;
+}
+
+function isComplianceIntakePairPermitted(sellerRelationship, documentType) {
+  return (
+    classifyComplianceIntakePair(sellerRelationship, documentType) ===
+    COMPLIANCE_INTAKE_PAIR_REASON.OK
+  );
+}
+
+// Revision 30 §F — the generation binding is part of the authoritative
+// server-owned identity chain. An absent, empty or wrong-typed value is
+// never read as "this business has no generation and that is fine"; it is
+// read as "ownership of this evidence cannot be proven", and denies.
+function isValidComplianceGenerationId(value) {
+  return typeof value === "string" && value.length > 0;
+}
+
 function isComplianceUploadCanaryEnabledForBusiness(businessId, rawAllowlist) {
   if (typeof businessId !== "string" || businessId.length === 0) return false;
   const allowlist = parseComplianceUploadCanaryAllowlist(rawAllowlist);
@@ -224,6 +277,11 @@ const COMPLIANCE_UPLOAD_SESSION_IDEMPOTENCY_COMPARISON_FIELDS = Object.freeze([
   "declaredMimeType",
   "declaredSizeBytes",
   "documentType",
+  // Revision 30 §D / Slice 2 — the declared relationship is part of what
+  // makes a retry "the same request". Without it, a caller could reuse an
+  // idempotency key to obtain a session issued under one relationship
+  // while claiming another, defeating the intake matrix check entirely.
+  "declaredSellerRelationship",
 ]);
 
 // True only if every immutable field of a retried request matches the
@@ -484,6 +542,10 @@ module.exports = {
   buildComplianceUploadObjectId,
   parseComplianceUploadCanaryAllowlist,
   isComplianceUploadCanaryEnabledForBusiness,
+  COMPLIANCE_INTAKE_PAIR_REASON,
+  classifyComplianceIntakePair,
+  isComplianceIntakePairPermitted,
+  isValidComplianceGenerationId,
   doesRequestMatchStoredSession,
   getUtcDateKey,
   buildComplianceUploadQuotaScopeId,

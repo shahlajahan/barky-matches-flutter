@@ -120,6 +120,9 @@ const validRequest = () => ({
   declaredMimeType: "application/pdf",
   declaredSizeBytes: 1024,
   documentType: "purchase_invoice",
+  // Revision 30 §D (Slice 2) — required, and the pair must appear in the
+  // frozen intake matrix: reseller's row lists purchase_invoice.
+  sellerRelationship: "reseller",
 });
 
 test("a well-formed request passes shape validation", () => {

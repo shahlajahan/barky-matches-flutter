@@ -395,6 +395,19 @@ service firebase.storage {
       ).data;
     }
 
+    // Marketplace Revision 30 §F (Slice 2) — the live generation of the
+    // canonical business document. The session records the generation it
+    // was issued under; requiring the two to be equal means an upload
+    // authorized before a business was deleted and recreated under the same
+    // id cannot be completed against the new generation. Both sides must be
+    // present non-empty strings: an absent or malformed generation is never
+    // read as "no generation, therefore fine", it denies.
+    function liveBusinessGeneration(businessId) {
+      return firestore.get(
+        /databases/(default)/documents/businesses/$(businessId)
+      ).data.marketplaceBusinessGenerationId;
+    }
+
     match /compliance_quarantine/{businessId}/{sessionId}/{objectId} {
       // `resource == null` is checked explicitly, not inferred from the
       // create/update keyword split alone: a prior write attempt at this
@@ -412,6 +425,12 @@ service firebase.storage {
         && complianceUploadSessionData(sessionId).expiresAt > request.time
         && complianceUploadSessionData(sessionId).objectPath ==
            ('compliance_quarantine/' + businessId + '/' + sessionId + '/' + objectId)
+        // Revision 30 §F generation binding — see liveBusinessGeneration().
+        && complianceUploadSessionData(sessionId).marketplaceBusinessGenerationId is string
+        && complianceUploadSessionData(sessionId).marketplaceBusinessGenerationId.size() > 0
+        && liveBusinessGeneration(businessId) is string
+        && complianceUploadSessionData(sessionId).marketplaceBusinessGenerationId ==
+           liveBusinessGeneration(businessId)
         && request.resource.size > 0
         && request.resource.size <= complianceUploadSessionData(sessionId).maxSizeBytes
         && request.resource.contentType == complianceUploadSessionData(sessionId).declaredMimeType

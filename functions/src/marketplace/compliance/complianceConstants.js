@@ -214,6 +214,15 @@ const COMPLIANCE_UPLOAD_SESSION_REQUEST_ALLOWED_FIELDS = Object.freeze([
   "declaredSizeBytes",
   "documentType",
   "clientIdempotencyKey",
+  // Revision 30 §D / Slice 2 — the relationship the seller DECLARES for
+  // this upload, required so the frozen intake matrix can reject a
+  // document type that relationship's row does not list. It is a claim,
+  // never a verified fact: it is stored on the session only, under the
+  // deliberately distinct name `declaredSellerRelationship`, and is never
+  // written to the promoted complianceDocuments record. §G keeps
+  // `submitComplianceDocument` the one and only place a document's own
+  // authoritative `sellerRelationship` is ever set.
+  "sellerRelationship",
 ]);
 
 // Proposed defaults (docs/plans/... §4, §20).
@@ -408,6 +417,74 @@ const SELLER_RELATIONSHIP = Object.freeze({
   IMPORTER: "importer",
   RESELLER: "reseller",
 });
+
+// Revision 30 §D — INTAKE-TIME evidence matrix, transcribed exactly from
+// the frozen table. For each of the six relationships this is the union of
+// that row's "Minimum evidence type" and its "Alternatives" columns. No
+// entry is inferred, widened or invented here; every value is an existing
+// COMPLIANCE_DOCUMENT_TYPE identifier (Revision 30 §B: this contract
+// introduces no new vocabulary).
+//
+// WHAT THIS IS NOT. Passing this check is *not* acceptance, verification,
+// sufficiency, or a legal determination. Revision 30 §D marks the statutory
+// minimum document set per relationship COUNSEL REQUIRED, and §C freezes
+// that a relationship claim is never itself evidence. This matrix decides
+// exactly one narrow question at intake: whether the document type the
+// seller says they are uploading is one this relationship's row lists at
+// all. Whether an accepted document actually satisfies a slot is the
+// decision engine's question (Revision 30 §J slice 5), evaluated later
+// against the runtime policy registry, and nothing here anticipates it.
+//
+// The importer row's alternative is a CONJUNCTION in §D — "purchase_invoice
+// from the foreign supplier plus supplier_agreement". Intake accepts each
+// member individually because intake uploads one document at a time and
+// decides no sufficiency; the conjunction is enforced where sufficiency is
+// actually decided, never relaxed by this list.
+//
+// `category_compliance_evidence` appears in NO row of §D's table. Revision
+// 30 §E separates "proof the seller may sell" from "proof the product falls
+// inside an allowed pilot class", but the plan does not resolve which
+// relationship — if any — may submit category evidence, or whether it is
+// relationship-independent. Per §D's own provisional rule ("any unresolved
+// policy resolves to `policy_unresolved` ... and therefore denies") this is
+// left FAIL-CLOSED: it is accepted for no relationship and is rejected at
+// intake with its own stable reason code. Resolving it is an owner/counsel
+// decision and must not be invented in code.
+const COMPLIANCE_INTAKE_EVIDENCE_MATRIX = Object.freeze({
+  [SELLER_RELATIONSHIP.BRAND_OWNER]: Object.freeze([
+    COMPLIANCE_DOCUMENT_TYPE.TRADEMARK_EVIDENCE,
+    COMPLIANCE_DOCUMENT_TYPE.MANUFACTURER_EVIDENCE,
+  ]),
+  [SELLER_RELATIONSHIP.MANUFACTURER]: Object.freeze([
+    COMPLIANCE_DOCUMENT_TYPE.MANUFACTURER_EVIDENCE,
+    COMPLIANCE_DOCUMENT_TYPE.TRADEMARK_EVIDENCE,
+  ]),
+  [SELLER_RELATIONSHIP.AUTHORIZED_DISTRIBUTOR]: Object.freeze([
+    COMPLIANCE_DOCUMENT_TYPE.DEALERSHIP_DISTRIBUTION_AGREEMENT,
+    COMPLIANCE_DOCUMENT_TYPE.AUTHORIZATION_LETTER,
+  ]),
+  [SELLER_RELATIONSHIP.AUTHORIZED_DEALER]: Object.freeze([
+    COMPLIANCE_DOCUMENT_TYPE.AUTHORIZATION_LETTER,
+    COMPLIANCE_DOCUMENT_TYPE.DEALERSHIP_DISTRIBUTION_AGREEMENT,
+  ]),
+  [SELLER_RELATIONSHIP.IMPORTER]: Object.freeze([
+    COMPLIANCE_DOCUMENT_TYPE.IMPORTER_EVIDENCE,
+    COMPLIANCE_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    COMPLIANCE_DOCUMENT_TYPE.SUPPLIER_AGREEMENT,
+  ]),
+  [SELLER_RELATIONSHIP.RESELLER]: Object.freeze([
+    COMPLIANCE_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    COMPLIANCE_DOCUMENT_TYPE.SUPPLIER_AGREEMENT,
+  ]),
+});
+
+// Document types that §D's table assigns to no relationship at all, and
+// which therefore cannot be accepted at intake without an unfrozen policy
+// decision. Kept as its own named constant so the fail-closed denial is
+// explicit and auditable rather than an emergent property of the matrix.
+const COMPLIANCE_INTAKE_UNRESOLVED_DOCUMENT_TYPES = Object.freeze([
+  COMPLIANCE_DOCUMENT_TYPE.CATEGORY_COMPLIANCE_EVIDENCE,
+]);
 
 // Session-level states (uploaded/validating/scan_pending/
 // promotion_pending) are deliberately absent — a complianceDocuments
@@ -910,6 +987,8 @@ module.exports = {
 
   COMPLIANCE_DOCUMENT_TYPE,
   SELLER_RELATIONSHIP,
+  COMPLIANCE_INTAKE_EVIDENCE_MATRIX,
+  COMPLIANCE_INTAKE_UNRESOLVED_DOCUMENT_TYPES,
   COMPLIANCE_DOCUMENT_STATUS,
   COMPLIANCE_DOCUMENT_SERVER_OWNED_FIELDS,
   COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS,

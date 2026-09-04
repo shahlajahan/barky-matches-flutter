@@ -20039,6 +20039,7 @@ exports.createComplianceUploadSession = onCall(
       auth: request.auth,
       data: request.data,
       canaryAllowlist: COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS.value(),
+      logger,
     });
   }
 );

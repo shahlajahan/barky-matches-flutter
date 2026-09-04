@@ -88,6 +88,11 @@ async function seedSession(overrides = {}) {
     declaredMimeType,
     declaredSizeBytes: validPdfBytes.length,
     documentType: "purchase_invoice",
+    // Revision 30 §F (Slice 2) — the session records the generation it was
+    // issued under, and promotion re-reads the live business inside its own
+    // transaction and refuses to promote unless the two are equal.
+    marketplaceBusinessGenerationId: `gen-${businessId}`,
+    declaredSellerRelationship: "reseller",
     sellerRelationship: null,
     clientIdempotencyKey: null,
     allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png"],
@@ -121,6 +126,20 @@ async function seedSession(overrides = {}) {
     ...overrides,
   };
   const sessionRef = db.collection("complianceUploadSessions").doc(sessionId);
+  // The canonical business must exist and carry the same generation, exactly
+  // as it does in production — promotion now proves that binding rather than
+  // trusting the session's own copy of it.
+  await db
+    .collection("businesses")
+    .doc(businessId)
+    .set(
+      {
+        ownerUid: session.issuedBy,
+        marketplaceBusinessGenerationId:
+          session.marketplaceBusinessGenerationId,
+      },
+      { merge: true }
+    );
   await sessionRef.set(session);
   return { session: { ...session, sessionId }, sessionRef, objectPath, documentId };
 }
@@ -1041,4 +1060,97 @@ itest("cleanup does not touch an already-consumed session's promoted document", 
   assert.equal(after.exists, true, "cleanup must never touch complianceDocuments, only the quarantine boundary");
   const [promotedStillExists] = await bucket.file(after.data().storagePath).exists();
   assert.equal(promotedStillExists, true, "a promoted, consumed document's file must never be deleted by quarantine cleanup");
+});
+
+// --- Marketplace Revision 30 §F (Slice 2) — promotion generation binding ---
+//
+// Storage Rules refuse an upload once the generation changes, but an upload
+// that already landed can still be in flight when a business is deleted and
+// recreated. Promotion re-reads the canonical business inside its own
+// transaction and refuses to create the document, so no new generation ever
+// inherits an earlier generation's evidence.
+
+itest("a clean scan stamps the promoted document with its business generation", async () => {
+  const { session, object, documentId } = await advanceToScanPending();
+
+  const result = await orchestrateComplianceScan({
+    db, bucket, session, object,
+    scanner: createFakeCleanScanner(),
+    logger: quietLogger,
+  });
+  assert.equal(result.outcome, "consumed");
+
+  const docSnap = await db.collection("complianceDocuments").doc(documentId).get();
+  assert.equal(
+    docSnap.data().marketplaceBusinessGenerationId,
+    session.marketplaceBusinessGenerationId
+  );
+  // Still only `clean` — intake never produces an approved or effective
+  // document, and never a decision or evidence link.
+  assert.equal(docSnap.data().status, "clean");
+  assert.equal(docSnap.data().sellerRelationship, null);
+});
+
+itest("promotion fails closed when the business generation changed mid-flow", async () => {
+  const { session, sessionRef, object, documentId } = await advanceToScanPending();
+
+  // The business is deleted and recreated under the same id while the
+  // uploaded object is already in quarantine awaiting its scan.
+  await db
+    .collection("businesses")
+    .doc(session.businessId)
+    .set(
+      { ownerUid: session.issuedBy, marketplaceBusinessGenerationId: "gen-RECREATED" },
+      { merge: true }
+    );
+
+  const result = await orchestrateComplianceScan({
+    db, bucket, session, object,
+    scanner: createFakeCleanScanner(),
+    logger: quietLogger,
+  });
+
+  assert.equal(result.outcome, "scan_failed");
+  assert.equal(result.reason, "promotion_generation_mismatch");
+
+  // No document was created for the new generation to inherit...
+  const docSnap = await db.collection("complianceDocuments").doc(documentId).get();
+  assert.equal(docSnap.exists, false);
+  // ...the session is terminal, not left promotable...
+  assert.equal((await sessionRef.get()).data().status, "scan_failed");
+  // ...and no promoted evidence object survives at the destination.
+  const [promotedExists] = await bucket.file(session.destinationPath).exists();
+  assert.equal(promotedExists, false);
+});
+
+itest("promotion fails closed when the business no longer exists at all", async () => {
+  const { session, sessionRef, object, documentId } = await advanceToScanPending();
+  await db.collection("businesses").doc(session.businessId).delete();
+
+  const result = await orchestrateComplianceScan({
+    db, bucket, session, object,
+    scanner: createFakeCleanScanner(),
+    logger: quietLogger,
+  });
+
+  assert.equal(result.outcome, "scan_failed");
+  assert.equal(result.reason, "promotion_generation_mismatch");
+  assert.equal((await db.collection("complianceDocuments").doc(documentId).get()).exists, false);
+  assert.equal((await sessionRef.get()).data().status, "scan_failed");
+});
+
+itest("an infected verdict never promotes, whatever the generation", async () => {
+  const { session, sessionRef, object, documentId } = await advanceToScanPending();
+
+  const result = await orchestrateComplianceScan({
+    db, bucket, session, object,
+    scanner: createFakeInfectedScanner(),
+    logger: quietLogger,
+  });
+
+  assert.notEqual(result.outcome, "consumed");
+  assert.equal((await db.collection("complianceDocuments").doc(documentId).get()).exists, false);
+  const [promotedExists] = await bucket.file(session.destinationPath).exists();
+  assert.equal(promotedExists, false);
+  assert.equal((await sessionRef.get()).data().status, "infected");
 });

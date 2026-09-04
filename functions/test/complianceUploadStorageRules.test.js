@@ -85,8 +85,19 @@ async function seedBusinesses() {
   const rulesEnv = await env();
   await rulesEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
-    await setDoc(doc(db, "businesses", "biz-1"), { ownerUid: "seller-1" }, { merge: true });
-    await setDoc(doc(db, "businesses", "biz-2"), { ownerUid: "seller-2" }, { merge: true });
+    // Revision 30 §F (Slice 2) — the quarantine write rule now requires the
+    // session's recorded generation to equal the live business generation,
+    // so both fixture businesses carry one.
+    await setDoc(
+      doc(db, "businesses", "biz-1"),
+      { ownerUid: "seller-1", marketplaceBusinessGenerationId: "gen-biz-1" },
+      { merge: true }
+    );
+    await setDoc(
+      doc(db, "businesses", "biz-2"),
+      { ownerUid: "seller-2", marketplaceBusinessGenerationId: "gen-biz-2" },
+      { merge: true }
+    );
     await setDoc(doc(db, "users", "admin-1"), { role: "admin" }, { merge: true });
   });
 }
@@ -108,6 +119,9 @@ async function seedSession(overrides = {}) {
   const base = {
     businessId: "biz-1",
     issuedBy: "seller-1",
+    // Matches the seeded live generation for biz-1; tests that need a
+    // mismatch override it explicitly.
+    marketplaceBusinessGenerationId: "gen-biz-1",
     status: "upload_authorized",
     expiresAt: FUTURE,
     objectPath: `compliance_quarantine/${businessId}/${sessionId}/${objectId}`,
@@ -548,3 +562,84 @@ rulesTest("a resumable upload carrying arbitrary custom metadata is rejected", a
     })
   );
 });
+
+// --- Marketplace Revision 30 §F (Slice 2) — generation binding ---------
+//
+// An upload authorized under one business generation must be refused once
+// the business has been deleted and recreated under the same id. Rules are
+// the enforcement point for the write itself; the server re-verifies again
+// before promotion.
+
+rulesTest(
+  "an upload whose session generation no longer matches the live business is denied",
+  async () => {
+    const session = await seedSession({
+      marketplaceBusinessGenerationId: "gen-biz-1-OLD",
+    });
+    const storage = (await env()).authenticatedContext("seller-1").storage();
+    await assertFails(
+      uploadBytes(ref(storage, session.objectPath), validPdfBytes, {
+        contentType: "application/pdf",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "an upload whose session carries no generation binding at all is denied",
+  async () => {
+    const session = await seedSession({
+      marketplaceBusinessGenerationId: null,
+    });
+    const storage = (await env()).authenticatedContext("seller-1").storage();
+    await assertFails(
+      uploadBytes(ref(storage, session.objectPath), validPdfBytes, {
+        contentType: "application/pdf",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "an upload whose session carries an empty generation binding is denied",
+  async () => {
+    const session = await seedSession({ marketplaceBusinessGenerationId: "" });
+    const storage = (await env()).authenticatedContext("seller-1").storage();
+    await assertFails(
+      uploadBytes(ref(storage, session.objectPath), validPdfBytes, {
+        contentType: "application/pdf",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "an upload is denied once the live business generation changes underneath it",
+  async () => {
+    const session = await seedSession();
+    const rulesEnv = await env();
+    // The business is recreated under the same id with a new generation
+    // while the session is still otherwise valid and unexpired.
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses", "biz-1"),
+        { ownerUid: "seller-1", marketplaceBusinessGenerationId: "gen-biz-1-NEW" },
+        { merge: true }
+      );
+    });
+    const storage = rulesEnv.authenticatedContext("seller-1").storage();
+    await assertFails(
+      uploadBytes(ref(storage, session.objectPath), validPdfBytes, {
+        contentType: "application/pdf",
+      })
+    );
+    // Restore the shared fixture for any later test in this file.
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses", "biz-1"),
+        { ownerUid: "seller-1", marketplaceBusinessGenerationId: "gen-biz-1" },
+        { merge: true }
+      );
+    });
+  }
+);

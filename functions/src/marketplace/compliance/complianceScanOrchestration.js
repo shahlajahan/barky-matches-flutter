@@ -303,11 +303,37 @@ async function performPromotion({ db, bucket, session: sessionArg, logger = cons
 
   const [destMetadata] = await destFile.getMetadata();
   const documentRef = db.collection("complianceDocuments").doc(session.documentId);
+  const businessRef = db.collection("businesses").doc(session.businessId);
 
   const finalizeResult = await db.runTransaction(async (tx) => {
-    const [sessSnap, docSnap] = await Promise.all([tx.get(sessionRef), tx.get(documentRef)]);
+    const [sessSnap, docSnap, bizSnap] = await Promise.all([
+      tx.get(sessionRef),
+      tx.get(documentRef),
+      tx.get(businessRef),
+    ]);
     const current = sessSnap.data();
     if (!current) return { outcome: "skipped" };
+
+    // Revision 30 §F — "No same-id business ... may ever inherit evidence
+    // from an earlier generation." The business is re-read inside the same
+    // transaction that would create the document, so a business deleted and
+    // recreated while this upload was in flight cannot have its old-
+    // generation evidence promoted into the new generation. An absent
+    // business, an absent/malformed generation, and a changed generation are
+    // all treated identically: fail closed, never promote.
+    const bizData = bizSnap.exists ? bizSnap.data() || {} : null;
+    const liveGeneration = bizData ? bizData.marketplaceBusinessGenerationId : undefined;
+    const boundGeneration = current.marketplaceBusinessGenerationId;
+    if (
+      !bizData ||
+      typeof liveGeneration !== "string" ||
+      liveGeneration.length === 0 ||
+      typeof boundGeneration !== "string" ||
+      boundGeneration.length === 0 ||
+      liveGeneration !== boundGeneration
+    ) {
+      return { outcome: "generation_mismatch" };
+    }
     if (current.status === COMPLIANCE_UPLOAD_SESSION_STATUS.CONSUMED) {
       return { outcome: "already_consumed" };
     }
@@ -319,6 +345,10 @@ async function performPromotion({ db, bucket, session: sessionArg, logger = cons
     if (!docSnap.exists) {
       tx.create(documentRef, {
         businessId: session.businessId,
+        // Revision 30 §F — the document is permanently bound to the exact
+        // business generation that uploaded it. Server-owned, immutable,
+        // and never inherited by a later same-id generation.
+        marketplaceBusinessGenerationId: current.marketplaceBusinessGenerationId,
         sessionId: session.sessionId,
         documentType: session.documentType,
         sellerRelationship: session.sellerRelationship || null,
@@ -357,6 +387,19 @@ async function performPromotion({ db, bucket, session: sessionArg, logger = cons
     releaseActiveUploadQuota({ tx, db, businessId: session.businessId, uid: session.issuedBy });
     return { outcome: "committed" };
   });
+
+  if (finalizeResult.outcome === "generation_mismatch") {
+    // Fail closed and terminal: the quarantine object is cleaned up by the
+    // ordinary terminal-failure path, no document exists, and the promoted
+    // destination object (already written above) is removed so no orphan
+    // evidence file survives a generation change. Identifier-free log only.
+    logger.warn("compliance_promotion_generation_mismatch", {
+      sessionId: session.sessionId,
+    });
+    await destFile.delete({ ignoreNotFound: true }).catch(() => {});
+    await failClosed("promotion_generation_mismatch");
+    return { outcome: "scan_failed", reason: "promotion_generation_mismatch" };
+  }
 
   if (finalizeResult.outcome === "skipped") {
     return { outcome: "skipped", reason: "session_not_promotion_pending" };
