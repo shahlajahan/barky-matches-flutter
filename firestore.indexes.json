@@ -227,6 +227,14 @@
       ]
     },
     {
+      "collectionGroup": "complianceUploadSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "issuedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "marketplacePendingMediaCleanups",
       "queryScope": "COLLECTION",
       "fields": [

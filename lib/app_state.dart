@@ -92,6 +92,7 @@ enum BusinessSubPage {
   petshopReturns,
   petshopSettings,
   petshopMedia,
+  petshopComplianceEvidence,
 }
 
 enum HomeOverlay { none, parkPlaydateEntry, notifications }
@@ -536,6 +537,17 @@ class AppState with ChangeNotifier {
   /// Opens the Pet Shop Business Media sub-page (logo, cover, gallery).
   void openPetShopMedia() {
     _businessSubPage = BusinessSubPage.petshopMedia;
+    notifyListeners();
+  }
+
+  /// Opens the Marketplace compliance evidence upload sub-page (Revision 30
+  /// §J Slice 3). Follows the same shape as [openPetShopMedia]: the sub-page
+  /// exists and dispatches, and is opened programmatically rather than from
+  /// a permanent tile — compliance uploads are gated behind a deny-by-default
+  /// canary, so no seller may reach a working flow until that canary names
+  /// their business.
+  void openPetShopComplianceEvidence() {
+    _businessSubPage = BusinessSubPage.petshopComplianceEvidence;
     notifyListeners();
   }
 

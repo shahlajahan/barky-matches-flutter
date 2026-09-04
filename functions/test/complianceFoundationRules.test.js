@@ -66,11 +66,19 @@ async function seedDoc(docPath, data) {
 }
 
 // One fixture per top-level P1-A Slice 1 collection. `ownerReadable`/
-// `adminReadable` encode the deliberately conservative matrix explained
-// in firestore.rules' own comment: complianceUploadSessions,
-// complianceDocuments, and complianceReviewEvents defer owner read to a
-// later, server-mediated slice; compliancePolicyRegistry is fully closed
-// via Rules for everyone, admin included.
+// `adminReadable` encode the matrix explained in firestore.rules' own
+// comment.
+//
+// Marketplace Revision 30 §J Slice 3 update: complianceUploadSessions and
+// complianceDocuments were `ownerReadable: false` while owner read was
+// deferred to "a later, server-mediated slice". That slice is Slice 3, and
+// it has arrived: §I's seller UI must show the seller the status of its own
+// submission and must restore that state after navigation, and §G already
+// names "the uploading business" as an authorized audience. Both are now
+// owner-readable, scoped by their own server-written `businessId`. Their
+// WRITES remain closed to every client, admin included — unchanged.
+// complianceReviewEvents still defers owner read (admin review is Slice 4);
+// compliancePolicyRegistry remains fully closed via Rules for everyone.
 const COLLECTIONS = [
   {
     name: "businessInventoryPolicies",
@@ -92,7 +100,7 @@ const COLLECTIONS = [
     docPath: "complianceUploadSessions/session-1",
     newDocPath: "complianceUploadSessions/session-new",
     seed: { businessId: "biz-1", documentId: "compdoc-1", status: "issued" },
-    ownerReadable: false,
+    ownerReadable: true,
     adminReadable: true,
   },
   {
@@ -101,7 +109,7 @@ const COLLECTIONS = [
     docPath: "complianceDocuments/compdoc-1",
     newDocPath: "complianceDocuments/compdoc-new",
     seed: { businessId: "biz-1", sessionId: "session-1", status: "clean" },
-    ownerReadable: false,
+    ownerReadable: true,
     adminReadable: true,
   },
   {
@@ -428,3 +436,119 @@ rulesTest("seller cannot create an upload session directly", async () => {
     })
   );
 });
+
+// --- Revision 30 §J Slice 3 — owner read is scoped, and writes stay shut ---
+
+rulesTest(
+  "REV30S3-1. a seller reads its OWN upload session and document, and never another business's",
+  async () => {
+    await resetSeed();
+    await seedDoc("complianceUploadSessions/s3-mine", {
+      businessId: "biz-1",
+      documentId: "d-mine",
+      status: "scan_pending",
+    });
+    await seedDoc("complianceUploadSessions/s3-theirs", {
+      businessId: "biz-2",
+      documentId: "d-theirs",
+      status: "scan_pending",
+    });
+    await seedDoc("complianceDocuments/s3-doc-mine", {
+      businessId: "biz-1",
+      sessionId: "s3-mine",
+      status: "clean",
+    });
+    await seedDoc("complianceDocuments/s3-doc-theirs", {
+      businessId: "biz-2",
+      sessionId: "s3-theirs",
+      status: "clean",
+    });
+
+    const seller1 = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(getDoc(doc(seller1, "complianceUploadSessions/s3-mine")));
+    await assertSucceeds(getDoc(doc(seller1, "complianceDocuments/s3-doc-mine")));
+    await assertFails(getDoc(doc(seller1, "complianceUploadSessions/s3-theirs")));
+    await assertFails(getDoc(doc(seller1, "complianceDocuments/s3-doc-theirs")));
+  }
+);
+
+rulesTest(
+  "REV30S3-2. an unauthenticated caller reads neither collection",
+  async () => {
+    await resetSeed();
+    await seedDoc("complianceUploadSessions/s3-anon", {
+      businessId: "biz-1",
+      documentId: "d-anon",
+      status: "scan_pending",
+    });
+    await seedDoc("complianceDocuments/s3-doc-anon", {
+      businessId: "biz-1",
+      sessionId: "s3-anon",
+      status: "clean",
+    });
+    const anon = (await env()).unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anon, "complianceUploadSessions/s3-anon")));
+    await assertFails(getDoc(doc(anon, "complianceDocuments/s3-doc-anon")));
+  }
+);
+
+rulesTest(
+  "REV30S3-3. a document whose businessId is absent or wrong-typed is readable by no seller",
+  async () => {
+    await resetSeed();
+    // Fail-closed: ownership that cannot be proven is not ownership.
+    await seedDoc("complianceUploadSessions/s3-nobiz", { status: "scan_pending" });
+    await seedDoc("complianceUploadSessions/s3-badbiz", {
+      businessId: 42,
+      status: "scan_pending",
+    });
+    const seller1 = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(getDoc(doc(seller1, "complianceUploadSessions/s3-nobiz")));
+    await assertFails(getDoc(doc(seller1, "complianceUploadSessions/s3-badbiz")));
+  }
+);
+
+rulesTest(
+  "REV30S3-4. the owner read grants no write of any kind, on either collection",
+  async () => {
+    await resetSeed();
+    await seedDoc("complianceUploadSessions/s3-write", {
+      businessId: "biz-1",
+      documentId: "d-write",
+      status: "scan_pending",
+    });
+    await seedDoc("complianceDocuments/s3-doc-write", {
+      businessId: "biz-1",
+      sessionId: "s3-write",
+      status: "clean",
+    });
+    const seller1 = (await env()).authenticatedContext("seller-1").firestore();
+
+    // Cannot create, update or delete its own session...
+    await assertFails(
+      setDoc(doc(seller1, "complianceUploadSessions/s3-new"), {
+        businessId: "biz-1",
+        status: "upload_authorized",
+      })
+    );
+    await assertFails(
+      updateDoc(doc(seller1, "complianceUploadSessions/s3-write"), {
+        status: "consumed",
+      })
+    );
+    await assertFails(deleteDoc(doc(seller1, "complianceUploadSessions/s3-write")));
+
+    // ...nor its own document, and above all cannot self-approve it.
+    await assertFails(
+      updateDoc(doc(seller1, "complianceDocuments/s3-doc-write"), {
+        status: "approved",
+      })
+    );
+    await assertFails(
+      updateDoc(doc(seller1, "complianceDocuments/s3-doc-write"), {
+        status: "pending_review",
+      })
+    );
+    await assertFails(deleteDoc(doc(seller1, "complianceDocuments/s3-doc-write")));
+  }
+);

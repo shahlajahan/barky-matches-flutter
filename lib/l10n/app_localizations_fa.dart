@@ -10536,5 +10536,86 @@ class AppLocalizationsFa extends AppLocalizations {
   String get productSlotCleanupPendingError => 'این جایگاه محصول هنوز در حال آزادسازی است. لطفاً کمی بعد دوباره تلاش کنید.';
 
   @override
+  String get complianceEvidenceTitle => 'مدارک انطباق';
+
+  @override
+  String get complianceEvidenceNotApprovalNotice => 'ارسال مدرک به معنای تأیید نیست. پیش از انتشار هر محصول، مدرک شما بررسی می‌شود.';
+
+  @override
+  String get complianceEvidenceRelationshipLabel => 'رابطه شما با محصول';
+
+  @override
+  String get complianceEvidenceDocumentTypeLabel => 'نوع مدرک';
+
+  @override
+  String get complianceEvidenceRequirementHint => 'برای این رابطه، انواع مدارک زیر پذیرفته می‌شود.';
+
+  @override
+  String get complianceEvidencePickFile => 'انتخاب مدرک';
+
+  @override
+  String get complianceEvidenceFormatsHint => 'PDF، JPEG یا PNG، حداکثر ۱۵ مگابایت.';
+
+  @override
+  String get complianceEvidenceSubmit => 'ارسال مدرک';
+
+  @override
+  String get complianceEvidencePrivacyNotice => 'مدرک شما به‌صورت خصوصی ذخیره می‌شود. تنها کسب‌وکار شما و تیم بررسی آن را می‌بینند.';
+
+  @override
+  String get complianceEvidenceStageRequestingSession => 'در حال آماده‌سازی بارگذاری امن…';
+
+  @override
+  String get complianceEvidenceStageUploading => 'در حال بارگذاری مدرک شما…';
+
+  @override
+  String get complianceEvidenceStageProcessing => 'مدرک شما در حال بررسی است. این کار ممکن است چند دقیقه طول بکشد.';
+
+  @override
+  String get complianceEvidenceStageAwaitingReview => 'دریافت شد و در انتظار بررسی';
+
+  @override
+  String get complianceEvidenceStageFailedRetryable => 'این مدرک پردازش نشد. می‌توانید با فایل جدیدی دوباره تلاش کنید.';
+
+  @override
+  String get complianceEvidenceStageFailedTerminal => 'این مدرک در بررسی امنیتی ما رد شد و قابل استفاده نیست. لطفاً مدرک دیگری آماده کنید.';
+
+  @override
+  String get complianceEvidenceUploadInProgressNotice => 'یک مدرک در حال پردازش است. پیش از ارسال مدرک دیگر، منتظر پایان آن بمانید.';
+
+  @override
+  String get complianceEvidenceErrorNotEnabled => 'بارگذاری مدرک هنوز برای این کسب‌وکار در دسترس نیست.';
+
+  @override
+  String get complianceEvidenceErrorInvalidSubmission => 'این مدرک پذیرفته نشد. نوع و اندازه فایل را بررسی کنید و دوباره تلاش کنید.';
+
+  @override
+  String get complianceEvidenceErrorUploadFailed => 'بارگذاری کامل نشد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get complianceEvidenceErrorSessionConflict => 'ارسال دیگری در حال انجام است. لطفاً کمی صبر کنید و دوباره تلاش کنید.';
+
+  @override
+  String get complianceDocumentTypePurchaseInvoice => 'فاکتور خرید';
+
+  @override
+  String get complianceDocumentTypeSupplierAgreement => 'قرارداد تأمین‌کننده';
+
+  @override
+  String get complianceDocumentTypeAuthorizationLetter => 'نامه نمایندگی';
+
+  @override
+  String get complianceDocumentTypeDealershipDistributionAgreement => 'قرارداد نمایندگی یا توزیع';
+
+  @override
+  String get complianceDocumentTypeTrademarkEvidence => 'مدرک علامت تجاری';
+
+  @override
+  String get complianceDocumentTypeManufacturerEvidence => 'مدرک تولیدکننده';
+
+  @override
+  String get complianceDocumentTypeImporterEvidence => 'مدرک واردات';
+
+  @override
   String get networkErrorTryAgain => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
 }

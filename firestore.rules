@@ -2645,13 +2645,30 @@ match /stories/{storyId} {
       allow create, update, delete: if false;
     }
 
+    // Marketplace Revision 30 §J Slice 3 — the uploading business may read
+    // its OWN intake state, and nothing else.
+    //
+    // §I's seller UI contract requires the seller to "see its status", and
+    // requires state to survive navigation and an app restart; without that
+    // read the screen cannot tell an in-flight upload from a fresh one and
+    // would permit exactly the blind re-upload §I forbids. §G already fixes
+    // who may see evidence — "the uploading business and reviewing admins"
+    // — so this grants no audience the frozen plan had not already named.
+    //
+    // Scoped by the document's own server-written `businessId` through the
+    // established `isBusinessOwner()` pattern this file already uses for
+    // complianceDocumentScopes, productEvidenceLinks and
+    // productComplianceDecisions. WRITES REMAIN DENIED to every client,
+    // admin included: a seller can observe its intake, never author it.
     match /complianceUploadSessions/{sessionId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() ||
+        (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
       allow create, update, delete: if false;
     }
 
     match /complianceDocuments/{documentId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() ||
+        (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
       allow create, update, delete: if false;
     }
 

@@ -10536,5 +10536,86 @@ class AppLocalizationsTr extends AppLocalizations {
   String get productSlotCleanupPendingError => 'Bu ürün yeri hâlâ boşaltılıyor. Lütfen birazdan tekrar deneyin.';
 
   @override
+  String get complianceEvidenceTitle => 'Uygunluk belgeleri';
+
+  @override
+  String get complianceEvidenceNotApprovalNotice => 'Belge göndermek onay anlamına gelmez. Ürününüz yayınlanmadan önce belgeniz incelenir.';
+
+  @override
+  String get complianceEvidenceRelationshipLabel => 'Ürünle ilişkiniz';
+
+  @override
+  String get complianceEvidenceDocumentTypeLabel => 'Belge türü';
+
+  @override
+  String get complianceEvidenceRequirementHint => 'Bu ilişki için aşağıdaki belge türleri kabul edilir.';
+
+  @override
+  String get complianceEvidencePickFile => 'Belge seç';
+
+  @override
+  String get complianceEvidenceFormatsHint => 'PDF, JPEG veya PNG, en fazla 15 MB.';
+
+  @override
+  String get complianceEvidenceSubmit => 'Belgeyi gönder';
+
+  @override
+  String get complianceEvidencePrivacyNotice => 'Belgeniz gizli olarak saklanır. Yalnızca işletmeniz ve inceleme ekibi görebilir.';
+
+  @override
+  String get complianceEvidenceStageRequestingSession => 'Güvenli yükleme hazırlanıyor…';
+
+  @override
+  String get complianceEvidenceStageUploading => 'Belgeniz yükleniyor…';
+
+  @override
+  String get complianceEvidenceStageProcessing => 'Belgeniz kontrol ediliyor. Bu birkaç dakika sürebilir.';
+
+  @override
+  String get complianceEvidenceStageAwaitingReview => 'Alındı, inceleme bekleniyor';
+
+  @override
+  String get complianceEvidenceStageFailedRetryable => 'Bu belge işlenemedi. Yeni bir dosyayla tekrar deneyebilirsiniz.';
+
+  @override
+  String get complianceEvidenceStageFailedTerminal => 'Bu belge güvenlik kontrolümüzde reddedildi ve kullanılamaz. Lütfen farklı bir belge hazırlayın.';
+
+  @override
+  String get complianceEvidenceUploadInProgressNotice => 'Bir belge zaten işleniyor. Yenisini göndermeden önce tamamlanmasını bekleyin.';
+
+  @override
+  String get complianceEvidenceErrorNotEnabled => 'Bu işletme için belge yükleme henüz kullanılamıyor.';
+
+  @override
+  String get complianceEvidenceErrorInvalidSubmission => 'Bu belge kabul edilemedi. Dosya türünü ve boyutunu kontrol edip tekrar deneyin.';
+
+  @override
+  String get complianceEvidenceErrorUploadFailed => 'Yükleme tamamlanmadı. Lütfen tekrar deneyin.';
+
+  @override
+  String get complianceEvidenceErrorSessionConflict => 'Başka bir gönderim zaten sürüyor. Lütfen biraz bekleyip tekrar deneyin.';
+
+  @override
+  String get complianceDocumentTypePurchaseInvoice => 'Satın alma faturası';
+
+  @override
+  String get complianceDocumentTypeSupplierAgreement => 'Tedarikçi sözleşmesi';
+
+  @override
+  String get complianceDocumentTypeAuthorizationLetter => 'Yetki belgesi';
+
+  @override
+  String get complianceDocumentTypeDealershipDistributionAgreement => 'Bayilik veya dağıtım sözleşmesi';
+
+  @override
+  String get complianceDocumentTypeTrademarkEvidence => 'Marka belgesi';
+
+  @override
+  String get complianceDocumentTypeManufacturerEvidence => 'Üretici belgesi';
+
+  @override
+  String get complianceDocumentTypeImporterEvidence => 'İthalat belgesi';
+
+  @override
   String get networkErrorTryAgain => 'Ağ hatası. Lütfen tekrar deneyin.';
 }

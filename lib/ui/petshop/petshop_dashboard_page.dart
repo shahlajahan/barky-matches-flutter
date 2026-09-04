@@ -16,6 +16,7 @@ import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/business_media_page.dart';
+import 'package:barky_matches_fixed/ui/business/petshop/compliance_evidence_upload_page.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/edit_petshop_profile_page.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
@@ -267,6 +268,16 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
 
     if (businessSubPage == BusinessSubPage.petshopMedia) {
       return BusinessMediaPage(
+        businessId: businessId,
+        onClose: context.read<AppState>().closeBusinessSubPage,
+      );
+    }
+
+    // Marketplace Revision 30 §J Slice 3 — seller compliance evidence upload.
+    // Scoped to the business the owner already selected; the server
+    // independently re-derives ownership and the generation binding.
+    if (businessSubPage == BusinessSubPage.petshopComplianceEvidence) {
+      return ComplianceEvidenceUploadPage(
         businessId: businessId,
         onClose: context.read<AppState>().closeBusinessSubPage,
       );
@@ -1311,7 +1322,8 @@ Widget _strengthBar(double value) {
     required Widget child,
   }) {
     final l10n = AppLocalizations.of(context)!;
-    final stream = widget.businessStreamOverride?.call(businessId) ??
+    final stream =
+        widget.businessStreamOverride?.call(businessId) ??
         FirebaseFirestore.instance
             .collection('businesses')
             .doc(businessId)

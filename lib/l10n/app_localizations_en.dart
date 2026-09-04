@@ -10536,5 +10536,86 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productSlotCleanupPendingError => 'This product slot is still being freed up. Please try again in a moment.';
 
   @override
+  String get complianceEvidenceTitle => 'Compliance documents';
+
+  @override
+  String get complianceEvidenceNotApprovalNotice => 'Submitting a document is not approval. Your document is reviewed before any product can be published.';
+
+  @override
+  String get complianceEvidenceRelationshipLabel => 'Your relationship to the product';
+
+  @override
+  String get complianceEvidenceDocumentTypeLabel => 'Document type';
+
+  @override
+  String get complianceEvidenceRequirementHint => 'For this relationship, the following document types are accepted.';
+
+  @override
+  String get complianceEvidencePickFile => 'Choose document';
+
+  @override
+  String get complianceEvidenceFormatsHint => 'PDF, JPEG or PNG, up to 15 MB.';
+
+  @override
+  String get complianceEvidenceSubmit => 'Submit document';
+
+  @override
+  String get complianceEvidencePrivacyNotice => 'Your document is stored privately. Only your business and the reviewing team can see it.';
+
+  @override
+  String get complianceEvidenceStageRequestingSession => 'Preparing secure upload…';
+
+  @override
+  String get complianceEvidenceStageUploading => 'Uploading your document…';
+
+  @override
+  String get complianceEvidenceStageProcessing => 'Your document is being checked. This can take a few minutes.';
+
+  @override
+  String get complianceEvidenceStageAwaitingReview => 'Received and waiting for review';
+
+  @override
+  String get complianceEvidenceStageFailedRetryable => 'That document could not be processed. You can try again with a new file.';
+
+  @override
+  String get complianceEvidenceStageFailedTerminal => 'This document was rejected by our security check and cannot be used. Please prepare a different document.';
+
+  @override
+  String get complianceEvidenceUploadInProgressNotice => 'A document is already being processed. Please wait for it to finish before sending another.';
+
+  @override
+  String get complianceEvidenceErrorNotEnabled => 'Document upload is not available for this business yet.';
+
+  @override
+  String get complianceEvidenceErrorInvalidSubmission => 'This document could not be accepted. Check the file type and size, then try again.';
+
+  @override
+  String get complianceEvidenceErrorUploadFailed => 'The upload did not complete. Please try again.';
+
+  @override
+  String get complianceEvidenceErrorSessionConflict => 'Another submission is already in progress. Please wait a moment and try again.';
+
+  @override
+  String get complianceDocumentTypePurchaseInvoice => 'Purchase invoice';
+
+  @override
+  String get complianceDocumentTypeSupplierAgreement => 'Supplier agreement';
+
+  @override
+  String get complianceDocumentTypeAuthorizationLetter => 'Authorization letter';
+
+  @override
+  String get complianceDocumentTypeDealershipDistributionAgreement => 'Dealership or distribution agreement';
+
+  @override
+  String get complianceDocumentTypeTrademarkEvidence => 'Trademark evidence';
+
+  @override
+  String get complianceDocumentTypeManufacturerEvidence => 'Manufacturer evidence';
+
+  @override
+  String get complianceDocumentTypeImporterEvidence => 'Import evidence';
+
+  @override
   String get networkErrorTryAgain => 'Network error. Please try again.';
 }

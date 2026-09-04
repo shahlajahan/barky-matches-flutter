@@ -10538,5 +10538,86 @@ class AppLocalizationsRu extends AppLocalizations {
   String get productSlotCleanupPendingError => 'Место для этого товара ещё освобождается. Пожалуйста, повторите попытку через некоторое время.';
 
   @override
+  String get complianceEvidenceTitle => 'Документы соответствия';
+
+  @override
+  String get complianceEvidenceNotApprovalNotice => 'Отправка документа не означает одобрение. Документ проверяется до публикации любого товара.';
+
+  @override
+  String get complianceEvidenceRelationshipLabel => 'Ваше отношение к товару';
+
+  @override
+  String get complianceEvidenceDocumentTypeLabel => 'Тип документа';
+
+  @override
+  String get complianceEvidenceRequirementHint => 'Для этого отношения принимаются следующие типы документов.';
+
+  @override
+  String get complianceEvidencePickFile => 'Выбрать документ';
+
+  @override
+  String get complianceEvidenceFormatsHint => 'PDF, JPEG или PNG, до 15 МБ.';
+
+  @override
+  String get complianceEvidenceSubmit => 'Отправить документ';
+
+  @override
+  String get complianceEvidencePrivacyNotice => 'Ваш документ хранится приватно. Его видят только ваша компания и проверяющая команда.';
+
+  @override
+  String get complianceEvidenceStageRequestingSession => 'Подготовка защищённой загрузки…';
+
+  @override
+  String get complianceEvidenceStageUploading => 'Загрузка вашего документа…';
+
+  @override
+  String get complianceEvidenceStageProcessing => 'Ваш документ проверяется. Это может занять несколько минут.';
+
+  @override
+  String get complianceEvidenceStageAwaitingReview => 'Получено и ожидает проверки';
+
+  @override
+  String get complianceEvidenceStageFailedRetryable => 'Не удалось обработать документ. Попробуйте ещё раз с новым файлом.';
+
+  @override
+  String get complianceEvidenceStageFailedTerminal => 'Документ отклонён нашей проверкой безопасности и не может быть использован. Подготовьте другой документ.';
+
+  @override
+  String get complianceEvidenceUploadInProgressNotice => 'Документ уже обрабатывается. Дождитесь завершения, прежде чем отправлять другой.';
+
+  @override
+  String get complianceEvidenceErrorNotEnabled => 'Загрузка документов пока недоступна для этой компании.';
+
+  @override
+  String get complianceEvidenceErrorInvalidSubmission => 'Документ не принят. Проверьте тип и размер файла и повторите попытку.';
+
+  @override
+  String get complianceEvidenceErrorUploadFailed => 'Загрузка не завершена. Пожалуйста, попробуйте ещё раз.';
+
+  @override
+  String get complianceEvidenceErrorSessionConflict => 'Другая отправка уже выполняется. Подождите немного и повторите попытку.';
+
+  @override
+  String get complianceDocumentTypePurchaseInvoice => 'Счёт на покупку';
+
+  @override
+  String get complianceDocumentTypeSupplierAgreement => 'Договор с поставщиком';
+
+  @override
+  String get complianceDocumentTypeAuthorizationLetter => 'Письмо-разрешение';
+
+  @override
+  String get complianceDocumentTypeDealershipDistributionAgreement => 'Дилерский или дистрибьюторский договор';
+
+  @override
+  String get complianceDocumentTypeTrademarkEvidence => 'Подтверждение товарного знака';
+
+  @override
+  String get complianceDocumentTypeManufacturerEvidence => 'Подтверждение производителя';
+
+  @override
+  String get complianceDocumentTypeImporterEvidence => 'Подтверждение импорта';
+
+  @override
   String get networkErrorTryAgain => 'Ошибка сети. Попробуйте ещё раз.';
 }

@@ -19809,6 +19809,168 @@ abstract class AppLocalizations {
   /// **'This product slot is still being freed up. Please try again in a moment.'**
   String get productSlotCleanupPendingError;
 
+  /// No description provided for @complianceEvidenceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compliance documents'**
+  String get complianceEvidenceTitle;
+
+  /// No description provided for @complianceEvidenceNotApprovalNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting a document is not approval. Your document is reviewed before any product can be published.'**
+  String get complianceEvidenceNotApprovalNotice;
+
+  /// No description provided for @complianceEvidenceRelationshipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your relationship to the product'**
+  String get complianceEvidenceRelationshipLabel;
+
+  /// No description provided for @complianceEvidenceDocumentTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Document type'**
+  String get complianceEvidenceDocumentTypeLabel;
+
+  /// No description provided for @complianceEvidenceRequirementHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For this relationship, the following document types are accepted.'**
+  String get complianceEvidenceRequirementHint;
+
+  /// No description provided for @complianceEvidencePickFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose document'**
+  String get complianceEvidencePickFile;
+
+  /// No description provided for @complianceEvidenceFormatsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF, JPEG or PNG, up to 15 MB.'**
+  String get complianceEvidenceFormatsHint;
+
+  /// No description provided for @complianceEvidenceSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit document'**
+  String get complianceEvidenceSubmit;
+
+  /// No description provided for @complianceEvidencePrivacyNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Your document is stored privately. Only your business and the reviewing team can see it.'**
+  String get complianceEvidencePrivacyNotice;
+
+  /// No description provided for @complianceEvidenceStageRequestingSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing secure upload…'**
+  String get complianceEvidenceStageRequestingSession;
+
+  /// No description provided for @complianceEvidenceStageUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading your document…'**
+  String get complianceEvidenceStageUploading;
+
+  /// No description provided for @complianceEvidenceStageProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Your document is being checked. This can take a few minutes.'**
+  String get complianceEvidenceStageProcessing;
+
+  /// No description provided for @complianceEvidenceStageAwaitingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Received and waiting for review'**
+  String get complianceEvidenceStageAwaitingReview;
+
+  /// No description provided for @complianceEvidenceStageFailedRetryable.
+  ///
+  /// In en, this message translates to:
+  /// **'That document could not be processed. You can try again with a new file.'**
+  String get complianceEvidenceStageFailedRetryable;
+
+  /// No description provided for @complianceEvidenceStageFailedTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'This document was rejected by our security check and cannot be used. Please prepare a different document.'**
+  String get complianceEvidenceStageFailedTerminal;
+
+  /// No description provided for @complianceEvidenceUploadInProgressNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'A document is already being processed. Please wait for it to finish before sending another.'**
+  String get complianceEvidenceUploadInProgressNotice;
+
+  /// No description provided for @complianceEvidenceErrorNotEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Document upload is not available for this business yet.'**
+  String get complianceEvidenceErrorNotEnabled;
+
+  /// No description provided for @complianceEvidenceErrorInvalidSubmission.
+  ///
+  /// In en, this message translates to:
+  /// **'This document could not be accepted. Check the file type and size, then try again.'**
+  String get complianceEvidenceErrorInvalidSubmission;
+
+  /// No description provided for @complianceEvidenceErrorUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The upload did not complete. Please try again.'**
+  String get complianceEvidenceErrorUploadFailed;
+
+  /// No description provided for @complianceEvidenceErrorSessionConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Another submission is already in progress. Please wait a moment and try again.'**
+  String get complianceEvidenceErrorSessionConflict;
+
+  /// No description provided for @complianceDocumentTypePurchaseInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase invoice'**
+  String get complianceDocumentTypePurchaseInvoice;
+
+  /// No description provided for @complianceDocumentTypeSupplierAgreement.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplier agreement'**
+  String get complianceDocumentTypeSupplierAgreement;
+
+  /// No description provided for @complianceDocumentTypeAuthorizationLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization letter'**
+  String get complianceDocumentTypeAuthorizationLetter;
+
+  /// No description provided for @complianceDocumentTypeDealershipDistributionAgreement.
+  ///
+  /// In en, this message translates to:
+  /// **'Dealership or distribution agreement'**
+  String get complianceDocumentTypeDealershipDistributionAgreement;
+
+  /// No description provided for @complianceDocumentTypeTrademarkEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Trademark evidence'**
+  String get complianceDocumentTypeTrademarkEvidence;
+
+  /// No description provided for @complianceDocumentTypeManufacturerEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer evidence'**
+  String get complianceDocumentTypeManufacturerEvidence;
+
+  /// No description provided for @complianceDocumentTypeImporterEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Import evidence'**
+  String get complianceDocumentTypeImporterEvidence;
+
   /// No description provided for @networkErrorTryAgain.
   ///
   /// In en, this message translates to:
