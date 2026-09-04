@@ -320,9 +320,16 @@ function seedActivePolicy(store, sellerRelationshipOverride) {
   });
 }
 
+// Marketplace Revision 30 §F (Slice 5) — evidence verification now requires
+// the document and the product to carry the SAME business generation, so both
+// fixture builders default to one shared value exactly as production does.
+// A test that wants a generation mismatch overrides it explicitly.
+const GENERATION_ID = `gen-${BUSINESS_ID}`;
+
 function seedProduct(store, overrides = {}) {
   const data = {
     businessId: BUSINESS_ID,
+    marketplaceBusinessGenerationId: GENERATION_ID,
     name: "Test Product",
     category: "Health > Vitamins",
     brand: "Acme",
@@ -369,6 +376,7 @@ function seedScope(store, overrides = {}) {
 function seedDocument(store, documentId, overrides = {}) {
   const data = {
     businessId: BUSINESS_ID,
+    marketplaceBusinessGenerationId: GENERATION_ID,
     documentType: "purchase_invoice",
     sellerRelationship: SELLER_RELATIONSHIP.RESELLER,
     status: COMPLIANCE_DOCUMENT_STATUS.APPROVED,
@@ -3273,6 +3281,9 @@ async function rev13SeedApprovedScope({ scopeId, businessId, documentId, sellerR
   });
   await rev13Db.collection(DOCUMENTS_COLLECTION).doc(documentId).set({
     businessId,
+    // Revision 30 §F (Slice 5) — the document must carry the same business
+    // generation as the product it is matched against.
+    marketplaceBusinessGenerationId: `gen-${businessId}`,
     documentType,
     sellerRelationship,
     status: "approved",
@@ -3352,6 +3363,7 @@ itest("real emulator (Revision 13): runComplianceMatching consumes a real wrappe
 
     await productRef.set({
       businessId,
+      marketplaceBusinessGenerationId: `gen-${businessId}`,
       sellerRelationship: "manufacturer",
       productInputRevision: 1,
     });
@@ -3447,7 +3459,12 @@ itest("real emulator (Revision 13): one unsatisfied required group fails the who
     const versionSnap = await versionRef.get();
     const resolved = { activeVersionId: versionId, version: versionSnap.data() };
 
-    await productRef.set({ businessId, sellerRelationship: "manufacturer", productInputRevision: 1 });
+    await productRef.set({
+      businessId,
+      marketplaceBusinessGenerationId: `gen-${businessId}`,
+      sellerRelationship: "manufacturer",
+      productInputRevision: 1,
+    });
     // Only group 1's requirement is ever provided — group 2 has zero
     // matching evidence.
     await rev13SeedApprovedScope({

@@ -498,6 +498,34 @@ async function verifyOneSource({ tx, db, documentId, group, product, relationshi
   if (!isPlainObject(source)) return { verified: false, source: null };
   if (source.businessId !== product.businessId) return { verified: false, source: null };
   if (source.status !== COMPLIANCE_DOCUMENT_STATUS.APPROVED) return { verified: false, source: null };
+
+  // Marketplace Revision 30 §F (Slice 5) — generation binding.
+  //
+  // §F freezes the authoritative chain `businessId ->
+  // marketplaceBusinessGenerationId -> productId -> ... ->
+  // productEvidenceLink -> productComplianceDecision`, and states without
+  // qualification: "No same-id business and no recreated product may ever
+  // inherit evidence from an earlier generation."
+  //
+  // businessId equality alone does NOT establish that: a business deleted
+  // and recreated under the same id keeps its id and changes only its
+  // generation, so evidence approved for the previous generation would
+  // otherwise still verify here. Both sides must carry a well-formed
+  // generation and they must be equal. An absent, empty or wrong-typed
+  // value on EITHER side is never read as "this pair has no generation and
+  // that is fine" — it is read as ownership that cannot be proven, and
+  // fails closed, exactly as the intake and evidence-access paths do.
+  const sourceGeneration = source.marketplaceBusinessGenerationId;
+  const productGeneration = product.marketplaceBusinessGenerationId;
+  if (
+    typeof sourceGeneration !== "string" ||
+    sourceGeneration.length === 0 ||
+    typeof productGeneration !== "string" ||
+    productGeneration.length === 0 ||
+    sourceGeneration !== productGeneration
+  ) {
+    return { verified: false, source: null };
+  }
   // Full triple-equality: product <-> source document <-> scope.
   if (source.sellerRelationship !== relationship) return { verified: false, source: null };
   const sourceValidUntilMs = toMillis(source.validUntil);

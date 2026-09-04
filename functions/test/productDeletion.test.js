@@ -63,6 +63,9 @@ async function seedProduct(businessId, overrides = {}) {
     .doc(productId)
     .set({
       businessId,
+      // Revision 30 §F (Slice 5) — the product's own generation, matched
+      // against its evidence during compliance evaluation.
+      marketplaceBusinessGenerationId: `gen-${businessId}`,
       name: "Test Product",
       price: 10,
       stock: 5,
@@ -201,6 +204,7 @@ async function seedModerationEvidence({ businessId, category }) {
   const validUntil = admin.firestore.Timestamp.fromMillis(Date.now() + 1_000_000_000);
   await db.collection("complianceDocuments").doc(documentId).set({
     businessId,
+    marketplaceBusinessGenerationId: `gen-${businessId}`,
     documentType: "purchase_invoice",
     sellerRelationship: SELLER_RELATIONSHIP.RESELLER,
     status: COMPLIANCE_DOCUMENT_STATUS.APPROVED,

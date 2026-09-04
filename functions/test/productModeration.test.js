@@ -324,6 +324,9 @@ function ts(ms) {
 }
 
 const BUSINESS_ID = "biz-mod-1";
+// Revision 30 §F (Slice 5) — one shared generation for the product and its
+// evidence, exactly as production writes them.
+const GENERATION_ID = "gen-biz-mod-1";
 const PRODUCT_ID = "prod-mod-1";
 const VERSION_ID = "policy-v1";
 const ADMIN_UID = "admin-1";
@@ -359,6 +362,7 @@ function seedAdmin(store, uid = ADMIN_UID) {
 function seedProduct(store, overrides = {}) {
   const data = {
     businessId: BUSINESS_ID,
+    marketplaceBusinessGenerationId: GENERATION_ID,
     name: "Test Product",
     category: "Health > Vitamins",
     brand: undefined,
@@ -383,6 +387,9 @@ function seedScopeAndDocument(store, { documentType = "purchase_invoice", validU
   const scopeId = "scope-mod-1";
   seedDoc(store, DOCUMENTS_COLLECTION, documentId, {
     businessId: BUSINESS_ID,
+    // Revision 30 §F (Slice 5) — evidence is bound to the business
+    // generation, and must match the product's own.
+    marketplaceBusinessGenerationId: GENERATION_ID,
     documentType,
     sellerRelationship: SELLER_RELATIONSHIP.RESELLER,
     status: COMPLIANCE_DOCUMENT_STATUS.APPROVED,
