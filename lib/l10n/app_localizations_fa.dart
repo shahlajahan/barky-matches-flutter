@@ -10641,5 +10641,104 @@ class AppLocalizationsFa extends AppLocalizations {
   String get complianceEvidencePickValidUntil => 'انتخاب تاریخ';
 
   @override
+  String get adminComplianceReviewTitle => 'بررسی مدارک';
+
+  @override
+  String get adminComplianceReviewSubtitle => 'بررسی مدارک انطباق فروشنده';
+
+  @override
+  String get adminComplianceReviewEmpty => 'هیچ مدرکی در انتظار بررسی نیست.';
+
+  @override
+  String get adminComplianceReviewLoadMore => 'بارگذاری بیشتر';
+
+  @override
+  String get adminComplianceReviewNotApprovalScope => 'تأیید این مدرک تنها خود مدرک را تأیید می‌کند و هیچ محصولی را منتشر، فعال یا طبقه‌بندی نمی‌کند.';
+
+  @override
+  String get adminComplianceReviewBusiness => 'کسب‌وکار';
+
+  @override
+  String get adminComplianceReviewDocumentType => 'نوع مدرک';
+
+  @override
+  String get adminComplianceReviewRelationship => 'رابطه اعلام‌شده';
+
+  @override
+  String get adminComplianceReviewValidUntil => 'معتبر تا';
+
+  @override
+  String get adminComplianceReviewUploadedAt => 'زمان بارگذاری';
+
+  @override
+  String get adminComplianceReviewProvenance => 'اصالت';
+
+  @override
+  String get adminComplianceReviewScanState => 'از بررسی بدافزار عبور کرد';
+
+  @override
+  String get adminComplianceReviewLoadEvidence => 'بارگذاری مدرک';
+
+  @override
+  String get adminComplianceReviewOpenDocument => 'باز کردن مدرک';
+
+  @override
+  String get adminComplianceReviewEvidenceLoading => 'در حال دریافت مدرک…';
+
+  @override
+  String get adminComplianceReviewEvidenceExpired => 'دسترسی به این مدرک منقضی شد. برای ادامه دوباره بارگذاری کنید.';
+
+  @override
+  String get adminComplianceReviewEvidenceFailed => 'مدرک دریافت نشد.';
+
+  @override
+  String get adminComplianceReviewEvidenceUnsupported => 'این قالب مدرک قابل نمایش نیست.';
+
+  @override
+  String get adminComplianceReviewMustViewFirst => 'پیش از تصمیم‌گیری مدرک را باز کنید.';
+
+  @override
+  String get adminComplianceReviewApprove => 'تأیید مدرک';
+
+  @override
+  String get adminComplianceReviewReject => 'رد مدرک';
+
+  @override
+  String get adminComplianceReviewRejectionReasonLabel => 'دلیل رد';
+
+  @override
+  String get adminComplianceReviewRejectionReasonRequired => 'پیش از رد کردن، دلیلی وارد کنید.';
+
+  @override
+  String get adminComplianceReviewDeciding => 'در حال ثبت تصمیم…';
+
+  @override
+  String get adminComplianceReviewStale => 'برای این مدرک قبلاً تصمیم گرفته شده است. وضعیت فعلی نمایش داده می‌شود.';
+
+  @override
+  String get adminComplianceReviewUnknownState => 'این مدرک در وضعیتی است که برنامه آن را نمی‌شناسد. اقدامی ممکن نیست.';
+
+  @override
+  String get adminComplianceReviewStatusPendingReview => 'در انتظار بررسی';
+
+  @override
+  String get adminComplianceReviewStatusApproved => 'تأیید شد';
+
+  @override
+  String get adminComplianceReviewStatusRejected => 'رد شد';
+
+  @override
+  String get adminComplianceReviewStatusClean => 'هنوز ارسال نشده';
+
+  @override
+  String get adminComplianceReviewStatusRevoked => 'باطل شد';
+
+  @override
+  String get adminComplianceReviewStatusExpired => 'منقضی شد';
+
+  @override
+  String get adminComplianceReviewStatusSuperseded => 'جایگزین شد';
+
+  @override
   String get networkErrorTryAgain => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
 }

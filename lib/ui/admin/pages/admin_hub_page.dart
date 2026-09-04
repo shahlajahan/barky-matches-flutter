@@ -21,6 +21,7 @@ import '../user_satisfaction/admin_user_satisfaction_page.dart';
 import 'package:barky_matches_fixed/ui/admin/payments/admin_payouts_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'admin_return_disputes_page.dart';
+import 'compliance_evidence_review_page.dart';
 import 'pilot_product_approval_list_page.dart';
 
 class AdminHubPage extends StatelessWidget {
@@ -109,6 +110,12 @@ class AdminHubPage extends StatelessWidget {
           ),
           _AdminItem(
             icon: Icons.fact_check_outlined,
+            title: l10n.adminComplianceReviewTitle,
+            subtitle: l10n.adminComplianceReviewSubtitle,
+            pageBuilder: () => const ComplianceEvidenceReviewListPage(),
+          ),
+          _AdminItem(
+            icon: Icons.rule_folder_outlined,
             title: l10n.adminHubPilotProductApprovalsTitle,
             subtitle: l10n.adminHubPilotProductApprovalsSubtitle,
             pageBuilder: () => const PilotProductApprovalListPage(),
@@ -258,9 +265,7 @@ class _PlaceholderPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title), backgroundColor: Colors.pink),
-      body: Center(
-        child: Text(AppLocalizations.of(context)!.comingSoon),
-      ),
+      body: Center(child: Text(AppLocalizations.of(context)!.comingSoon)),
     );
   }
 }

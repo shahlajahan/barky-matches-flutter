@@ -10643,5 +10643,104 @@ class AppLocalizationsRu extends AppLocalizations {
   String get complianceEvidencePickValidUntil => 'Выбрать дату';
 
   @override
+  String get adminComplianceReviewTitle => 'Проверка документов';
+
+  @override
+  String get adminComplianceReviewSubtitle => 'Проверка документов соответствия продавцов';
+
+  @override
+  String get adminComplianceReviewEmpty => 'Нет документов, ожидающих проверки.';
+
+  @override
+  String get adminComplianceReviewLoadMore => 'Загрузить ещё';
+
+  @override
+  String get adminComplianceReviewNotApprovalScope => 'Одобрение документа одобряет только документ. Оно не публикует, не активирует и не классифицирует товар.';
+
+  @override
+  String get adminComplianceReviewBusiness => 'Компания';
+
+  @override
+  String get adminComplianceReviewDocumentType => 'Тип документа';
+
+  @override
+  String get adminComplianceReviewRelationship => 'Заявленное отношение';
+
+  @override
+  String get adminComplianceReviewValidUntil => 'Действителен до';
+
+  @override
+  String get adminComplianceReviewUploadedAt => 'Загружено';
+
+  @override
+  String get adminComplianceReviewProvenance => 'Происхождение';
+
+  @override
+  String get adminComplianceReviewScanState => 'Проверка на вредоносное ПО пройдена';
+
+  @override
+  String get adminComplianceReviewLoadEvidence => 'Загрузить документ';
+
+  @override
+  String get adminComplianceReviewOpenDocument => 'Открыть документ';
+
+  @override
+  String get adminComplianceReviewEvidenceLoading => 'Получение документа…';
+
+  @override
+  String get adminComplianceReviewEvidenceExpired => 'Доступ к документу истёк. Загрузите его снова, чтобы продолжить.';
+
+  @override
+  String get adminComplianceReviewEvidenceFailed => 'Не удалось получить документ.';
+
+  @override
+  String get adminComplianceReviewEvidenceUnsupported => 'Этот формат документа не может быть показан.';
+
+  @override
+  String get adminComplianceReviewMustViewFirst => 'Откройте документ перед принятием решения.';
+
+  @override
+  String get adminComplianceReviewApprove => 'Одобрить документ';
+
+  @override
+  String get adminComplianceReviewReject => 'Отклонить документ';
+
+  @override
+  String get adminComplianceReviewRejectionReasonLabel => 'Причина отклонения';
+
+  @override
+  String get adminComplianceReviewRejectionReasonRequired => 'Укажите причину перед отклонением.';
+
+  @override
+  String get adminComplianceReviewDeciding => 'Сохранение решения…';
+
+  @override
+  String get adminComplianceReviewStale => 'Решение по этому документу уже принято. Показано текущее состояние.';
+
+  @override
+  String get adminComplianceReviewUnknownState => 'Документ находится в состоянии, которое приложение не распознаёт. Действия невозможны.';
+
+  @override
+  String get adminComplianceReviewStatusPendingReview => 'Ожидает проверки';
+
+  @override
+  String get adminComplianceReviewStatusApproved => 'Одобрен';
+
+  @override
+  String get adminComplianceReviewStatusRejected => 'Отклонён';
+
+  @override
+  String get adminComplianceReviewStatusClean => 'Ещё не отправлен';
+
+  @override
+  String get adminComplianceReviewStatusRevoked => 'Отозван';
+
+  @override
+  String get adminComplianceReviewStatusExpired => 'Истёк';
+
+  @override
+  String get adminComplianceReviewStatusSuperseded => 'Заменён';
+
+  @override
   String get networkErrorTryAgain => 'Ошибка сети. Попробуйте ещё раз.';
 }

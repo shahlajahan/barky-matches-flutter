@@ -10641,5 +10641,104 @@ class AppLocalizationsTr extends AppLocalizations {
   String get complianceEvidencePickValidUntil => 'Tarih seç';
 
   @override
+  String get adminComplianceReviewTitle => 'Belge incelemesi';
+
+  @override
+  String get adminComplianceReviewSubtitle => 'Satıcı uygunluk belgelerini inceleyin';
+
+  @override
+  String get adminComplianceReviewEmpty => 'İnceleme bekleyen belge yok.';
+
+  @override
+  String get adminComplianceReviewLoadMore => 'Daha fazla yükle';
+
+  @override
+  String get adminComplianceReviewNotApprovalScope => 'Bu belgeyi onaylamak yalnızca belgeyi onaylar. Hiçbir ürünü yayınlamaz, etkinleştirmez veya sınıflandırmaz.';
+
+  @override
+  String get adminComplianceReviewBusiness => 'İşletme';
+
+  @override
+  String get adminComplianceReviewDocumentType => 'Belge türü';
+
+  @override
+  String get adminComplianceReviewRelationship => 'Beyan edilen ilişki';
+
+  @override
+  String get adminComplianceReviewValidUntil => 'Geçerlilik bitişi';
+
+  @override
+  String get adminComplianceReviewUploadedAt => 'Yüklenme';
+
+  @override
+  String get adminComplianceReviewProvenance => 'Kaynak bilgisi';
+
+  @override
+  String get adminComplianceReviewScanState => 'Kötü amaçlı yazılım taramasından geçti';
+
+  @override
+  String get adminComplianceReviewLoadEvidence => 'Belgeyi yükle';
+
+  @override
+  String get adminComplianceReviewOpenDocument => 'Belgeyi aç';
+
+  @override
+  String get adminComplianceReviewEvidenceLoading => 'Belge alınıyor…';
+
+  @override
+  String get adminComplianceReviewEvidenceExpired => 'Bu belgeye erişim süresi doldu. Devam etmek için yeniden yükleyin.';
+
+  @override
+  String get adminComplianceReviewEvidenceFailed => 'Belge alınamadı.';
+
+  @override
+  String get adminComplianceReviewEvidenceUnsupported => 'Bu belge biçimi görüntülenemiyor.';
+
+  @override
+  String get adminComplianceReviewMustViewFirst => 'Karar vermeden önce belgeyi açın.';
+
+  @override
+  String get adminComplianceReviewApprove => 'Belgeyi onayla';
+
+  @override
+  String get adminComplianceReviewReject => 'Belgeyi reddet';
+
+  @override
+  String get adminComplianceReviewRejectionReasonLabel => 'Ret gerekçesi';
+
+  @override
+  String get adminComplianceReviewRejectionReasonRequired => 'Reddetmeden önce bir gerekçe girin.';
+
+  @override
+  String get adminComplianceReviewDeciding => 'Karar kaydediliyor…';
+
+  @override
+  String get adminComplianceReviewStale => 'Bu belge zaten karara bağlanmış. Güncel durum gösteriliyor.';
+
+  @override
+  String get adminComplianceReviewUnknownState => 'Bu belge, uygulamanın tanımadığı bir durumda. İşlem yapılamaz.';
+
+  @override
+  String get adminComplianceReviewStatusPendingReview => 'İnceleme bekliyor';
+
+  @override
+  String get adminComplianceReviewStatusApproved => 'Onaylandı';
+
+  @override
+  String get adminComplianceReviewStatusRejected => 'Reddedildi';
+
+  @override
+  String get adminComplianceReviewStatusClean => 'Henüz gönderilmedi';
+
+  @override
+  String get adminComplianceReviewStatusRevoked => 'İptal edildi';
+
+  @override
+  String get adminComplianceReviewStatusExpired => 'Süresi doldu';
+
+  @override
+  String get adminComplianceReviewStatusSuperseded => 'Yerine yenisi geçti';
+
+  @override
   String get networkErrorTryAgain => 'Ağ hatası. Lütfen tekrar deneyin.';
 }

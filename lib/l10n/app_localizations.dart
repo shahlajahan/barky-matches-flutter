@@ -20019,6 +20019,204 @@ abstract class AppLocalizations {
   /// **'Choose date'**
   String get complianceEvidencePickValidUntil;
 
+  /// No description provided for @adminComplianceReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Evidence review'**
+  String get adminComplianceReviewTitle;
+
+  /// No description provided for @adminComplianceReviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review seller compliance documents'**
+  String get adminComplianceReviewSubtitle;
+
+  /// No description provided for @adminComplianceReviewEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No documents are waiting for review.'**
+  String get adminComplianceReviewEmpty;
+
+  /// No description provided for @adminComplianceReviewLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get adminComplianceReviewLoadMore;
+
+  /// No description provided for @adminComplianceReviewNotApprovalScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Approving this document approves the document only. It does not publish, activate or classify any product.'**
+  String get adminComplianceReviewNotApprovalScope;
+
+  /// No description provided for @adminComplianceReviewBusiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Business'**
+  String get adminComplianceReviewBusiness;
+
+  /// No description provided for @adminComplianceReviewDocumentType.
+  ///
+  /// In en, this message translates to:
+  /// **'Document type'**
+  String get adminComplianceReviewDocumentType;
+
+  /// No description provided for @adminComplianceReviewRelationship.
+  ///
+  /// In en, this message translates to:
+  /// **'Declared relationship'**
+  String get adminComplianceReviewRelationship;
+
+  /// No description provided for @adminComplianceReviewValidUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid until'**
+  String get adminComplianceReviewValidUntil;
+
+  /// No description provided for @adminComplianceReviewUploadedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded'**
+  String get adminComplianceReviewUploadedAt;
+
+  /// No description provided for @adminComplianceReviewProvenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Provenance'**
+  String get adminComplianceReviewProvenance;
+
+  /// No description provided for @adminComplianceReviewScanState.
+  ///
+  /// In en, this message translates to:
+  /// **'Passed malware scan'**
+  String get adminComplianceReviewScanState;
+
+  /// No description provided for @adminComplianceReviewLoadEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Load document'**
+  String get adminComplianceReviewLoadEvidence;
+
+  /// No description provided for @adminComplianceReviewOpenDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Open document'**
+  String get adminComplianceReviewOpenDocument;
+
+  /// No description provided for @adminComplianceReviewEvidenceLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrieving document…'**
+  String get adminComplianceReviewEvidenceLoading;
+
+  /// No description provided for @adminComplianceReviewEvidenceExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Access to this document expired. Load it again to continue.'**
+  String get adminComplianceReviewEvidenceExpired;
+
+  /// No description provided for @adminComplianceReviewEvidenceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The document could not be retrieved.'**
+  String get adminComplianceReviewEvidenceFailed;
+
+  /// No description provided for @adminComplianceReviewEvidenceUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This document format cannot be displayed.'**
+  String get adminComplianceReviewEvidenceUnsupported;
+
+  /// No description provided for @adminComplianceReviewMustViewFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the document before making a decision.'**
+  String get adminComplianceReviewMustViewFirst;
+
+  /// No description provided for @adminComplianceReviewApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve document'**
+  String get adminComplianceReviewApprove;
+
+  /// No description provided for @adminComplianceReviewReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject document'**
+  String get adminComplianceReviewReject;
+
+  /// No description provided for @adminComplianceReviewRejectionReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for rejection'**
+  String get adminComplianceReviewRejectionReasonLabel;
+
+  /// No description provided for @adminComplianceReviewRejectionReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a reason before rejecting.'**
+  String get adminComplianceReviewRejectionReasonRequired;
+
+  /// No description provided for @adminComplianceReviewDeciding.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording decision…'**
+  String get adminComplianceReviewDeciding;
+
+  /// No description provided for @adminComplianceReviewStale.
+  ///
+  /// In en, this message translates to:
+  /// **'This document was already decided. Showing the current state.'**
+  String get adminComplianceReviewStale;
+
+  /// No description provided for @adminComplianceReviewUnknownState.
+  ///
+  /// In en, this message translates to:
+  /// **'This document is in a state this app does not recognise. No action is possible.'**
+  String get adminComplianceReviewUnknownState;
+
+  /// No description provided for @adminComplianceReviewStatusPendingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for review'**
+  String get adminComplianceReviewStatusPendingReview;
+
+  /// No description provided for @adminComplianceReviewStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get adminComplianceReviewStatusApproved;
+
+  /// No description provided for @adminComplianceReviewStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get adminComplianceReviewStatusRejected;
+
+  /// No description provided for @adminComplianceReviewStatusClean.
+  ///
+  /// In en, this message translates to:
+  /// **'Not submitted yet'**
+  String get adminComplianceReviewStatusClean;
+
+  /// No description provided for @adminComplianceReviewStatusRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoked'**
+  String get adminComplianceReviewStatusRevoked;
+
+  /// No description provided for @adminComplianceReviewStatusExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get adminComplianceReviewStatusExpired;
+
+  /// No description provided for @adminComplianceReviewStatusSuperseded.
+  ///
+  /// In en, this message translates to:
+  /// **'Superseded'**
+  String get adminComplianceReviewStatusSuperseded;
+
   /// No description provided for @networkErrorTryAgain.
   ///
   /// In en, this message translates to:

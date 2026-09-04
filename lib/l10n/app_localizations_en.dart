@@ -10641,5 +10641,104 @@ class AppLocalizationsEn extends AppLocalizations {
   String get complianceEvidencePickValidUntil => 'Choose date';
 
   @override
+  String get adminComplianceReviewTitle => 'Evidence review';
+
+  @override
+  String get adminComplianceReviewSubtitle => 'Review seller compliance documents';
+
+  @override
+  String get adminComplianceReviewEmpty => 'No documents are waiting for review.';
+
+  @override
+  String get adminComplianceReviewLoadMore => 'Load more';
+
+  @override
+  String get adminComplianceReviewNotApprovalScope => 'Approving this document approves the document only. It does not publish, activate or classify any product.';
+
+  @override
+  String get adminComplianceReviewBusiness => 'Business';
+
+  @override
+  String get adminComplianceReviewDocumentType => 'Document type';
+
+  @override
+  String get adminComplianceReviewRelationship => 'Declared relationship';
+
+  @override
+  String get adminComplianceReviewValidUntil => 'Valid until';
+
+  @override
+  String get adminComplianceReviewUploadedAt => 'Uploaded';
+
+  @override
+  String get adminComplianceReviewProvenance => 'Provenance';
+
+  @override
+  String get adminComplianceReviewScanState => 'Passed malware scan';
+
+  @override
+  String get adminComplianceReviewLoadEvidence => 'Load document';
+
+  @override
+  String get adminComplianceReviewOpenDocument => 'Open document';
+
+  @override
+  String get adminComplianceReviewEvidenceLoading => 'Retrieving document…';
+
+  @override
+  String get adminComplianceReviewEvidenceExpired => 'Access to this document expired. Load it again to continue.';
+
+  @override
+  String get adminComplianceReviewEvidenceFailed => 'The document could not be retrieved.';
+
+  @override
+  String get adminComplianceReviewEvidenceUnsupported => 'This document format cannot be displayed.';
+
+  @override
+  String get adminComplianceReviewMustViewFirst => 'Open the document before making a decision.';
+
+  @override
+  String get adminComplianceReviewApprove => 'Approve document';
+
+  @override
+  String get adminComplianceReviewReject => 'Reject document';
+
+  @override
+  String get adminComplianceReviewRejectionReasonLabel => 'Reason for rejection';
+
+  @override
+  String get adminComplianceReviewRejectionReasonRequired => 'Enter a reason before rejecting.';
+
+  @override
+  String get adminComplianceReviewDeciding => 'Recording decision…';
+
+  @override
+  String get adminComplianceReviewStale => 'This document was already decided. Showing the current state.';
+
+  @override
+  String get adminComplianceReviewUnknownState => 'This document is in a state this app does not recognise. No action is possible.';
+
+  @override
+  String get adminComplianceReviewStatusPendingReview => 'Waiting for review';
+
+  @override
+  String get adminComplianceReviewStatusApproved => 'Approved';
+
+  @override
+  String get adminComplianceReviewStatusRejected => 'Rejected';
+
+  @override
+  String get adminComplianceReviewStatusClean => 'Not submitted yet';
+
+  @override
+  String get adminComplianceReviewStatusRevoked => 'Revoked';
+
+  @override
+  String get adminComplianceReviewStatusExpired => 'Expired';
+
+  @override
+  String get adminComplianceReviewStatusSuperseded => 'Superseded';
+
+  @override
   String get networkErrorTryAgain => 'Network error. Please try again.';
 }
