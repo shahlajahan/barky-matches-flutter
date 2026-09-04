@@ -348,6 +348,10 @@ const {
   submitMarketplaceProduct,
 } = require("./src/marketplace/product/submitMarketplaceProduct");
 const {
+  runBusinessDeletionCascade,
+  resumeIncompleteBusinessDeletionCascades,
+} = require("./src/marketplace/product/businessDeletionCascade");
+const {
   approvePilotProduct,
   revokePilotProductApproval,
   unpublishPilotProductForRevision,
@@ -707,8 +711,21 @@ exports.syncBusinessPublicProjectionTrigger = onDocumentWritten(
 // the primary immediate-safety mechanism (that role belongs to the
 // Rules-level zero-counter delete precondition and, for this file's own
 // account-deletion path, the merged transaction above).
+// Marketplace Revision 33 §A(6)/§E — the authoritative business-deletion
+// cascade. Deactivation alone is insufficient generation cleanup: an
+// inactive product document still occupies its deterministic ID
+// `${businessId}_${normalizedSku}`, so a business recreated under the same
+// ID could never reuse its own SKUs. The cascade deletes each product of
+// the DELETED generation through the shared cleanup primitive, freeing the
+// ID, and takes its generation authority from the deleted snapshot — never
+// from the live business document, which may already be a new generation.
+//
+// The pre-existing deactivation runs first and is deliberately retained: it
+// is the immediate, synchronous safety property (nothing of the deleted
+// business stays publicly visible for even one page of cascade work), while
+// the cascade is the eventual, resumable cleanup behind it.
 exports.deactivatePilotProductsOnBusinessDeleted = onDocumentDeleted(
-  { document: "businesses/{businessId}", region: "europe-west1" },
+  { document: "businesses/{businessId}", region: "europe-west1", timeoutSeconds: 540 },
   async (event) => {
     const businessId = event.params.businessId;
     await db.runTransaction((tx) =>
@@ -716,6 +733,36 @@ exports.deactivatePilotProductsOnBusinessDeleted = onDocumentDeleted(
         reasonCode: PILOT_PRODUCT_APPROVAL_REASON_CODE.REVOKED_BUSINESS_DELETED,
       })
     );
+
+    const deletedBusiness = (event.data && event.data.data()) || {};
+    const deletedGeneration = deletedBusiness.marketplaceBusinessGenerationId;
+    await runBusinessDeletionCascade({
+      db,
+      storage: admin.storage(),
+      bucketName: defaultStorageBucketName(),
+      businessId,
+      deletedGeneration:
+        typeof deletedGeneration === "string" && deletedGeneration.length > 0
+          ? deletedGeneration
+          : null,
+      logger,
+    });
+  }
+);
+
+// Resumes any cascade that did not finish inside its trigger invocation —
+// a very large business, a transient failure, or a lost at-least-once
+// delivery. Mirrors the established complianceUploadReconciliation shape:
+// bounded page, transactional lease, expired leases reclaimable.
+exports.resumeMarketplaceBusinessDeletionCascades = onSchedule(
+  { schedule: "every 5 minutes", region: "europe-west3", timeoutSeconds: 540 },
+  async () => {
+    await resumeIncompleteBusinessDeletionCascades({
+      db,
+      storage: admin.storage(),
+      bucketName: defaultStorageBucketName(),
+      logger,
+    });
   }
 );
 
@@ -20243,11 +20290,29 @@ exports.reviewProductModeration = onCall({ region: "europe-west3" }, async (requ
 // shipped Flutter client calls it yet. Thin exports.* wiring only, same
 // convention as the Slice 4.4 callable immediately above; all business
 // logic lives in functions/src/marketplace/compliance/productDeletion.js.
+// Revision 33 — resolves the default Storage bucket without ever throwing.
+// `admin.storage().bucket()` raises when no storageBucket is configured, and
+// product deletion must never fail because media cleanup is unavailable: with
+// no resolvable bucket the cleanup primitive can prove no object's provenance,
+// so every media reference is preserved and recorded instead of deleted.
+function defaultStorageBucketName() {
+  try {
+    return admin.storage().bucket().name;
+  } catch (_) {
+    return null;
+  }
+}
+
 exports.deleteMarketplaceProduct = onCall({ region: "europe-west3" }, async (request) =>
   deleteMarketplaceProduct({
     db: admin.firestore(),
     auth: request.auth,
     data: request.data,
+    // Revision 33: the callable now also removes the product's own
+    // exclusively-owned media, after — never before — the deletion
+    // transaction commits.
+    storage: admin.storage(),
+    bucketName: defaultStorageBucketName(),
   })
 );
 
@@ -33342,7 +33407,7 @@ exports.finalizeBusinessMedia = onCall(
         storage: admin.storage(),
         auth: request.auth,
         data: request.data,
-        bucketName: admin.storage().bucket().name,
+        bucketName: defaultStorageBucketName(),
         uuid: () => crypto.randomUUID(),
         logger,
       });

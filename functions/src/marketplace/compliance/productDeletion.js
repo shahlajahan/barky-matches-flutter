@@ -34,6 +34,15 @@ const {
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
 } = require("./complianceConstants");
 const { REASON_CODE: PILOT_PRODUCT_APPROVAL_REASON_CODE } = require("./pilotProductApproval");
+// Revision 33 §A(5) — the single authoritative cleanup primitive, shared
+// with the business-deletion cascade so the two can never drift.
+const {
+  cleanupProductFirestoreState,
+  deleteProductMediaObjects,
+  MalformedDecisionStateError,
+  CLEANUP_SOURCE,
+  CLEANUP_OUTCOME,
+} = require("../product/productCleanup");
 
 const PRODUCTS_COLLECTION = "businesses";
 const DECISIONS_COLLECTION = "productComplianceDecisions";
@@ -60,6 +69,9 @@ const REQUEST_ALLOWED_FIELDS = Object.freeze([
 // carried in `HttpsError`'s own `details.reasonCode`. Never the
 // product/business ID, never SKU, never evidence content.
 const REASON = Object.freeze({
+  // Revision 33: a product bound to an earlier generation of a recreated
+  // business is never removed through the seller-facing path.
+  GENERATION_MISMATCH: "generation_mismatch",
   UNAUTHENTICATED: "unauthenticated",
   INVALID_REQUEST: "invalid_request",
   BUSINESS_NOT_FOUND: "business_not_found",
@@ -231,7 +243,15 @@ function deriveLinkRefsOrFailClosed({ db, productId, businessId, decision }) {
 // `tx`-aware read), product, decision-if-present — ≤4 total. Writes:
 // ≤10 link deletes, 1 decision delete (if present), 1 product delete, 1
 // receipt create — ≤13 total. All reads precede all writes.
-async function deleteMarketplaceProductCore({ db, auth, data, now }) {
+async function deleteMarketplaceProductCore({
+  db,
+  auth,
+  data,
+  now,
+  storage = null,
+  bucketName = null,
+  logger = console,
+}) {
   if (!auth || !auth.uid) {
     throw new HttpsError("unauthenticated", "Login required", {
       reasonCode: REASON.UNAUTHENTICATED,
@@ -246,7 +266,14 @@ async function deleteMarketplaceProductCore({ db, auth, data, now }) {
   });
   const receiptDocRef = db.collection(RECEIPTS_COLLECTION).doc(receiptId);
 
-  return db.runTransaction(async (tx) => {
+  // Firestore and Storage cannot share a transaction. The transaction is the
+  // authority: it commits the deletion, and only afterwards are the objects
+  // it proved deletable removed. A Storage failure never resurrects the
+  // product document — it is reported, best-effort and idempotent.
+  let pendingMediaObjects = [];
+
+  const result = await db.runTransaction(async (tx) => {
+    pendingMediaObjects = [];
     const nowMs = typeof now === "function" ? now() : Date.now();
 
     // Read 1: the deterministic receipt (Case A/B replay short-circuit).
@@ -266,8 +293,11 @@ async function deleteMarketplaceProductCore({ db, auth, data, now }) {
       );
     }
 
+    // Revision 33: the ownership read's own snapshot is reused below for the
+    // generation binding, so the transaction keeps exactly one business read.
+    let businessSnapForGeneration = null;
     try {
-      await assertCallerOwnsBusiness({
+      businessSnapForGeneration = await assertCallerOwnsBusiness({
         db,
         businessId: request.businessId,
         uid: auth.uid,
@@ -289,78 +319,70 @@ async function deleteMarketplaceProductCore({ db, auth, data, now }) {
       throw err;
     }
 
-    const productDocRef = productRef(db, request.businessId, request.productId);
-    const productSnap = await tx.get(productDocRef);
-    if (!productSnap.exists) {
+    // Revision 33 §A(5): the destructive half is delegated to the shared
+    // cleanup primitive, which both this callable and the business-deletion
+    // cascade use. Every outcome below maps back onto this callable's own
+    // frozen reason codes, so its public contract is unchanged.
+    //
+    // `expectedGenerationId` is always derived server-side, never accepted
+    // from the client. When the owning business carries no generation
+    // binding at all (legacy or pre-Revision-28 data) it is null and
+    // generation verification does not apply — recorded as unverified in
+    // the cleanup audit rather than silently assumed to match.
+    const businessGeneration =
+      businessSnapForGeneration && businessSnapForGeneration.exists
+        ? (businessSnapForGeneration.data() || {}).marketplaceBusinessGenerationId
+        : null;
+    const expectedGenerationId =
+      typeof businessGeneration === "string" && businessGeneration.length > 0
+        ? businessGeneration
+        : null;
+
+    let cleanup;
+    try {
+      cleanup = await cleanupProductFirestoreState({
+        db,
+        tx,
+        businessId: request.businessId,
+        productId: request.productId,
+        expectedGenerationId,
+        source: CLEANUP_SOURCE.MANUAL_DELETE,
+        actorUid: auth.uid,
+        bucketName,
+        businessExists: true,
+      });
+    } catch (error) {
+      if (error instanceof MalformedDecisionStateError) {
+        throw new HttpsError("failed-precondition", "Decision state is malformed", {
+          reasonCode: REASON.MALFORMED_DECISION_STATE,
+        });
+      }
+      throw error;
+    }
+
+    if (cleanup.outcome === CLEANUP_OUTCOME.ALREADY_ABSENT) {
       throw new HttpsError("not-found", "Product not found", {
         reasonCode: REASON.PRODUCT_NOT_FOUND,
       });
     }
-    const product = productSnap.data() || {};
-    if (product.businessId !== request.businessId) {
+    if (cleanup.outcome === CLEANUP_OUTCOME.SKIPPED_BUSINESS_MISMATCH) {
       throw new HttpsError(
         "permission-denied",
         "Product does not belong to the specified business",
         { reasonCode: REASON.BUSINESS_ID_MISMATCH }
       );
     }
-
-    const decisionDocRef = decisionRef(db, request.productId);
-    const decisionSnap = await tx.get(decisionDocRef);
-
-    let linkRefsToDelete = [];
-    if (decisionSnap.exists) {
-      const decision = decisionSnap.data() || {};
-      linkRefsToDelete = deriveLinkRefsOrFailClosed({
-        db,
-        productId: request.productId,
-        businessId: request.businessId,
-        decision,
-      });
+    if (cleanup.outcome === CLEANUP_OUTCOME.SKIPPED_GENERATION_MISMATCH) {
+      // The product belongs to an earlier generation of a recreated
+      // business. It is never deleted through the seller-facing path; the
+      // business-deletion cascade owns that cleanup.
+      throw new HttpsError(
+        "failed-precondition",
+        "Product belongs to a previous business generation",
+        { reasonCode: REASON.GENERATION_MISMATCH }
+      );
     }
 
-    for (const ref of linkRefsToDelete) {
-      tx.delete(ref);
-    }
-    if (decisionSnap.exists) {
-      tx.delete(decisionDocRef);
-    }
-
-    // Marketplace P1-A Revision 28 (docs/plans/marketplace_p1a_
-    // compliance_review_implementation_plan_2026-08-21.md §10.1
-    // "Product-deletion contract, exact"): if this product currently
-    // carries an active pilot approval, stage one terminal audit event
-    // and decrement the business's own counter before this same
-    // transaction's own existing, unmodified `tx.delete(productDocRef)`
-    // proceeds — the counter can never be overstated (decremented in the
-    // same transaction as the delete) and can never be double-decremented
-    // (the receipt short-circuit above already returns before this logic
-    // ever re-executes on a retried call). If `pilotProductApproval` is
-    // absent, inactive, or malformed, none of this fires — deletion
-    // proceeds exactly as it already did before this revision.
-    const pilotApproval = product.pilotProductApproval;
-    if (
-      pilotApproval &&
-      typeof pilotApproval === "object" &&
-      !Array.isArray(pilotApproval) &&
-      pilotApproval.active === true
-    ) {
-      tx.update(db.collection(PRODUCTS_COLLECTION).doc(request.businessId), {
-        pilotActiveProductCount: admin.firestore.FieldValue.increment(-1),
-      });
-      const pilotAuditRef = db.collection("pilotProductApprovalAuditEvents").doc();
-      tx.create(pilotAuditRef, {
-        businessId: request.businessId,
-        productId: request.productId,
-        action: "cascade_revoke",
-        adminUid: null,
-        occurredAt: admin.firestore.FieldValue.serverTimestamp(),
-        resultingActiveState: false,
-        reasonCode: PILOT_PRODUCT_APPROVAL_REASON_CODE.REVOKED_CONTENT_CHANGED,
-      });
-    }
-
-    tx.delete(productDocRef);
     tx.set(receiptDocRef, {
       businessId: request.businessId,
       productId: request.productId,
@@ -369,8 +391,21 @@ async function deleteMarketplaceProductCore({ db, auth, data, now }) {
       expireAt: new Date(nowMs + RECEIPT_TTL_MS),
     });
 
+    pendingMediaObjects = cleanup.media.deletable;
+
     return { status: "deleted", productId: request.productId };
   });
+
+  if (pendingMediaObjects.length > 0) {
+    await deleteProductMediaObjects({
+      storage,
+      bucketName,
+      objectPaths: pendingMediaObjects,
+      logger,
+    });
+  }
+
+  return result;
 }
 
 // §0.17 Phase 6 — three fixed, content-free structured log shapes; none
@@ -382,10 +417,17 @@ async function deleteMarketplaceProduct({
   auth,
   data,
   now = () => Date.now(),
-  logger = console,
-}) {
+  logger = console, storage = null, bucketName = null }) {
   try {
-    const result = await deleteMarketplaceProductCore({ db, auth, data, now });
+    const result = await deleteMarketplaceProductCore({
+      db,
+      auth,
+      data,
+      now,
+      storage,
+      bucketName,
+      logger,
+    });
     if (result.status === "replayed") {
       logger.log("marketplace_product_deletion_replayed");
     } else {

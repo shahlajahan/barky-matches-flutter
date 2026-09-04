@@ -68,6 +68,11 @@ async function assertCallerOwnsBusiness({ db, businessId, uid, tx }) {
       "You are not the owner of this business"
     );
   }
+  // Revision 33: the snapshot is returned so callers needing another field
+  // from the same business document — the deletion path's own generation
+  // binding — reuse this read instead of issuing a second one. Existing
+  // callers ignore the value and are unaffected.
+  return businessSnap;
 }
 
 function assertValidRequestShape(data) {

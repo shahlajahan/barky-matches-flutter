@@ -1330,11 +1330,28 @@ itest("≤4 reads / ≤13 writes arithmetic proof: instrumented transaction coun
     path.resolve(__dirname, "../src/marketplace/compliance/complianceUploadSessions.js"),
     "utf8"
   );
+  // Revision 33 (§0.31): the destructive half moved into the shared cleanup
+  // primitive both this callable and the business-deletion cascade use, so
+  // the product and decision reads now live in productCleanup.js. The bound
+  // itself is unchanged and still exactly 4: receipt (productDeletion.js),
+  // business ownership (assertCallerOwnsBusiness, whose snapshot is now
+  // reused for the generation binding instead of being read twice), then
+  // product and decision (productCleanup.js).
+  const cleanupSrc = fs.readFileSync(
+    path.resolve(__dirname, "../src/marketplace/product/productCleanup.js"),
+    "utf8"
+  );
   const deletionGetCalls = (deletionSrc.match(/tx\.get\(/g) || []).length;
+  const cleanupGetCalls = (cleanupSrc.match(/tx\.get\(/g) || []).length;
   const sessionsTxAwareGetCalls = (sessionsSrc.match(/tx\s*\?\s*await tx\.get\(/g) || []).length;
-  assert.equal(deletionGetCalls, 3, "exactly 3 tx.get() call sites directly in productDeletion.js");
+  assert.equal(deletionGetCalls, 1, "exactly 1 tx.get() call site directly in productDeletion.js (the receipt)");
+  assert.equal(cleanupGetCalls, 2, "exactly 2 tx.get() call sites in the shared primitive (product, decision)");
   assert.equal(sessionsTxAwareGetCalls, 1, "exactly 1 tx-aware read in assertCallerOwnsBusiness");
-  assert.equal(deletionGetCalls + sessionsTxAwareGetCalls, 4, "4 total transactional reads");
+  assert.equal(
+    deletionGetCalls + cleanupGetCalls + sessionsTxAwareGetCalls,
+    4,
+    "4 total transactional reads, unchanged from the frozen bound"
+  );
 
   const result = await callDelete({ uid: "seller-1", businessId, productId, clientIdempotencyKey: nextId("key") });
   assert.equal(result.status, "deleted");
