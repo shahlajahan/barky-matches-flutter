@@ -352,6 +352,9 @@ const {
   resumeIncompleteBusinessDeletionCascades,
 } = require("./src/marketplace/product/businessDeletionCascade");
 const {
+  resumePendingMediaCleanups,
+} = require("./src/marketplace/product/pendingMediaCleanup");
+const {
   approvePilotProduct,
   revokePilotProductApproval,
   unpublishPilotProductForRevision,
@@ -755,12 +758,39 @@ exports.deactivatePilotProductsOnBusinessDeleted = onDocumentDeleted(
 // delivery. Mirrors the established complianceUploadReconciliation shape:
 // bounded page, transactional lease, expired leases reclaimable.
 exports.resumeMarketplaceBusinessDeletionCascades = onSchedule(
-  { schedule: "every 5 minutes", region: "europe-west3", timeoutSeconds: 540 },
+  {
+    schedule: "every 5 minutes",
+    region: "europe-west3",
+    timeoutSeconds: 540,
+    memory: "256MiB",
+  },
   async () => {
     await resumeIncompleteBusinessDeletionCascades({
       db,
       storage: admin.storage(),
       bucketName: defaultStorageBucketName(),
+      logger,
+    });
+  }
+);
+
+// Revision 33 correction — Storage cleanup is resumable independently of the
+// product document, which is already gone. Each pending record carries the
+// canonical object paths committed in the same transaction as the deletion,
+// so nothing is lost to a crash between commit and Storage removal. The
+// 5-minute cadence sits well inside the 5-minute lease, which is itself
+// renewed per page by the worker.
+exports.resumeMarketplacePendingMediaCleanups = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    region: "europe-west3",
+    timeoutSeconds: 540,
+    memory: "256MiB",
+  },
+  async () => {
+    await resumePendingMediaCleanups({
+      db,
+      storage: admin.storage(),
       logger,
     });
   }

@@ -70,6 +70,12 @@ const MEDIA_PRESERVED_REASON = Object.freeze({
   OTHER_BUSINESS_PREFIX: "other_business_prefix",
 });
 
+// Lazily required: pendingMediaCleanup.js imports this module for its own
+// canonical media classifier, so a top-level require here would be circular.
+function stagePendingMediaCleanup(args) {
+  return require("./pendingMediaCleanup").stagePendingMediaCleanup(args);
+}
+
 function productRef(db, businessId, productId) {
   return db
     .collection(BUSINESSES_COLLECTION)
@@ -326,6 +332,25 @@ async function cleanupProductFirestoreState({
 
   tx.delete(productDocRef);
 
+  // Revision 33 correction — durability. The exact canonical object paths are
+  // persisted in THIS transaction, so the pending-cleanup record and the
+  // product deletion commit together or not at all. Storage removal is then a
+  // resumable job that never depends on the product document again; a crash
+  // immediately after this commit loses nothing.
+  const pendingCleanupId =
+    mediaPlan.deletable.length > 0
+      ? stagePendingMediaCleanup({
+          db,
+          tx,
+          businessId,
+          productId,
+          expectedGenerationId: generationVerified ? expectedGenerationId : null,
+          bucketName,
+          objectPaths: mediaPlan.deletable,
+          source,
+        })
+      : null;
+
   tx.create(db.collection(CLEANUP_AUDIT_COLLECTION).doc(), {
     businessId,
     productId,
@@ -337,12 +362,13 @@ async function cleanupProductFirestoreState({
     decisionRemoved: decisionSnap.exists,
     hadActivePilotApproval,
     mediaDeletableCount: mediaPlan.deletable.length,
+    pendingCleanupId,
     // Reasons only — never a URL, token or signed link.
     mediaPreservedReasons: mediaPlan.preserved.map((entry) => entry.reason),
     occurredAt: now,
   });
 
-  return { outcome: CLEANUP_OUTCOME.DELETED, media: mediaPlan };
+  return { outcome: CLEANUP_OUTCOME.DELETED, media: mediaPlan, pendingCleanupId };
 }
 
 /**

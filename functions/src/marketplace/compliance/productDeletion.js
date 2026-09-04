@@ -36,9 +36,9 @@ const {
 const { REASON_CODE: PILOT_PRODUCT_APPROVAL_REASON_CODE } = require("./pilotProductApproval");
 // Revision 33 §A(5) — the single authoritative cleanup primitive, shared
 // with the business-deletion cascade so the two can never drift.
+const { processPendingMediaCleanup } = require("../product/pendingMediaCleanup");
 const {
   cleanupProductFirestoreState,
-  deleteProductMediaObjects,
   MalformedDecisionStateError,
   CLEANUP_SOURCE,
   CLEANUP_OUTCOME,
@@ -270,10 +270,10 @@ async function deleteMarketplaceProductCore({
   // authority: it commits the deletion, and only afterwards are the objects
   // it proved deletable removed. A Storage failure never resurrects the
   // product document — it is reported, best-effort and idempotent.
-  let pendingMediaObjects = [];
+  let pendingCleanupId = null;
 
   const result = await db.runTransaction(async (tx) => {
-    pendingMediaObjects = [];
+    pendingCleanupId = null;
     const nowMs = typeof now === "function" ? now() : Date.now();
 
     // Read 1: the deterministic receipt (Case A/B replay short-circuit).
@@ -391,18 +391,29 @@ async function deleteMarketplaceProductCore({
       expireAt: new Date(nowMs + RECEIPT_TTL_MS),
     });
 
-    pendingMediaObjects = cleanup.media.deletable;
+    pendingCleanupId = cleanup.pendingCleanupId;
 
     return { status: "deleted", productId: request.productId };
   });
 
-  if (pendingMediaObjects.length > 0) {
-    await deleteProductMediaObjects({
-      storage,
-      bucketName,
-      objectPaths: pendingMediaObjects,
-      logger,
-    });
+  // Revision 33 correction: the authoritative record of what must be removed
+  // now lives in `marketplacePendingMediaCleanups`, written in the same
+  // transaction as the product deletion. This immediate attempt is a latency
+  // optimisation only — if it fails, or the process dies here, the scheduled
+  // resumer completes the work from the durable record. Nothing is lost.
+  if (pendingCleanupId) {
+    try {
+      await processPendingMediaCleanup({
+        db,
+        storage,
+        cleanupId: pendingCleanupId,
+        logger,
+      });
+    } catch (error) {
+      logger.warn("marketplace_pending_media_immediate_attempt_failed", {
+        code: (error && error.code) || "unknown",
+      });
+    }
   }
 
   return result;

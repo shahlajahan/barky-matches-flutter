@@ -321,7 +321,16 @@ itest("19+25. a deadline-truncated cascade persists a resumable, auditable state
   assert.ok(state.data().cursor, "a continuation cursor is persisted");
   assert.equal(state.data().leaseOwner, null, "the lease is released for the resumer");
 
-  const resumed = await resumeIncompleteBusinessDeletionCascades({ db, bucketName: BUCKET });
+  // The starvation fix backs an unfinished cascade off, so it is not due
+  // immediately. Nothing is due now...
+  const notYet = await resumeIncompleteBusinessDeletionCascades({ db, bucketName: BUCKET });
+  assert.equal(notYet.considered, 0, "an unfinished cascade backs off before retry");
+
+  // ...and it becomes due once the backoff elapses.
+  const later = () => new Date(Date.now() + 5 * 60 * 1000);
+  const resumed = await resumeIncompleteBusinessDeletionCascades({
+    db, bucketName: BUCKET, now: later,
+  });
   assert.ok(resumed.considered >= 1);
   const after = await db.collection("businesses").doc(businessId).collection("products").get();
   assert.equal(after.size, 0, "resumption completes the remaining work");

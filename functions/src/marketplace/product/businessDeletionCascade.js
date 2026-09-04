@@ -19,10 +19,10 @@ const admin = require("firebase-admin");
 
 const {
   cleanupProductFirestoreState,
-  deleteProductMediaObjects,
   CLEANUP_SOURCE,
   CLEANUP_OUTCOME,
 } = require("./productCleanup");
+const { processPendingMediaCleanup } = require("./pendingMediaCleanup");
 
 const BUSINESSES_COLLECTION = "businesses";
 const PRODUCTS_SUBCOLLECTION = "products";
@@ -32,6 +32,9 @@ const DEFAULT_PAGE_SIZE = 50;
 // Leaves headroom inside a 540s trigger budget; the reconciler resumes.
 const DEFAULT_DEADLINE_MS = 240 * 1000;
 const LEASE_DURATION_MS = 5 * 60 * 1000;
+// Bounded backoff so an unfinished or repeatedly failing cascade cannot hold
+// the head of the resumer queue and starve healthy work behind it.
+const RESUME_BACKOFF_MS = 60 * 1000;
 
 const CASCADE_STATUS = Object.freeze({
   IN_PROGRESS: "in_progress",
@@ -118,7 +121,10 @@ async function runBusinessDeletionCascade({
     return { claimed: false, reason: claim.reason };
   }
 
-  const totals = {
+  // `deltas` counts only this run's work and is written with
+  // FieldValue.increment, so overlapping workers can never clobber one
+  // another with stale absolute totals. `totals` is the caller-facing view.
+  const prior = {
     examined: Number(claim.state.examinedCount) || 0,
     deleted: Number(claim.state.deletedCount) || 0,
     skippedGenerationMismatch: Number(claim.state.skippedGenerationMismatch) || 0,
@@ -128,6 +134,15 @@ async function runBusinessDeletionCascade({
     mediaFailed: Number(claim.state.mediaFailedCount) || 0,
     productFailures: Number(claim.state.productFailureCount) || 0,
   };
+  const deltas = {
+    examined: 0, deleted: 0, skippedGenerationMismatch: 0,
+    skippedBusinessMismatch: 0, alreadyAbsent: 0, mediaDeleted: 0,
+    mediaFailed: 0, productFailures: 0,
+  };
+  const totals = new Proxy(deltas, {
+    get: (target, key) =>
+      typeof key === "string" && key in target ? target[key] + (prior[key] || 0) : target[key],
+  });
 
   let cursor = claim.cursor;
   let exhausted = false;
@@ -148,7 +163,7 @@ async function runBusinessDeletionCascade({
     }
 
     for (const doc of page.docs) {
-      totals.examined += 1;
+      deltas.examined += 1;
       cursor = doc.id;
       try {
         const result = await db.runTransaction((tx) =>
@@ -167,31 +182,41 @@ async function runBusinessDeletionCascade({
         );
 
         if (result.outcome === CLEANUP_OUTCOME.DELETED) {
-          totals.deleted += 1;
-          if (result.media.deletable.length > 0) {
-            const mediaResult = await deleteProductMediaObjects({
-              storage,
-              bucketName,
-              objectPaths: result.media.deletable,
-              logger,
-            });
-            totals.mediaDeleted += mediaResult.deleted.length;
-            totals.mediaFailed += mediaResult.failed.length;
+          deltas.deleted += 1;
+          // The durable pending-cleanup record was committed with the
+          // deletion; this immediate attempt is opportunistic only, and the
+          // scheduled media resumer owns anything it does not finish.
+          if (result.pendingCleanupId) {
+            try {
+              const media = await processPendingMediaCleanup({
+                db, storage, cleanupId: result.pendingCleanupId, now, logger,
+              });
+              if (media.outcome === "completed" || media.outcome === "completed_shared_retained") {
+                deltas.mediaDeleted += media.deletedCount || 0;
+              } else {
+                deltas.mediaFailed += 1;
+              }
+            } catch (error) {
+              deltas.mediaFailed += 1;
+              logger.warn("marketplace_cascade_media_attempt_failed", {
+                code: (error && error.code) || "unknown",
+              });
+            }
           }
         } else if (result.outcome === CLEANUP_OUTCOME.SKIPPED_GENERATION_MISMATCH) {
           // A product of the NEW generation, or one whose binding cannot be
           // proven. Never deleted; recorded so the skip is auditable.
-          totals.skippedGenerationMismatch += 1;
+          deltas.skippedGenerationMismatch += 1;
         } else if (result.outcome === CLEANUP_OUTCOME.SKIPPED_BUSINESS_MISMATCH) {
-          totals.skippedBusinessMismatch += 1;
+          deltas.skippedBusinessMismatch += 1;
         } else {
-          totals.alreadyAbsent += 1;
+          deltas.alreadyAbsent += 1;
         }
       } catch (error) {
         // One product's failure must not abort the cascade. The cursor still
         // advances; the product stays non-public (its document is untouched)
         // and the failure count makes the incomplete cleanup admin-visible.
-        totals.productFailures += 1;
+        deltas.productFailures += 1;
         logger.warn("marketplace_business_cascade_product_failed", {
           code: (error && error.code) || "unknown",
         });
@@ -204,6 +229,26 @@ async function runBusinessDeletionCascade({
     }
 
     if (page.size < pageSize && !deadlineReached) exhausted = true;
+
+    // Renew per page. A lease shorter than the uninterrupted work interval
+    // would otherwise expire mid-run and let a second worker start while this
+    // one is still writing.
+    if (!exhausted && !deadlineReached) {
+      const renewed = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(stateRef);
+        if (!snap.exists || (snap.data() || {}).leaseOwner !== workerId) return false;
+        tx.update(stateRef, {
+          leaseExpiresAt: new Date(now().getTime() + LEASE_DURATION_MS),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return true;
+      });
+      if (!renewed) {
+        // Lost the lease to another worker. Stop immediately and write
+        // nothing further: the owner is authoritative from here.
+        return { claimed: true, status: CASCADE_STATUS.IN_PROGRESS, lostLease: true, ...totals };
+      }
+    }
   }
 
   const complete = exhausted && !deadlineReached;
@@ -213,30 +258,47 @@ async function runBusinessDeletionCascade({
       : CASCADE_STATUS.COMPLETED
     : CASCADE_STATUS.IN_PROGRESS;
 
-  await stateRef.set(
-    {
+  // The terminal write is transactional and verifies this worker still owns
+  // the lease, so a worker that lost it can never clear the current owner's
+  // lease, regress its cursor, or overwrite its counters. Counters are
+  // written as increments of this run's own deltas rather than stale
+  // absolute totals read at claim time.
+  const settled = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(stateRef);
+    if (!snap.exists || (snap.data() || {}).leaseOwner !== workerId) {
+      return false;
+    }
+    tx.update(stateRef, {
       businessId,
       deletedGeneration: deletedGeneration || null,
       status,
       cursor: complete ? null : cursor,
-      examinedCount: totals.examined,
-      deletedCount: totals.deleted,
-      skippedGenerationMismatch: totals.skippedGenerationMismatch,
-      skippedBusinessMismatch: totals.skippedBusinessMismatch,
-      alreadyAbsentCount: totals.alreadyAbsent,
-      mediaDeletedCount: totals.mediaDeleted,
-      mediaFailedCount: totals.mediaFailed,
-      productFailureCount: totals.productFailures,
-      // Release the lease so the reconciler may resume immediately.
+      examinedCount: admin.firestore.FieldValue.increment(deltas.examined),
+      deletedCount: admin.firestore.FieldValue.increment(deltas.deleted),
+      skippedGenerationMismatch: admin.firestore.FieldValue.increment(deltas.skippedGenerationMismatch),
+      skippedBusinessMismatch: admin.firestore.FieldValue.increment(deltas.skippedBusinessMismatch),
+      alreadyAbsentCount: admin.firestore.FieldValue.increment(deltas.alreadyAbsent),
+      mediaDeletedCount: admin.firestore.FieldValue.increment(deltas.mediaDeleted),
+      mediaFailedCount: admin.firestore.FieldValue.increment(deltas.mediaFailed),
+      productFailureCount: admin.firestore.FieldValue.increment(deltas.productFailures),
+      attemptCount: admin.firestore.FieldValue.increment(1),
+      // Deterministic ordering key for the resumer, with bounded backoff so a
+      // poison cascade cannot hold the head of the queue forever.
+      nextAttemptAt: complete ? null : new Date(now().getTime() + RESUME_BACKOFF_MS),
       leaseOwner: null,
       leaseExpiresAt: null,
-      completedAt: status === CASCADE_STATUS.COMPLETED
-        ? admin.firestore.FieldValue.serverTimestamp()
-        : null,
+      completedAt:
+        status === CASCADE_STATUS.COMPLETED
+          ? admin.firestore.FieldValue.serverTimestamp()
+          : null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
+    });
+    return true;
+  });
+
+  if (!settled) {
+    return { claimed: true, status: CASCADE_STATUS.IN_PROGRESS, lostLease: true, ...totals };
+  }
 
   return { claimed: true, status, ...totals, exhausted: complete };
 }
@@ -256,9 +318,14 @@ async function resumeIncompleteBusinessDeletionCascades({
   pageSize = DEFAULT_PAGE_SIZE,
   deadlineMs = DEFAULT_DEADLINE_MS,
 }) {
+  // Ordered by `nextAttemptAt` and filtered to records actually due, so a
+  // repeatedly failing cascade backs off and cannot occupy the first slots
+  // indefinitely while healthy cascades wait behind it.
   const pending = await db
     .collection(CASCADE_STATE_COLLECTION)
     .where("status", "in", [CASCADE_STATUS.IN_PROGRESS, CASCADE_STATUS.FAILED_RETRYABLE])
+    .where("nextAttemptAt", "<=", now())
+    .orderBy("nextAttemptAt")
     .limit(limit)
     .get();
 
