@@ -295,5 +295,55 @@ void main() {
     test('never logs raw exception content', () {
       expect(source, isNot(contains('print(')));
     });
+
+    // Marketplace Revision 34 — direct client-SDK product CREATION is closed
+    // (`allow create: if false` in firestore.rules). `addProduct` was the
+    // last direct auto-ID create helper in this service; it had zero callers
+    // and could never have produced Revision 19's deterministic
+    // `${businessId}_${normalizedSku}` identity. These guards prove it is
+    // gone and that no equivalent helper returns by another name.
+    test('the retired addProduct method name no longer exists', () {
+      expect(source, isNot(contains('Future<void> addProduct(')));
+    });
+
+    test('no direct auto-ID product-create helper exists in this service', () {
+      final code = _withoutComments(source);
+      // `.doc()` with no argument is the auto-ID form; combined with a
+      // products collection reference it is exactly the retired shape.
+      expect(
+        code,
+        isNot(contains('.doc(); ')),
+        reason: 'an auto-ID document reference is a direct-create shape',
+      );
+      expect(RegExp(r'\.doc\(\s*\)').hasMatch(code), isFalse);
+      expect(code, isNot(contains('auto id')));
+      // `updateProduct` legitimately writes with set(merge:true) at a
+      // CALLER-SUPPLIED productId, so a blanket ban on `.set(` would be
+      // wrong. What must not exist is a write to a document reference the
+      // service itself minted.
+      expect(code, contains('Future<void> updateProduct('));
+    });
+
+    test(
+      'product creation is only ever reachable through a server callable',
+      () {
+        final code = _withoutComments(source);
+        // The only Firestore write paths left in this service are the
+        // seller-owned update and the read stream; creation, if it appears
+        // at all, must go through callableInvoker.
+        expect(code, isNot(contains('addProduct')));
+        expect(code, contains('callableInvoker'));
+      },
+    );
   });
+}
+
+/// Strips line and block comments so a source-shape assertion cannot be
+/// satisfied — or defeated — by prose. Revision 34 keeps explanatory
+/// comments naming the retired API, so an assertion about its ABSENCE must
+/// read only executable code.
+String _withoutComments(String source) {
+  return source
+      .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+      .replaceAll(RegExp(r'^\s*//.*$', multiLine: true), '');
 }

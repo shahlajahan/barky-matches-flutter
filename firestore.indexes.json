@@ -225,6 +225,22 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "approvedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "marketplacePendingMediaCleanups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceBusinessDeletionCascades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

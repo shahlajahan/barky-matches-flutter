@@ -1993,6 +1993,11 @@ class _AddProductPageState extends State<AddProductPage> {
         ProductSubmissionReason.duplicateSku ||
         'sku-collision' ||
         'already-exists' => l10n.productAlreadyExistsTitle,
+        // Distinct from duplicateSku on purpose: the SKU is free, its
+        // deterministic slot is still being reclaimed from a previous
+        // business generation. The seller should retry, not rename.
+        ProductSubmissionReason.previousGenerationCleanupPending =>
+          l10n.productSlotCleanupPendingError,
         ProductSubmissionReason.permissionDenied ||
         'permission-denied' ||
         'unauthenticated' => l10n.accessDenied,

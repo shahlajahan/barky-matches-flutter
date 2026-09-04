@@ -1,3 +1,14 @@
+// Marketplace Revision 34 — direct client-SDK product creation is denied
+// unconditionally (`allow create: if false`). Every test below that once
+// asserted a SUCCESSFUL client create now asserts denial and is renamed
+// "Revision 34 — direct client create denied (superseded: <original>)", so
+// each item keeps its identity while its name matches what it proves.
+//
+// The VALUE contracts those tests encoded — name/price/stock/category/media
+// shape, sellerRelationship, productInputRevision, server-owned-field
+// rejection — are not lost: they moved into the only remaining create path
+// and are proven in functions/test/submitMarketplaceProduct.test.js, which
+// enforces an equal-or-stricter contract server-side.
 "use strict";
 
 // Marketplace product compliance audit, P0 remediation
@@ -35,6 +46,39 @@ const rules = fs.readFileSync(
   path.resolve(__dirname, "../../firestore.rules"),
   "utf8"
 );
+
+// Revision 34 — executable-source view with comments removed.
+//
+// `rules` is the raw file, so a regex run against it can match prose in a
+// comment instead of a live authorization branch. Several Revision 34
+// assertions below must prove the ABSENCE of a branch ("no isAdmin() OR can
+// restore client create"), and an absence claim is worthless if the retained
+// specification comments can satisfy it. `rulesCode` therefore strips block
+// and line comments first, so every such assertion reads only clauses the
+// Rules engine actually evaluates.
+const rulesCode = rules
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/^[ \t]*\/\/.*$/gm, "")
+  .replace(/\/\/.*$/gm, "");
+
+// The single products match block as the engine sees it — used to prove that
+// a claim about "the create rule" is a claim about the only one that exists.
+const productsRulesBlock = (() => {
+  const header = "match /{path=**}/products/{productId}";
+  const start = rulesCode.indexOf(header);
+  if (start < 0) return "";
+  // The header itself contains `{path=**}` and `{productId}`, so the brace
+  // scan must begin at the brace that opens the block BODY, past the header.
+  let depth = 0;
+  for (let i = rulesCode.indexOf("{", start + header.length); i < rulesCode.length; i += 1) {
+    if (rulesCode[i] === "{") depth += 1;
+    else if (rulesCode[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return rulesCode.slice(start, i + 1);
+    }
+  }
+  return "";
+})();
 
 const hasFirestoreEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 let testEnv;
@@ -120,6 +164,26 @@ async function resetSeed() {
   });
 }
 
+// Revision 34 — TEST FIXTURE SETUP ONLY. Not an authorized client path.
+//
+// Direct client-SDK product creation is denied unconditionally, so a test
+// that needs an EXISTING product in order to exercise a read or update
+// contract can no longer arrange one by creating it as the seller. This
+// helper writes the fixture with security rules disabled, standing in for
+// the trusted server writer (submitMarketplaceProduct, Admin SDK) that
+// creates products in production.
+//
+// It deliberately grants no authority to the authenticated client: every
+// operation actually under test is still executed through the normal
+// authenticated context, so the subsequent read/update Rules contract is
+// genuinely evaluated and a regression in it still fails the test.
+async function seedProductAsTrustedServer(productPath, data) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), productPath), data);
+  });
+}
+
 function safeProduct(overrides = {}) {
   return {
     businessId: "biz-1",
@@ -163,11 +227,11 @@ test.after(async () => {
 });
 
 rulesTest(
-  "control: a safe, correctly-shaped submission succeeds",
+  "Revision 34 — direct client create denied (superseded: control: a safe, correctly-shaped submission succeeds)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/p1"), safeProduct())
     );
   }
@@ -410,11 +474,11 @@ for (const [fieldName, initialValue, attemptedValue] of SERVER_OWNED_FIELD_CASES
 }
 
 rulesTest(
-  "P0.1-1. seller can create a valid P0 product without any server-owned field",
+  "Revision 34 — direct client create denied (superseded: P0.1-1. seller can create a valid P0 product without any server-owned field)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/p1"), safeProduct())
     );
   }
@@ -1139,18 +1203,18 @@ async function seedProductWithRevision(revision, overrides = {}, productId = "pi
 
 // --- Transitional create contract (§9 table) ---
 
-rulesTest("4.2-create-1. absent productInputRevision is allowed on create", async () => {
+rulesTest("Revision 34 — direct client create denied (superseded: 4.2-create-1. absent productInputRevision is allowed on create)", async () => {
   await resetSeed();
   const db = (await env()).authenticatedContext("seller-1").firestore();
-  await assertSucceeds(
+  await assertFails(
     setDoc(doc(db, "businesses/biz-1/products/piv-c1"), safeProduct())
   );
 });
 
-rulesTest("4.2-create-2. present productInputRevision 0 is allowed on create", async () => {
+rulesTest("Revision 34 — direct client create denied (superseded: 4.2-create-2. present productInputRevision 0 is allowed on create)", async () => {
   await resetSeed();
   const db = (await env()).authenticatedContext("seller-1").firestore();
-  await assertSucceeds(
+  await assertFails(
     setDoc(
       doc(db, "businesses/biz-1/products/piv-c2"),
       safeProduct({ productInputRevision: 0 })
@@ -1825,11 +1889,11 @@ for (const fieldName of COMPLIANCE_SERVER_OWNED_FIELDS) {
 // --- Regression protection ---
 
 rulesTest(
-  "4.2-regression-38a. an ordinary create with no productInputRevision still succeeds during dormancy",
+  "Revision 34 — direct client create denied (superseded: 4.2-regression-38a. an ordinary create with no productInputRevision still succeeds during dormancy)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/piv-reg-38a"), safeProduct())
     );
   }
@@ -1923,22 +1987,22 @@ const SELLER_RELATIONSHIP_VALUES = [
 // --- Create: legacy compatibility (items 1-2) ---
 
 rulesTest(
-  "4.2r7-create-1. legacy create with both sellerRelationship and productInputRevision absent remains allowed",
+  "Revision 34 — direct client create denied (superseded: 4.2r7-create-1. legacy create with both sellerRelationship and productInputRevision absent remains allowed)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/r7-c1"), safeProduct())
     );
   }
 );
 
 rulesTest(
-  "4.2r7-create-2. legacy create with sellerRelationship absent and productInputRevision 0 remains allowed",
+  "Revision 34 — direct client create denied (superseded: 4.2r7-create-2. legacy create with sellerRelationship absent and productInputRevision 0 remains allowed)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/r7-c2"),
         safeProduct({ productInputRevision: 0 })
@@ -1947,22 +2011,180 @@ rulesTest(
   }
 );
 
-// --- Create: each valid relationship, exact revision requirement (item
-// 3). Per §9's create-contract table, productInputRevision's own create
-// legality (absent or exactly 0) is unconditional and does not vary with
-// sellerRelationship's presence — there is no "must be 1 on create when
-// adopting a relationship" rule; that adoption-requires-+1 rule applies
-// only to UPDATE (§9's own-field row B), where a genuine "existing"
-// baseline exists to diff against. Create has no such baseline, so it is
-// governed solely by the separate, unconditional create table. ---
+// --- Revision 34 §F: pilotProductClass is in the closed schema but
+// Seller-immutable (plan items 1108-1109) ------------------------------
+//
+// The defect this closes is the exact one this file's own P0.1 history
+// already fixed once for the inventory fields: a server-owned field that is
+// NOT part of productAllowedFields() fails hasOnly() the instant an admin
+// writes it, permanently locking the seller out of their own product even
+// though they never touched the field. So `pilotProductClass` must be
+// ALLOWED to be present, and simultaneously IMMUTABLE to any seller write.
+
+rulesTest(
+  "REV34-PPC-1. a seller may still edit their product after an admin has written pilotProductClass (presence never fails hasOnly)",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/ppc-1",
+      safeProduct({ pilotProductClass: "supplementary_feed" })
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // The ordinary edit carries the admin-written value forward unchanged.
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-1"), { stock: 7 })
+    );
+  }
+);
+
+rulesTest(
+  "REV34-PPC-2. a seller may not change pilotProductClass to another value",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/ppc-2",
+      safeProduct({ pilotProductClass: "supplementary_feed" })
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-2"), {
+        pilotProductClass: "veterinary_medicine",
+      })
+    );
+    // Not even to the same-looking value under a different case, and not
+    // bundled inside an otherwise-legitimate edit.
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-2"), {
+        stock: 9,
+        pilotProductClass: "Supplementary_Feed",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV34-PPC-3. a seller may not remove pilotProductClass once an admin has written it",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/ppc-3",
+      safeProduct({ pilotProductClass: "supplementary_feed" })
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-3"), {
+        pilotProductClass: deleteField(),
+      })
+    );
+    // Nor by rewriting the whole document without the field.
+    const withoutClass = safeProduct();
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/ppc-3"), withoutClass)
+    );
+  }
+);
+
+rulesTest(
+  "REV34-PPC-4. a seller may not ADD pilotProductClass to a product that has none — absent stays absent",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/ppc-4",
+      safeProduct()
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-4"), {
+        pilotProductClass: "supplementary_feed",
+      })
+    );
+    // An ordinary edit that leaves it absent is unaffected.
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-4"), { stock: 3 })
+    );
+  }
+);
+
+rulesTest(
+  "REV34-PPC-5. preservation is value-blind — an unrecognized admin-written value is preserved, never validated into legitimacy",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/ppc-5",
+      safeProduct({ pilotProductClass: "not_a_real_class_at_all" })
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // Carrying it forward is allowed (the seller is not punished for an
+    // admin's value), but changing it — even to a VALID class — is not.
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-5"), { stock: 4 })
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/ppc-5"), {
+        pilotProductClass: "supplementary_feed",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV34-PPC-6. (static) pilotProductClass is in the closed schema and its preservation guard has exactly one call site",
+  async () => {
+    assert.match(rulesCode, /'pilotProductClass'/);
+    const allowed = rulesCode.match(/function productAllowedFields\(\)[\s\S]*?\n  \}/);
+    assert.ok(allowed, "productAllowedFields() not found");
+    assert.ok(
+      allowed[0].includes("'pilotProductClass'"),
+      "pilotProductClass must be part of the closed document schema"
+    );
+    const refs = rulesCode.match(/(function\s+)?preservesPilotProductClassOnUpdate\(/g) || [];
+    const defs = refs.filter((r) => r.startsWith("function"));
+    assert.equal(defs.length, 1, "preservesPilotProductClassOnUpdate must be defined once");
+    assert.equal(refs.length - defs.length, 1, "and called exactly once");
+    const updateMatch = rulesCode.match(
+      /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,500}?;/
+    );
+    assert.ok(updateMatch);
+    assert.ok(
+      updateMatch[0].includes("preservesPilotProductClassOnUpdate(request.resource.data, resource.data)"),
+      "the guard must be AND-ed onto allow update, outside the isAdmin() OR"
+    );
+  }
+);
+
+// --- Create: sellerRelationship no longer participates in create
+// authorization (Revision 34, plan item 1105).
+//
+// These twelve cases (3a/3b across the six frozen relationship values) once
+// proved that a Seller client could directly create a product carrying each
+// valid relationship. Direct client creation is now denied unconditionally
+// (`allow create: if false`), so relationship membership cannot be a create
+// authorization input at this boundary at all: the denial is reached before
+// any field is examined. Asserting a relationship-dependent create outcome
+// here would state something Rules no longer decide.
+//
+// The security intent — exactly the six frozen identifiers are accepted, and
+// nothing else is — did not disappear; it moved to the only remaining create
+// authority. Positive acceptance of all six values, and rejection of missing,
+// null, wrong-type, unknown, translated-label, whitespace-modified and
+// mis-cased values, are proven against submitMarketplaceProduct in
+// functions/test/submitMarketplaceProduct.test.js ("Revision 34 §4.2r7").
+//
+// UPDATE-side relationship invariants are unaffected by this change and keep
+// their original assertions further below; only the create side moved.
+//
+// 3c is retained but renamed: its original name attributed the rejection to
+// §9's unconditional create table for productInputRevision. That reasoning is
+// now superseded — the create is denied before productInputRevision is read —
+// so the name states the reason that actually holds.
 
 for (const relationship of SELLER_RELATIONSHIP_VALUES) {
   rulesTest(
-    `4.2r7-create-3a. ${relationship}: valid relationship with absent productInputRevision is allowed on create`,
+    `Revision 34 — direct client create denied regardless of relationship (superseded: 4.2r7-create-3a. ${relationship}: valid relationship with absent productInputRevision is allowed on create)`,
     async () => {
       await resetSeed();
       const db = (await env()).authenticatedContext("seller-1").firestore();
-      await assertSucceeds(
+      await assertFails(
         setDoc(
           doc(db, `businesses/biz-1/products/r7-c3a-${relationship}`),
           safeProduct({ sellerRelationship: relationship })
@@ -1972,11 +2194,11 @@ for (const relationship of SELLER_RELATIONSHIP_VALUES) {
   );
 
   rulesTest(
-    `4.2r7-create-3b. ${relationship}: valid relationship with productInputRevision 0 is allowed on create`,
+    `Revision 34 — direct client create denied regardless of relationship (superseded: 4.2r7-create-3b. ${relationship}: valid relationship with productInputRevision 0 is allowed on create)`,
     async () => {
       await resetSeed();
       const db = (await env()).authenticatedContext("seller-1").firestore();
-      await assertSucceeds(
+      await assertFails(
         setDoc(
           doc(db, `businesses/biz-1/products/r7-c3b-${relationship}`),
           safeProduct({
@@ -1989,7 +2211,7 @@ for (const relationship of SELLER_RELATIONSHIP_VALUES) {
   );
 
   rulesTest(
-    `4.2r7-create-3c. ${relationship}: valid relationship with productInputRevision 1 is rejected on create (create's own contract is unconditional, not relationship-dependent)`,
+    `Revision 34 — direct client create denied regardless of relationship or productInputRevision (superseded rationale: 4.2r7-create-3c. ${relationship}: valid relationship with productInputRevision 1 is rejected on create)`,
     async () => {
       await resetSeed();
       const db = (await env()).authenticatedContext("seller-1").firestore();
@@ -2038,20 +2260,38 @@ for (const [label, value] of INVALID_SELLER_RELATIONSHIP_CASES) {
 // --- Create: no default is ever written by Rules (item 5) ---
 
 rulesTest(
-  "4.2r7-create-5. an ordinary create with no sellerRelationship stores no key at all, never a default",
+  "4.2r7-create-5 (Revision 34). a denied direct client create writes nothing at all, and a server-created product without sellerRelationship stores no key — never a default",
   async () => {
     await resetSeed();
-    const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    const rulesEnv = await env();
+    const db = rulesEnv.authenticatedContext("seller-1").firestore();
+    // The direct create is denied, and denial must leave no partial document.
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/r7-c5"), safeProduct())
     );
-    const rulesEnv = await env();
     await rulesEnv.withSecurityRulesDisabled(async (context) => {
       const snap = await getDoc(
         doc(context.firestore(), "businesses/biz-1/products/r7-c5")
       );
+      assert.equal(snap.exists(), false, "a denied create must write nothing");
+    });
+    // The original invariant — absence is never silently defaulted — is
+    // preserved against a product written the way the server writes one.
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/r7-c5b",
+      safeProduct()
+    );
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(
+        doc(context.firestore(), "businesses/biz-1/products/r7-c5b")
+      );
       assert.equal("sellerRelationship" in snap.data(), false);
     });
+    // And the seller can still read their own product, so this states
+    // something about a document that is genuinely reachable.
+    await assertSucceeds(
+      getDoc(doc(db, "businesses/biz-1/products/r7-c5b"))
+    );
   }
 );
 
@@ -2061,11 +2301,11 @@ rulesTest(
 // COMPLIANCE_SERVER_OWNED_FIELDS loop) ---
 
 rulesTest(
-  "4.2r7-create-6. seller CAN supply sellerRelationship on create, unlike the five real server-owned compliance fields",
+  "Revision 34 — direct client create denied (superseded: 4.2r7-create-6. seller CAN supply sellerRelationship on create, unlike the five real server-owned compliance fields)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/r7-c6"),
         safeProduct({ sellerRelationship: "reseller" })
@@ -2983,10 +3223,10 @@ rulesTest(
 // A. CREATE / new submission — isSafeNewProductSubmission()
 // ---------------------------------------------------------------------
 
-rulesTest("MEDIA-CAP-A1. create with media: [] is allowed", async () => {
+rulesTest("Revision 34 — direct client create denied (superseded: MEDIA-CAP-A1. create with media: [] is allowed)", async () => {
   await resetSeed();
   const db = (await env()).authenticatedContext("seller-1").firestore();
-  await assertSucceeds(
+  await assertFails(
     setDoc(
       doc(db, "businesses/biz-1/products/media-a1"),
       safeProduct({ media: [] })
@@ -2995,11 +3235,11 @@ rulesTest("MEDIA-CAP-A1. create with media: [] is allowed", async () => {
 });
 
 rulesTest(
-  "MEDIA-CAP-A2. create with one valid media entry is allowed",
+  "Revision 34 — direct client create denied (superseded: MEDIA-CAP-A2. create with one valid media entry is allowed)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/media-a2"),
         safeProduct({ media: mediaList(1) })
@@ -3009,11 +3249,11 @@ rulesTest(
 );
 
 rulesTest(
-  "MEDIA-CAP-A3. create with exactly 20 valid media entries is allowed",
+  "Revision 34 — direct client create denied (superseded: MEDIA-CAP-A3. create with exactly 20 valid media entries is allowed)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/media-a3"),
         safeProduct({ media: mediaList(20) })
@@ -3408,15 +3648,29 @@ rulesTest(
 );
 
 rulesTest(
-  "MEDIA-CAP-C6. an ordinary, fully-valid product create/read round trip with 0-20 media still succeeds end to end",
+  "MEDIA-CAP-C6 (Revision 34). an ordinary, fully-valid server-created product with the full 20-entry media cap is readable end to end by its owning seller, and unreadable by a stranger",
   async () => {
     await resetSeed();
-    const db = (await env()).authenticatedContext("seller-1").firestore();
-    const ref = doc(db, "businesses/biz-1/products/media-c6");
-    await assertSucceeds(setDoc(ref, safeProduct({ media: mediaList(20) })));
+    // Fixture setup only — see seedProductAsTrustedServer. The operation
+    // under test is the owner READ and the stranger's read denial, both of
+    // which still run through authenticated clients against live Rules.
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/media-c6",
+      safeProduct({ media: mediaList(20) })
+    );
+    const rulesEnv = await env();
+    const ownerDb = rulesEnv.authenticatedContext("seller-1").firestore();
+    const ref = doc(ownerDb, "businesses/biz-1/products/media-c6");
+    await assertSucceeds(getDoc(ref));
     const snap = await getDoc(ref);
     assert.equal(snap.exists(), true);
     assert.equal(snap.data().media.length, 20);
+    // The read contract is genuinely evaluated: a non-owner is denied the
+    // same pending, inactive document.
+    const strangerDb = rulesEnv.authenticatedContext("seller-2").firestore();
+    await assertFails(
+      getDoc(doc(strangerDb, "businesses/biz-1/products/media-c6"))
+    );
   }
 );
 
@@ -3469,10 +3723,10 @@ async function setBusinessActivation(businessId, activationValue) {
 // A. CREATE — every fail-closed shape.
 // ---------------------------------------------------------------------
 
-rulesTest("SELLER-ACTIVATION-A1. create with active:true is allowed (otherwise-valid payload)", async () => {
+rulesTest("Revision 34 — direct client create denied (superseded: SELLER-ACTIVATION-A1. create with active:true is allowed (otherwise-valid payload))", async () => {
   await resetSeed();
   const db = (await env()).authenticatedContext("seller-1").firestore();
-  await assertSucceeds(setDoc(doc(db, "businesses/biz-1/products/act-a1"), safeProduct()));
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-a1"), safeProduct()));
 });
 
 rulesTest("SELLER-ACTIVATION-A2. create with the activation object missing entirely is denied", async () => {
@@ -3689,7 +3943,7 @@ rulesTest(
 );
 
 rulesTest(
-  "SELLER-ACTIVATION-C2. a business with a non-Petshop sector but active:true is still allowed",
+  "Revision 34 — direct client create denied (superseded: SELLER-ACTIVATION-C2. a business with a non-Petshop sector but active:true is still allowed)",
   async () => {
     await resetSeed();
     const rulesEnv = await env();
@@ -3697,7 +3951,7 @@ rulesTest(
       await setDoc(doc(context.firestore(), "businesses", "biz-1"), { sectors: ["veterinary"] }, { merge: true });
     });
     const db = rulesEnv.authenticatedContext("seller-1").firestore();
-    await assertSucceeds(setDoc(doc(db, "businesses/biz-1/products/act-c2"), safeProduct()));
+    await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-c2"), safeProduct()));
   }
 );
 
@@ -3803,10 +4057,10 @@ rulesTest(
 //    with the new predicate under an otherwise-active seller.
 // ---------------------------------------------------------------------
 
-rulesTest("SELLER-ACTIVATION-E1. media 20 allowed under an active seller", async () => {
+rulesTest("Revision 34 — direct client create denied (superseded: SELLER-ACTIVATION-E1. media 20 allowed under an active seller)", async () => {
   await resetSeed();
   const db = (await env()).authenticatedContext("seller-1").firestore();
-  await assertSucceeds(setDoc(doc(db, "businesses/biz-1/products/act-e1"), safeProduct({ media: mediaList(20) })));
+  await assertFails(setDoc(doc(db, "businesses/biz-1/products/act-e1"), safeProduct({ media: mediaList(20) })));
 });
 
 rulesTest("SELLER-ACTIVATION-E2. media 21 denied under an active seller", async () => {
@@ -4895,22 +5149,22 @@ rulesTest(
 // =======================================================================
 
 rulesTest(
-  "PUBLICATION-1. a valid seller draft creation still succeeds, unaffected",
+  "Revision 34 — direct client create denied (superseded: PUBLICATION-1. a valid seller draft creation still succeeds, unaffected)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/pub-1"), safeProduct())
     );
   }
 );
 
 rulesTest(
-  "PUBLICATION-2. an admin client-SDK creation with the exact legitimate safe draft values still succeeds",
+  "Revision 34 — direct client create denied (superseded: PUBLICATION-2. an admin client-SDK creation with the exact legitimate safe draft values still succeeds)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("admin-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/pub-2"), safeProduct())
     );
   }
@@ -5382,50 +5636,76 @@ rulesTest(
 // string directly and need no emulator — plain test(), not rulesTest(),
 // exactly mirroring "4.2r7-static-36" above. ---
 
+// Revision 34 migration of PUBLICATION-23.
+//
+// §15 intent: a product write can never assert a published/active
+// publication state, and an admin actor must not be able to OR its way past
+// that — the predicate sits OUTSIDE the actor-authorization group.
+//
+// Old assertion: `hasUnpublishedProductPublicationState(request.resource.data)`
+// is AND-ed onto BOTH `allow create: if (isAdmin() || isSafeNewProduct
+// Submission()) && ...` and the matching `allow update`.
+//
+// New boundary: the create half is enforced by submitMarketplaceProduct,
+// which stamps the publication state server-side rather than accepting it
+// (proven in functions/test/submitMarketplaceProduct.test.js). The update
+// half is unchanged and is still enforced exactly here, so that half of the
+// assertion is retained verbatim — narrowed only by dropping the create
+// clause, which no longer exists.
 test(
-  "PUBLICATION-23. (static) hasUnpublishedProductPublicationState is AND-ed onto both product allow rules, structurally outside the isAdmin() OR",
+  "PUBLICATION-23 (Revision 34). (static) hasUnpublishedProductPublicationState is AND-ed onto product allow update, structurally outside the isAdmin() OR; create no longer has an authorization branch to attach it to",
   () => {
-    const createMatch = rules.match(
-      /allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)\s*&&[\s\S]{0,300}?;/
+    const updateMatch = rulesCode.match(
+      /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,400}?;/
     );
-    const updateMatch = rules.match(
-      /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,300}?;/
-    );
-    assert.ok(createMatch, "product allow create rule not found in expected shape");
     assert.ok(updateMatch, "product allow update rule not found in expected shape");
-    assert.ok(
-      createMatch[0].includes("hasUnpublishedProductPublicationState(request.resource.data)"),
-      "create rule must AND hasUnpublishedProductPublicationState outside the isAdmin() OR"
-    );
     assert.ok(
       updateMatch[0].includes("hasUnpublishedProductPublicationState(request.resource.data)"),
       "update rule must AND hasUnpublishedProductPublicationState outside the isAdmin() OR"
     );
-    // The parenthesized (isAdmin() || ...) group closes before the &&
-    // that introduces hasUnpublishedProductPublicationState — proving
-    // the predicate sits outside, not inside, the actor-authorization OR.
-    assert.ok(
-      /\)\s*&&[\s\S]*hasUnpublishedProductPublicationState/.test(createMatch[0])
-    );
+    // The parenthesized (isAdmin() || ...) group closes before the && that
+    // introduces the predicate — proving it sits outside, not inside, the
+    // actor-authorization OR.
     assert.ok(
       /\)\s*&&[\s\S]*hasUnpublishedProductPublicationState/.test(updateMatch[0])
+    );
+    // Create carries no actor-authorization group at all any more.
+    assert.match(productsRulesBlock, /allow create: if false;/);
+    assert.equal(
+      (productsRulesBlock.match(/allow create: if \(isAdmin\(\)/g) || []).length,
+      0,
+      "create must not regain an isAdmin() authorization branch"
     );
   }
 );
 
+// Revision 34 migration of PUBLICATION-24.
+//
+// §15 intent: exactly one products create rule and one products update rule
+// exist, so no alternate path bypasses the publication closure.
+//
+// Old assertion: exactly one `allow create: if (isAdmin() ||
+// isSafeNewProductSubmission())`, one matching update, and exactly three
+// textual references to hasUnpublishedProductPublicationState (its
+// definition plus both call sites).
+//
+// New boundary: the uniqueness invariant is unchanged and strictly
+// stronger — the single create rule is now `if false`, and the predicate is
+// referenced exactly twice (definition plus the surviving update call site).
 test(
-  "PUBLICATION-24. (static) exactly one products allow-create and one products allow-update rule exist — no alternate path bypasses the closure",
+  "PUBLICATION-24 (Revision 34). (static) exactly one products allow-create (unconditionally false) and one products allow-update rule exist — no alternate path bypasses the closure",
   () => {
-    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
-    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
-    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
-    const closureCalls = rules.match(/hasUnpublishedProductPublicationState\(/g) || [];
+    const matchBlocks = rulesCode.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = productsRulesBlock.match(/allow create: if [^;]*;/g) || [];
+    const updateRules = rulesCode.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    const closureCalls = rulesCode.match(/hasUnpublishedProductPublicationState\(/g) || [];
     assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
     assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
+    assert.equal(createRules[0].trim(), "allow create: if false;");
     assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
-    // Once in the function definition itself, once in create, once in
-    // update.
-    assert.equal(closureCalls.length, 3, "hasUnpublishedProductPublicationState must be defined once and called exactly twice");
+    // Once in the function definition itself, once in the update rule. The
+    // create call site is gone because the create rule is unconditional.
+    assert.equal(closureCalls.length, 2, "hasUnpublishedProductPublicationState must be defined once and called exactly once");
   }
 );
 
@@ -5466,11 +5746,11 @@ test(
 // =======================================================================
 
 rulesTest(
-  "INTEGRITY-1. a valid, safe admin draft creation still succeeds",
+  "Revision 34 — direct client create denied (superseded: INTEGRITY-1. a valid, safe admin draft creation still succeeds)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("admin-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/int-1"), safeProduct())
     );
   }
@@ -5828,47 +6108,72 @@ rulesTest(
   }
 );
 
+// Revision 34 migration of INTEGRITY-19.
+//
+// §15 intent: product identity (businessId/sku/generation binding) is
+// guarded on both write paths, outside the admin OR.
+//
+// Old assertion: `hasValidProductGenerationBindingOnCreate` AND-ed onto the
+// create rule, `preservesProductIdentityOnUpdate` AND-ed onto the update
+// rule, both structurally outside the isAdmin() OR.
+//
+// New boundary: the update half is unchanged and still asserted here. The
+// create half moved to submitMarketplaceProduct, which derives the
+// deterministic ID and the generation binding itself instead of accepting
+// them from the caller (see the generation-collision tests in
+// functions/test/submitMarketplaceProduct.test.js).
 test(
-  "INTEGRITY-19. (static) preservesProductIdentityOnUpdate/hasValidProductGenerationBindingOnCreate are AND-ed onto both product allow rules, structurally outside the isAdmin() OR",
+  "INTEGRITY-19 (Revision 34). (static) preservesProductIdentityOnUpdate is AND-ed onto product allow update, structurally outside the isAdmin() OR; the create-side generation binding is now derived server-side",
   () => {
-    const createMatch = rules.match(
-      /allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)\s*&&[\s\S]{0,400}?;/
-    );
-    const updateMatch = rules.match(
+    const updateMatch = rulesCode.match(
       /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,400}?;/
     );
-    assert.ok(createMatch, "product allow create rule not found in expected shape");
     assert.ok(updateMatch, "product allow update rule not found in expected shape");
-    assert.ok(
-      createMatch[0].includes("hasValidProductGenerationBindingOnCreate(request.resource.data)"),
-      "create rule must AND hasValidProductGenerationBindingOnCreate outside the isAdmin() OR"
-    );
     assert.ok(
       updateMatch[0].includes("preservesProductIdentityOnUpdate(request.resource.data, resource.data)"),
       "update rule must AND preservesProductIdentityOnUpdate outside the isAdmin() OR"
     );
     assert.ok(
-      /\)\s*&&[\s\S]*hasValidProductGenerationBindingOnCreate/.test(createMatch[0])
-    );
-    assert.ok(
       /\)\s*&&[\s\S]*preservesProductIdentityOnUpdate/.test(updateMatch[0])
+    );
+    // hasValidProductGenerationBindingOnCreate is retained as frozen
+    // specification but must no longer be a reachable authorization branch.
+    assert.equal(
+      (productsRulesBlock.match(/allow create: if [^;]*hasValidProductGenerationBindingOnCreate/g) || []).length,
+      0,
+      "create must not call hasValidProductGenerationBindingOnCreate as live authorization"
     );
   }
 );
 
+// Revision 34 migration of INTEGRITY-20.
+//
+// §15 intent: the integrity guards each have exactly one call site, so no
+// alternate rule bypasses them.
+//
+// Old assertion: one create rule, one update rule, and exactly two textual
+// references each to hasValidProductGenerationBindingOnCreate (definition +
+// create call) and preservesProductIdentityOnUpdate (definition + update
+// call).
+//
+// New boundary: preservesProductIdentityOnUpdate is unchanged at two.
+// hasValidProductGenerationBindingOnCreate now appears exactly once — its
+// definition only — which is the precise, truthful statement that it is
+// retained as executable specification with zero live call sites.
 test(
-  "INTEGRITY-20. (static) exactly one products allow-create and one products allow-update rule exist, each calling its new integrity guard exactly once — no alternate path bypasses the closure",
+  "INTEGRITY-20 (Revision 34). (static) exactly one products allow-create and one allow-update rule exist; preservesProductIdentityOnUpdate has exactly one call site and hasValidProductGenerationBindingOnCreate has none",
   () => {
-    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
-    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
-    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
-    const generationBindingCalls = rules.match(/hasValidProductGenerationBindingOnCreate\(/g) || [];
-    const identityCalls = rules.match(/preservesProductIdentityOnUpdate\(/g) || [];
+    const matchBlocks = rulesCode.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = productsRulesBlock.match(/allow create: if [^;]*;/g) || [];
+    const updateRules = rulesCode.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    const generationBindingCalls = rulesCode.match(/hasValidProductGenerationBindingOnCreate\(/g) || [];
+    const identityCalls = rulesCode.match(/preservesProductIdentityOnUpdate\(/g) || [];
     assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
     assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
+    assert.equal(createRules[0].trim(), "allow create: if false;");
     assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
-    // Once in the function definition itself, once in the create rule.
-    assert.equal(generationBindingCalls.length, 2, "hasValidProductGenerationBindingOnCreate must be defined once and called exactly once");
+    // Definition only — retained as frozen specification, never invoked.
+    assert.equal(generationBindingCalls.length, 1, "hasValidProductGenerationBindingOnCreate must be defined once and called zero times");
     // Once in the function definition itself, once in the update rule.
     assert.equal(identityCalls.length, 2, "preservesProductIdentityOnUpdate must be defined once and called exactly once");
   }
@@ -5894,11 +6199,11 @@ test(
 // =======================================================================
 
 rulesTest(
-  "REV29-1 (plan item 936). a safe admin draft create satisfying every integrity predicate succeeds",
+  "Revision 34 — direct client create denied (superseded: REV29-1 (plan item 936). a safe admin draft create satisfying every integrity predicate succeeds)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("admin-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/rev29-1"), safeProduct())
     );
   }
@@ -5993,11 +6298,11 @@ rulesTest(
 );
 
 rulesTest(
-  "REV29-7 (plan item 942). an admin client-SDK create/update with exactly 20 media entries is accepted",
+  "Revision 34 — direct client create denied (superseded: REV29-7 (plan item 942). an admin client-SDK create/update with exactly 20 media entries is accepted)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("admin-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/rev29-7"),
         safeProduct({ media: mediaList(20) })
@@ -6655,11 +6960,11 @@ rulesTest(
 );
 
 rulesTest(
-  "REV29-39 (plan item 974). ordinary seller product creation remains valid, unaffected by the consolidation of isSafeNewProductSubmission()",
+  "Revision 34 — direct client create denied (superseded: REV29-39 (plan item 974). ordinary seller product creation remains valid, unaffected by the consolidation of isSafeNewProductSubmission())",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("seller-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "businesses/biz-1/products/rev29-39"), safeProduct())
     );
   }
@@ -6731,47 +7036,66 @@ rulesTest(
   }
 );
 
+// Revision 34 migration of REV29-44 (plan item 979).
+//
+// §15 intent: name/price/stock/category value integrity is enforced on both
+// write paths with no admin exception.
+//
+// Old assertion: `hasSafeProductIntegrityOnCreate` AND-ed onto the create
+// rule and `hasSafeProductIntegrityOnUpdate` onto the update rule, both
+// outside the isAdmin() OR.
+//
+// New boundary: the update half is unchanged and still asserted here. The
+// create half is enforced by submitMarketplaceProduct's
+// assertValidDraftValues, which mirrors hasSafeProductIntegrityOnCreate
+// field-for-field and is strictly stricter (added length and finiteness
+// bounds) — proven in functions/test/submitMarketplaceProduct.test.js.
 test(
-  "REV29-44 (plan item 979). (static) hasSafeProductIntegrityOnCreate/hasSafeProductIntegrityOnUpdate are AND-ed onto both product allow rules, structurally outside the isAdmin() OR",
+  "REV29-44 (Revision 34, plan item 979). (static) hasSafeProductIntegrityOnUpdate is AND-ed onto product allow update, structurally outside the isAdmin() OR; create-value integrity is enforced by submitMarketplaceProduct",
   () => {
-    const createMatch = rules.match(
-      /allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)\s*&&[\s\S]{0,500}?;/
-    );
-    const updateMatch = rules.match(
+    const updateMatch = rulesCode.match(
       /allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)\s*&&[\s\S]{0,500}?;/
     );
-    assert.ok(createMatch, "product allow create rule not found in expected shape");
     assert.ok(updateMatch, "product allow update rule not found in expected shape");
-    assert.ok(
-      createMatch[0].includes("hasSafeProductIntegrityOnCreate(request.resource.data)"),
-      "create rule must AND hasSafeProductIntegrityOnCreate outside the isAdmin() OR"
-    );
     assert.ok(
       updateMatch[0].includes("hasSafeProductIntegrityOnUpdate(request.resource.data, resource.data)"),
       "update rule must AND hasSafeProductIntegrityOnUpdate outside the isAdmin() OR"
     );
     assert.ok(
-      /\)\s*&&[\s\S]*hasSafeProductIntegrityOnCreate/.test(createMatch[0])
-    );
-    assert.ok(
       /\)\s*&&[\s\S]*hasSafeProductIntegrityOnUpdate/.test(updateMatch[0])
+    );
+    assert.equal(
+      (productsRulesBlock.match(/allow create: if [^;]*hasSafeProductIntegrityOnCreate/g) || []).length,
+      0,
+      "create must not call hasSafeProductIntegrityOnCreate as live authorization"
     );
   }
 );
 
+// Revision 34 migration of REV29-45 (plan item 980).
+//
+// §15 intent: each no-exception integrity guard has exactly one call site.
+//
+// Old assertion: two textual references each to
+// hasSafeProductIntegrityOnCreate and hasSafeProductIntegrityOnUpdate.
+//
+// New boundary: the update guard is unchanged at two. The create guard now
+// appears exactly once — its definition — which truthfully states that it is
+// retained as frozen specification with no reachable call site.
 test(
-  "REV29-45 (plan item 980). (static) exactly one products allow-create and one products allow-update rule exist, each calling its new no-exception integrity guard exactly once — no alternate path bypasses the closure",
+  "REV29-45 (Revision 34, plan item 980). (static) exactly one products allow-create and one allow-update rule exist; hasSafeProductIntegrityOnUpdate has exactly one call site and hasSafeProductIntegrityOnCreate has none",
   () => {
-    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
-    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
-    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
-    const createIntegrityCalls = rules.match(/hasSafeProductIntegrityOnCreate\(/g) || [];
-    const updateIntegrityCalls = rules.match(/hasSafeProductIntegrityOnUpdate\(/g) || [];
+    const matchBlocks = rulesCode.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = productsRulesBlock.match(/allow create: if [^;]*;/g) || [];
+    const updateRules = rulesCode.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    const createIntegrityCalls = rulesCode.match(/hasSafeProductIntegrityOnCreate\(/g) || [];
+    const updateIntegrityCalls = rulesCode.match(/hasSafeProductIntegrityOnUpdate\(/g) || [];
     assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
     assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
+    assert.equal(createRules[0].trim(), "allow create: if false;");
     assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
-    // Once in the function definition itself, once in the create rule.
-    assert.equal(createIntegrityCalls.length, 2, "hasSafeProductIntegrityOnCreate must be defined once and called exactly once");
+    // Definition only — retained as frozen specification, never invoked.
+    assert.equal(createIntegrityCalls.length, 1, "hasSafeProductIntegrityOnCreate must be defined once and called zero times");
     // Once in the function definition itself, once in the update rule.
     assert.equal(updateIntegrityCalls.length, 2, "hasSafeProductIntegrityOnUpdate must be defined once and called exactly once");
   }
@@ -7085,11 +7409,11 @@ rulesTest(
 );
 
 rulesTest(
-  "REV29R-12 (residual correction, Finding 1). an admin client-SDK create at the exact boundary (1-char name, smallest positive price, stock == 1) succeeds",
+  "Revision 34 — direct client create denied (superseded: REV29R-12 (residual correction, Finding 1). an admin client-SDK create at the exact boundary (1-char name, smallest positive price, stock == 1) succeeds)",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("admin-1").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(db, "businesses/biz-1/products/rev29r-12"),
         safeProduct({ name: "A", price: 0.01, stock: 1 })
@@ -7185,18 +7509,28 @@ rulesTest(
 );
 
 rulesTest(
-  "REV29R-20 (residual correction, Finding 1). ordinary seller create/update with valid boundary name/price/stock values still succeeds, unaffected by relocating the check into the shared predicate",
+  "REV29R-20 (Revision 34, residual correction, Finding 1). an ordinary seller UPDATE at the valid boundary name/price/stock values still succeeds, unaffected by relocating the check into the shared predicate",
   async () => {
     await resetSeed();
+    // Fixture setup only — the operation under test is the seller update.
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev29r-20",
+      safeProduct({ name: "A", price: 0.01, stock: 1 })
+    );
     const db = (await env()).authenticatedContext("seller-1").firestore();
     await assertSucceeds(
-      setDoc(
-        doc(db, "businesses/biz-1/products/rev29r-20"),
-        safeProduct({ name: "A", price: 0.01, stock: 1 })
-      )
-    );
-    await assertSucceeds(
       updateDoc(doc(db, "businesses/biz-1/products/rev29r-20"), { stock: 2 })
+    );
+    // The shared predicate is genuinely evaluated on that update path: the
+    // same edit carrying an out-of-bounds value is rejected.
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-20"), { stock: 0 })
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-20"), { price: 0 })
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-20"), { name: "" })
     );
   }
 );
@@ -7517,15 +7851,42 @@ test(
   }
 );
 
+// Revision 34 migration of REV29R-43 (residual correction).
+//
+// §15 intent: re-affirm post-correction that the products collection still
+// exposes exactly one create rule and one update rule.
+//
+// Old assertion: exactly one `allow create: if (isAdmin() ||
+// isSafeNewProductSubmission())` and one matching update.
+//
+// New boundary: the uniqueness invariant is retained and extended with the
+// Revision 34 closure properties it now guards — no isAdmin() branch and no
+// isSafeNewProductSubmission() branch can restore client create.
 test(
-  "REV29R-43 (residual correction). exactly one products allow-create and one products allow-update rule still exist post-correction, re-affirming REV29-45's invariant",
+  "REV29R-43 (Revision 34, residual correction). exactly one products allow-create and one allow-update rule still exist post-closure, and no branch can restore client create",
   () => {
-    const matchBlocks = rules.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
-    const createRules = rules.match(/allow create: if \(isAdmin\(\) \|\| isSafeNewProductSubmission\(\)\)/g) || [];
-    const updateRules = rules.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
+    const matchBlocks = rulesCode.match(/match \/\{path=\*\*\}\/products\/\{productId\}/g) || [];
+    const createRules = productsRulesBlock.match(/allow create: if [^;]*;/g) || [];
+    const updateRules = rulesCode.match(/allow update: if \(isAdmin\(\) \|\| isSafeProductResubmission\(\)\)/g) || [];
     assert.equal(matchBlocks.length, 1, "exactly one products match block expected");
     assert.equal(createRules.length, 1, "exactly one products allow create rule expected");
     assert.equal(updateRules.length, 1, "exactly one products allow update rule expected");
+    // The create rule is the literal constant false — no OR, no branch, no
+    // predicate call, nothing an actor can satisfy.
+    assert.equal(createRules[0].trim(), "allow create: if false;");
+    assert.doesNotMatch(createRules[0], /isAdmin\(\)/);
+    assert.doesNotMatch(createRules[0], /isSafeNewProductSubmission\(\)/);
+    assert.doesNotMatch(createRules[0], /\|\|/);
+    // isSafeNewProductSubmission survives only as its own definition; it is
+    // not wired into any allow rule anywhere in the file.
+    const submissionRefs = rulesCode.match(/(function\s+)?isSafeNewProductSubmission\(\)/g) || [];
+    const submissionDefs = submissionRefs.filter((ref) => ref.startsWith("function"));
+    assert.equal(submissionDefs.length, 1, "isSafeNewProductSubmission must still be defined once");
+    assert.equal(
+      submissionRefs.length - submissionDefs.length,
+      0,
+      "isSafeNewProductSubmission() must have no call sites once client create is closed"
+    );
   }
 );
 
@@ -7542,15 +7903,25 @@ rulesTest(
 );
 
 rulesTest(
-  "REV29R-45 (residual correction). ordinary seller product creation and resubmission remain valid end-to-end, unaffected by relocating name/price/stock validation into the shared predicates",
+  "REV29R-45 (Revision 34, residual correction). server creation followed by ordinary seller resubmission remains valid end-to-end, unaffected by relocating name/price/stock validation into the shared predicates",
   async () => {
     await resetSeed();
+    // Direct client creation is closed; the product arrives the way the
+    // server writes it. Fixture setup only.
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev29r-45",
+      safeProduct()
+    );
     const db = (await env()).authenticatedContext("seller-1").firestore();
     await assertSucceeds(
-      setDoc(doc(db, "businesses/biz-1/products/rev29r-45"), safeProduct())
-    );
-    await assertSucceeds(
       updateDoc(doc(db, "businesses/biz-1/products/rev29r-45"), { stock: 42 })
+    );
+    // And the resubmission path still refuses a server-owned field, proving
+    // the update contract is really being evaluated here.
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev29r-45"), {
+        moderationStatus: "approved",
+      })
     );
   }
 );

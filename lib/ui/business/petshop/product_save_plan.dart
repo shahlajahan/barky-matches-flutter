@@ -58,6 +58,16 @@ class ProductSubmissionReason {
   static const String uploadFailed = 'upload_failed';
   static const String productSubmissionFailed = 'product_submission_failed';
 
+  /// Marketplace Revision 33/34: the deterministic product ID
+  /// `${businessId}_${normalizedSku}` is occupied by a product bound to a
+  /// PREVIOUS business generation whose authoritative cleanup has not
+  /// finished yet. Deliberately distinct from [duplicateSku]: the seller's
+  /// SKU is not taken by a live product of theirs, the slot is merely still
+  /// being reclaimed, and retrying shortly succeeds. Collapsing the two
+  /// would tell the seller to change a SKU that is in fact free.
+  static const String previousGenerationCleanupPending =
+      'previous_generation_cleanup_pending';
+
   static const Set<String> values = {
     marketplaceDisabled,
     sellerActivationRequired,
@@ -67,6 +77,7 @@ class ProductSubmissionReason {
     permissionDenied,
     uploadFailed,
     productSubmissionFailed,
+    previousGenerationCleanupPending,
   };
 }
 

@@ -261,13 +261,17 @@ void main() {
   // `submitMarketplaceProduct` callable, whose collision check runs inside
   // an Admin SDK transaction where it cannot be raced.
   //
-  // These replacements deliberately do NOT assert exclusivity: as at
-  // Revision 32 §C-bis, `firestore.rules` still permits a direct client-SDK
-  // product create, so the app's routing is the only thing that changed.
-  // Exclusive server authority arrives with the dedicated Rules slice, and
-  // no test here may claim it earlier. Collision behaviour, concurrency and
-  // server-owned initial state are proven behaviourally in
-  // functions/test/submitMarketplaceProduct.test.js.
+  // Revision 34 supersedes Revision 32 §C-bis's transitional caveat. At
+  // Revision 32 `firestore.rules` still permitted a direct client-SDK
+  // product create, so the app's routing was the only thing that had
+  // changed and no test here was allowed to claim exclusivity. Revision 34
+  // closes that gap — `allow create: if false` for
+  // `businesses/{businessId}/products/{productId}` — so the callable is now
+  // the exclusive create authority in source, and the exclusivity contract
+  // is asserted directly by the Revision 34 test below. (Source exclusivity
+  // only: no Rules deployment is claimed or implied here.) Collision
+  // behaviour, concurrency and server-owned initial state remain proven
+  // behaviourally in functions/test/submitMarketplaceProduct.test.js.
   test('the create path is routed to the server-authoritative callable', () {
     final source = File(
       'lib/ui/business/petshop/add_product_page.dart',
@@ -279,6 +283,77 @@ void main() {
     // denied non-existent-document read it depended on is gone with it.
     expect(source, isNot(contains('targetSnapshot')));
     expect(source, isNot(contains("ProductSubmitException('sku-collision')")));
+  });
+
+  // Revision 34 §B — the create branch performs NO direct product write.
+  //
+  // Scoped deliberately to the create branch body alone: the edit paths in
+  // the same method legitimately run a transaction and call tx.set(), and a
+  // whole-file assertion would either forbid that or be satisfied by it.
+  // Extracting the branch by its brace structure (not by a name) also means
+  // renaming a variable such as `targetRef` cannot make this pass.
+  test('the create branch invokes the callable and writes no product', () {
+    final source = File(
+      'lib/ui/business/petshop/add_product_page.dart',
+    ).readAsStringSync();
+
+    final createBranch = _extractCreateBranchBody(source);
+    expect(
+      createBranch,
+      isNotNull,
+      reason:
+          'the ProductWriteMode.create branch could not be located; '
+          'this test must be repaired rather than skipped',
+    );
+    final branch = _withoutComments(createBranch!);
+
+    // Positive: creation goes through the server callable.
+    expect(branch, contains("httpsCallable('submitMarketplaceProduct')"));
+
+    // Negative: no Firestore write of any kind inside the create branch.
+    for (final writeVerb in [
+      'runTransaction',
+      'tx.set',
+      'tx.update',
+      'tx.delete',
+      '.set(',
+      '.update(',
+      '.add(',
+      '.delete(',
+      'WriteBatch',
+      'batch(',
+    ]) {
+      expect(
+        branch,
+        isNot(contains(writeVerb)),
+        reason:
+            'the create branch must perform no direct product write, '
+            'but it contains "$writeVerb"',
+      );
+    }
+
+    // Negative: it does not even build a document reference to write to.
+    expect(branch, isNot(contains("collection('products')")));
+    expect(branch, isNot(contains('.doc(')));
+
+    // Guard against the branch being emptied out: it must still be real
+    // code that assembles a draft and calls the callable.
+    expect(branch, contains('buildProductWritePayload'));
+    expect(branch, contains('kServerOwnedProductSubmitFields'));
+    expect(branch.trim().split('\n').length, greaterThan(5));
+  });
+
+  test('the edit paths are unaffected and still write through Firestore', () {
+    // The companion to the test above: proving the create branch writes
+    // nothing must not be achievable by removing the edit write paths, so
+    // assert they are still present outside the create branch.
+    final source = File(
+      'lib/ui/business/petshop/add_product_page.dart',
+    ).readAsStringSync();
+    final createBranch = _extractCreateBranchBody(source)!;
+    final outsideCreate = source.replaceFirst(createBranch, '');
+    expect(outsideCreate, contains('runTransaction'));
+    expect(outsideCreate, contains('tx.set('));
   });
 
   test('the client builds no reference to the target product on create', () {
@@ -4145,4 +4220,31 @@ class _FakeImagePickerPlatform extends ImagePickerPlatform {
     callCount += 1;
     return [XFile('fake_media_$callCount.jpg')];
   }
+}
+
+/// Extracts the body of the `if (savePlan.mode == ProductWriteMode.create)`
+/// branch by brace matching, so the assertion is anchored to the branch's
+/// structure rather than to any identifier inside it.
+String? _extractCreateBranchBody(String source) {
+  const marker = 'if (savePlan.mode == ProductWriteMode.create) {';
+  final start = source.indexOf(marker);
+  if (start < 0) return null;
+  var depth = 0;
+  for (var i = start + marker.length - 1; i < source.length; i++) {
+    final ch = source[i];
+    if (ch == '{') {
+      depth++;
+    } else if (ch == '}') {
+      depth--;
+      if (depth == 0) return source.substring(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/// Strips comments so a source-shape assertion reads only executable code.
+String _withoutComments(String source) {
+  return source
+      .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+      .replaceAll(RegExp(r'^\s*//.*$', multiLine: true), '');
 }

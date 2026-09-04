@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:barky_matches_fixed/ui/business/petshop/product_save_plan.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/product_submit_exception.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// through to the generic "something went wrong" message.
 void main() {
   group('frozen reason codes', () {
-    test('exactly the eight documented codes exist', () {
+    test('exactly the nine documented codes exist', () {
       expect(ProductSubmissionReason.values, {
         'marketplace_disabled',
         'seller_activation_required',
@@ -19,8 +21,87 @@ void main() {
         'permission_denied',
         'upload_failed',
         'product_submission_failed',
+        // Revision 34 — the deterministic-slot reclaim case.
+        'previous_generation_cleanup_pending',
       });
     });
+
+    test(
+      'previous_generation_cleanup_pending is distinct from duplicate_sku',
+      () {
+        // These must never be collapsed: duplicate_sku means "pick another
+        // SKU", cleanup-pending means "this SKU is yours, retry shortly".
+        expect(
+          ProductSubmissionReason.previousGenerationCleanupPending,
+          isNot(equals(ProductSubmissionReason.duplicateSku)),
+        );
+        expect(
+          ProductSubmissionReason.previousGenerationCleanupPending,
+          'previous_generation_cleanup_pending',
+        );
+      },
+    );
+
+    test(
+      'every reason code the callable can throw is a recognized client code',
+      () {
+        // Read the server's frozen vocabulary directly, so adding a reason
+        // server-side without a client mapping fails here rather than
+        // silently degrading to the generic message in production.
+        final serverSource = File(
+          'functions/src/marketplace/product/submitMarketplaceProduct.js',
+        ).readAsStringSync();
+        final block = RegExp(
+          r'const SUBMIT_REASON = Object\.freeze\(\{([\s\S]*?)\}\);',
+        ).firstMatch(serverSource);
+        expect(block, isNotNull, reason: 'SUBMIT_REASON block not found');
+        final serverCodes = RegExp(
+          r'"([a-z_]+)"',
+        ).allMatches(block!.group(1)!).map((m) => m.group(1)!).toSet();
+        expect(serverCodes.length, 9);
+        for (final code in serverCodes) {
+          expect(
+            ProductSubmissionReason.values,
+            contains(code),
+            reason: '$code is thrown by the callable but unknown to the client',
+          );
+        }
+        // The two vocabularies are exactly equal — no client-only code and
+        // no server-only code. upload_failed is declared on both sides but
+        // is raised by the Flutter media-upload step BEFORE the callable is
+        // invoked; it is a documented, deliberate part of the shared
+        // vocabulary rather than a client-side invention.
+        expect(ProductSubmissionReason.values.difference(serverCodes), isEmpty);
+        expect(serverCodes.difference(ProductSubmissionReason.values), isEmpty);
+        expect(
+          serverSource.contains('SUBMIT_REASON.UPLOAD_FAILED'),
+          isFalse,
+          reason:
+              'upload_failed is declared server-side but never thrown '
+              'there; it originates in the client upload step',
+        );
+      },
+    );
+
+    test(
+      'add_product_page maps every reason code to a distinct localized message',
+      () {
+        final pageSource = File(
+          'lib/ui/business/petshop/add_product_page.dart',
+        ).readAsStringSync();
+        final code = pageSource
+            .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+            .replaceAll(RegExp(r'^\s*//.*$', multiLine: true), '');
+        for (final reason in ProductSubmissionReason.values) {
+          final constant = _constantNameFor(reason);
+          expect(
+            code,
+            contains('ProductSubmissionReason.$constant'),
+            reason: '$reason has no explicit switch arm',
+          );
+        }
+      },
+    );
 
     test('each constant matches its wire value', () {
       expect(
@@ -128,4 +209,11 @@ void main() {
       expect(productSubmissionReasonOf(error), 'internal');
     });
   });
+}
+
+/// Wire value -> the Dart constant name that must appear in the switch.
+String _constantNameFor(String wireValue) {
+  final parts = wireValue.split('_');
+  return parts.first +
+      parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
 }

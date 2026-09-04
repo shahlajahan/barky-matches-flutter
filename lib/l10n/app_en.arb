@@ -4644,5 +4644,6 @@
 ,"invalidProductDataError": "Some product details are invalid. Please review the form and try again."
 ,"mediaUploadFailedError": "Product media could not be uploaded. Please try again."
 ,"productSubmissionFailedError": "The product could not be submitted. Please try again."
+,"productSlotCleanupPendingError": "This product slot is still being freed up. Please try again in a moment."
 ,"networkErrorTryAgain": "Network error. Please try again."
 }

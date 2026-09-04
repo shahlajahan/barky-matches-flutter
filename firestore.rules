@@ -1317,7 +1317,13 @@ match /dogs/{dogId}/visits/{visitId} {
       'sellerRelationship', 'shippingFee',
       'shippingMode', 'shippingPayer', 'shippingProfile', 'shippingSnapshot',
       'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
-      'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm'
+      'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm',
+      // Revision 31 §C / Revision 34: the authoritative pilot classification.
+      // Present here ONLY so its existence never fails this closed-schema
+      // `hasOnly()` check once an admin has written it — a seller may never
+      // add, change or remove it (preservesPilotProductClassOnUpdate, below),
+      // and no client may create a product at all.
+      'pilotProductClass'
     ].concat(serverOwnedProductFields());
   }
 
@@ -1413,6 +1419,19 @@ match /dogs/{dogId}/visits/{visitId} {
   // never by a Rules change; the remaining items have no explicit
   // admin-inclusive requirement anywhere in the plan and are left
   // untouched rather than guessed at.
+  // Revision 34 — `pilotProductClass` is server/admin-owned. A seller update
+  // must leave it exactly as it found it: absent stays absent, and a present
+  // value must be preserved byte-identically. A diff-based check is used
+  // rather than a presence check so an admin-written value carried forward
+  // unchanged never fails, while adding, altering or removing it does.
+  // Preservation is deliberately value-blind: it does not make an
+  // unrecognised value valid, it only forbids the client from touching it.
+  // Publication never depends on this field yet — that is Revision 30
+  // slice 7.
+  function preservesPilotProductClassOnUpdate(incoming, existing) {
+    return !incoming.diff(existing).affectedKeys().hasAny(['pilotProductClass']);
+  }
+
   function preservesProductIdentityOnUpdate(incoming, existing) {
     return !incoming.diff(existing).affectedKeys().hasAny([
       'sku', 'businessId', 'createdAt', 'marketplaceBusinessGenerationId'
@@ -1834,13 +1853,33 @@ match /dogs/{dogId}/visits/{visitId} {
       isBusinessOwner(resource.data.businessId)
     );
 
-  allow create: if (isAdmin() || isSafeNewProductSubmission())
-    && omitsPilotProductApprovalOnCreate(request.resource.data)
-    && hasUnpublishedProductPublicationState(request.resource.data)
-    && hasValidProductGenerationBindingOnCreate(request.resource.data)
-    && hasSafeProductIntegrityOnCreate(request.resource.data);
+  // Marketplace Revision 34 — direct client-SDK product creation is denied
+  // unconditionally, for every actor: seller-owner, another authenticated
+  // user, an unauthenticated caller, and an authenticated admin using the
+  // client SDK alike. Products are created only by trusted server code
+  // through `submitMarketplaceProduct` (Admin SDK, which bypasses Rules by
+  // construction), which re-derives ownership, seller activation, the
+  // generation binding and every value check below server-side.
+  //
+  // This mirrors the posture `allow delete: if false` already established
+  // for this same collection in Revision 19, and closes the last path by
+  // which a client could place a product document at a deterministic ID
+  // without passing the server contract.
+  //
+  // The four create-only predicates that this rule previously AND-ed —
+  // `omitsPilotProductApprovalOnCreate`, `hasUnpublishedProductPublication
+  // State`, `hasValidProductGenerationBindingOnCreate` and
+  // `hasSafeProductIntegrityOnCreate` — are deliberately RETAINED rather
+  // than deleted. `hasUnpublishedProductPublicationState` is still reached
+  // by `allow update`; the other three are now unreachable from Rules and
+  // are kept as the frozen, executable specification of the create contract
+  // that `submitMarketplaceProduct` must continue to satisfy, and so that
+  // re-opening client create can never silently lose them. They are not
+  // live security logic any more, and this comment is their record.
+  allow create: if false;
 
   allow update: if (isAdmin() || isSafeProductResubmission())
+    && preservesPilotProductClassOnUpdate(request.resource.data, resource.data)
     && preservesPilotProductApprovalOnUpdate(request.resource.data, resource.data)
     && hasUnpublishedProductPublicationState(request.resource.data)
     && preservesProductIdentityOnUpdate(request.resource.data, resource.data)
@@ -2703,6 +2742,29 @@ match /stories/{storyId} {
     // any kind, Admin SDK writes it directly inside the same
     // transaction as the corresponding `pilotProductApproval` state
     // write.
+    // Marketplace Revision 34 — server-owned operational collections.
+    // These are written only by trusted Functions through the Admin SDK,
+    // which bypasses Rules by construction. They previously relied on
+    // Firestore's implicit default-deny (no root catch-all match exists);
+    // the explicit blocks below make that intent readable and prevent a
+    // future rule from accidentally granting access through a broader
+    // match. Admin SDK access is unaffected.
+    match /marketplacePendingMediaCleanups/{cleanupId} {
+      allow read, write: if false;
+    }
+
+    match /marketplaceBusinessDeletionCascades/{cascadeId} {
+      allow read, write: if false;
+    }
+
+    match /marketplaceProductCleanupAuditEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /marketplaceProductDeletionReceipts/{receiptId} {
+      allow read, write: if false;
+    }
+
     match /pilotProductApprovalAuditEvents/{eventId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;

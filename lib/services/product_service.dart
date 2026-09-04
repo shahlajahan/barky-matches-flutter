@@ -156,66 +156,26 @@ class ProductService {
   }
 
   // =========================
-  // ➕ ADD PRODUCT
+  // ➕ ADD PRODUCT — REMOVED (Marketplace Revision 34)
   // =========================
-  Future<void> addProduct(String businessId, Product product) async {
-    try {
-      _validateProduct(product);
-
-      final ref = _db
-          .collection("businesses")
-          .doc(businessId)
-          .collection("products")
-          .doc(); // 🔥 auto id
-
-      final newProduct = Product(
-        id: ref.id,
-        businessId: businessId,
-
-        // 🔁 copy fields
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        currency: product.currency,
-        media: product.media,
-        stock: product.stock,
-        category: product.category,
-        isActive: product.isActive,
-
-        // optional
-        barcode: product.barcode,
-        brand: product.brand,
-        sku: product.sku,
-        salePrice: product.salePrice,
-        wholesalePrice: product.wholesalePrice,
-
-        // 🔥 SHIPPING
-        isShippable: product.isShippable,
-        deliveryType: product.deliveryType,
-        weightKg: product.weightKg,
-        lengthCm: product.lengthCm,
-        widthCm: product.widthCm,
-        heightCm: product.heightCm,
-        fixedDesi: product.fixedDesi,
-        shippingMode: product.shippingMode,
-        shippingPayer: product.shippingPayer,
-        shippingFee: product.shippingFee,
-        freeShippingThreshold: product.freeShippingThreshold,
-        allowedCarrierCodes: product.allowedCarrierCodes,
-
-        // timestamps
-        createdAt: FieldValue.serverTimestamp() as Timestamp?,
-        updatedAt: FieldValue.serverTimestamp() as Timestamp?,
-      );
-
-      await ref.set(newProduct.toJson());
-
-      debugPrint("✅ PRODUCT CREATED: ${ref.id}");
-    } catch (e) {
-      debugPrint("❌ addProduct ERROR: $e");
-      rethrow;
-    }
-  }
+  // `addProduct` wrote a product directly through the client SDK at an
+  // auto-generated document ID. It was already unreachable — no caller
+  // existed anywhere in lib/, test/ or integration_test/ — and it
+  // contradicted two committed contracts at once:
+  //
+  //   * Revision 19's deterministic product identity
+  //     `${businessId}_${normalizedSku}`, which an auto ID cannot produce;
+  //     and
+  //   * Revision 34's closure of direct client-SDK product creation
+  //     (`allow create: if false` in firestore.rules), under which any such
+  //     write is denied at the server anyway.
+  //
+  // Products are created exclusively by the `submitMarketplaceProduct`
+  // callable (Admin SDK), which derives the ID, the generation binding and
+  // every value check server-side. This mirrors how the direct client
+  // delete was retired in Revision 19 in favour of `deleteMarketplaceProduct`
+  // below. `_validateProduct` is deliberately retained: `updateProduct`
+  // still uses it, and its update contract remains legitimate.
 
   // =========================
   // ❌ DELETE — Marketplace P1-A Slice 4.10 (docs/plans/marketplace_p1a_

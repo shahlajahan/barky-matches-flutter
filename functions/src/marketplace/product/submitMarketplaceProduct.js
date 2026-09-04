@@ -22,6 +22,10 @@ const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
 
 const { SELLER_RELATIONSHIP } = require("../compliance/complianceConstants");
+// Revision 34 §6 — the SAME canonical classifier the deletion path uses, so
+// submission and cleanup can never disagree about what a legitimate product
+// media reference is.
+const { classifyMediaReference } = require("./productCleanup");
 
 const BUSINESSES_COLLECTION = "businesses";
 const PRODUCTS_SUBCOLLECTION = "products";
@@ -103,6 +107,23 @@ const SELLER_SUBMITTABLE_FIELDS = Object.freeze([
   "shippingSnapshot", "stock", "suggestedMaxPrice", "suggestedMinPrice",
   "suggestedPrice", "taxIncluded", "weightKg", "wholesalePrice", "widthCm",
 ]);
+
+// Revision 34 §5 — the draft-submission category allowlist, kept
+// byte-identical to `isKnownSafeProductCategory()` in firestore.rules. This
+// is the DRAFT-submission set and is deliberately wider than §21.12's four
+// pilot classes: narrowing publication to those classes is Revision 30
+// slice 7 and must not be smuggled in here. This is presentation/draft
+// metadata and is never the authoritative `pilotProductClass`.
+const KNOWN_SAFE_PRODUCT_CATEGORIES = Object.freeze([
+  "Food > Dry Food", "Food > Wet Food", "Food > Treats",
+  "Accessories > Collar", "Accessories > Leash", "Accessories > Clothing",
+  "Health > Vitamins",
+  "Toys > Chew Toy", "Toys > Interactive",
+]);
+
+const MAX_MEDIA_ENTRIES = 20;
+const MAX_NAME_LENGTH = 200;
+const MAX_DESCRIPTION_LENGTH = 5000;
 
 const REQUEST_ALLOWED_FIELDS = Object.freeze([
   "businessId",
@@ -198,7 +219,87 @@ function validateRequest(data) {
     }
   }
 
+  assertValidDraftValues(data.draft);
+
   return { businessId, sku, sellerRelationship: data.sellerRelationship, draft: data.draft };
+}
+
+// Revision 34 §5 — value validation ported from firestore.rules.
+//
+// The Admin SDK bypasses Rules by construction, so once direct client create
+// is denied this callable becomes the ONLY create path and must enforce an
+// equal-or-stricter contract than the Rules it replaces. Each check below
+// mirrors `hasSafeProductIntegrityOnCreate()` exactly; the additional length
+// and finiteness bounds are strictly stricter, never weaker.
+function assertValidDraftValues(draft) {
+  const invalid = (message) =>
+    fail("invalid-argument", message, SUBMIT_REASON.INVALID_PRODUCT_DATA);
+
+  // name: string, non-empty after trimming, bounded.
+  if (typeof draft.name !== "string") throw invalid("name must be a string");
+  if (draft.name.trim().length === 0) throw invalid("name is required");
+  if (draft.name.length > MAX_NAME_LENGTH) throw invalid("name is too long");
+
+  // description: optional, but typed and bounded when present.
+  if (draft.description !== undefined) {
+    if (typeof draft.description !== "string") throw invalid("description must be a string");
+    if (draft.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw invalid("description is too long");
+    }
+  }
+
+  // price: a finite number strictly greater than zero. NaN and +/-Infinity
+  // are rejected explicitly — Rules' `is number` admits neither, and JSON
+  // cannot carry them, but a malformed client could still attempt them.
+  if (typeof draft.price !== "number" || !Number.isFinite(draft.price)) {
+    throw invalid("price must be a finite number");
+  }
+  if (draft.price <= 0) throw invalid("price must be greater than zero");
+
+  // stock: an integer of at least 1.
+  if (typeof draft.stock !== "number" || !Number.isInteger(draft.stock)) {
+    throw invalid("stock must be an integer");
+  }
+  if (draft.stock < 1) throw invalid("stock must be at least 1");
+
+  // category: a known draft-submission category, never free text.
+  if (typeof draft.category !== "string" || !KNOWN_SAFE_PRODUCT_CATEGORIES.includes(draft.category)) {
+    throw invalid("category is not a permitted draft category");
+  }
+
+  // media: a bounded list of well-shaped entries.
+  if (!Array.isArray(draft.media)) throw invalid("media must be a list");
+  if (draft.media.length > MAX_MEDIA_ENTRIES) throw invalid("too many media entries");
+  for (const entry of draft.media) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw invalid("each media entry must be an object");
+    }
+    for (const field of ["originalUrl", "playbackUrl", "thumbnailUrl", "type", "status"]) {
+      if (entry[field] !== undefined && entry[field] !== null && typeof entry[field] !== "string") {
+        throw invalid("media entry fields must be strings");
+      }
+    }
+  }
+
+  // Numeric shipping/dimension fields: typed and non-negative when present.
+  for (const field of [
+    "salePrice", "wholesalePrice", "kdvRate", "shippingFee",
+    "freeShippingThreshold", "weightKg", "lengthCm", "widthCm", "heightCm",
+    "fixedDesi",
+  ]) {
+    const value = draft[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+      throw invalid(`${field} must be a finite non-negative number`);
+    }
+  }
+  for (const field of ["stock", "minStock", "preparationDays", "maxDeliveryDays", "returnWindowDays"]) {
+    const value = draft[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+      throw invalid(`${field} must be a non-negative integer`);
+    }
+  }
 }
 
 function isCurrentlyActiveSeller(businessData) {
@@ -217,7 +318,14 @@ function isCurrentlyActiveSeller(businessData) {
  * Creates exactly one unpublished draft product, or reports an explicit
  * duplicate. Never approves, activates, classifies or publishes.
  */
-async function submitMarketplaceProduct({ db, auth, data, submissionFlagValue }) {
+async function submitMarketplaceProduct({
+  db,
+  auth,
+  data,
+  submissionFlagValue,
+  bucketName = null,
+  logger = console,
+}) {
   if (!isSubmissionEnabled(submissionFlagValue)) {
     throw fail(
       "failed-precondition",
@@ -232,19 +340,54 @@ async function submitMarketplaceProduct({ db, auth, data, submissionFlagValue })
   const { businessId, sku, sellerRelationship, draft } = validateRequest(data);
   const productId = `${businessId}_${sku}`;
 
+  // Revision 34 §6 — a client-supplied download URL is never authoritative
+  // product media. Every reference must resolve, through the same classifier
+  // the deletion path uses, to an object in the expected bucket under this
+  // business's own `products_raw/{businessId}/` prefix: no external host, no
+  // other bucket, no cross-business prefix, no traversal, no malformed value.
+  // This runs BEFORE the transaction, so a rejected submission never writes a
+  // product document; the client is responsible for removing the objects it
+  // uploaded for the failed attempt, which it already does.
+  //
+  // Limitation, stated precisely: the object path is Business-scoped, so this
+  // proves the media belongs to THIS BUSINESS. It does not prove exclusive
+  // ownership by this product, and nothing here claims that it does.
+  for (const entry of draft.media || []) {
+    for (const field of ["originalUrl", "playbackUrl", "thumbnailUrl"]) {
+      const value = entry[field];
+      if (value === undefined || value === null) continue;
+      const verdict = classifyMediaReference({ url: value, businessId, bucketName });
+      if (!verdict.deletable) {
+        logger.warn("marketplace_submit_media_rejected", { reason: verdict.reason });
+        throw fail(
+          "invalid-argument",
+          "product media is not a valid reference for this business",
+          SUBMIT_REASON.INVALID_PRODUCT_DATA
+        );
+      }
+    }
+  }
+
   const businessRef = db.collection(BUSINESSES_COLLECTION).doc(businessId);
   const productRef = businessRef.collection(PRODUCTS_SUBCOLLECTION).doc(productId);
 
   return db.runTransaction(async (tx) => {
     const businessSnap = await tx.get(businessRef);
-    if (!businessSnap.exists) {
-      throw fail("not-found", "Business not found", SUBMIT_REASON.PERMISSION_DENIED);
-    }
-    const businessData = businessSnap.data() || {};
+    const businessData = businessSnap.exists ? businessSnap.data() || {} : null;
 
-    // Canonical ownership, re-derived server-side. Never inferred from the
-    // request, and never from `auth.uid === businessId`.
-    if (businessData.ownerUid !== auth.uid) {
+    // Revision 34 §7 — a non-admin caller must not be able to learn whether
+    // an arbitrary businessId exists. A missing business, a business owned by
+    // someone else, and a missing or malformed `ownerUid` are therefore
+    // externally indistinguishable: identical gRPC code, identical message,
+    // identical reasonCode. Ownership is re-derived server-side and never
+    // inferred from the request or from `auth.uid === businessId`.
+    const ownerUid = businessData && businessData.ownerUid;
+    if (!businessData || typeof ownerUid !== "string" || ownerUid !== auth.uid) {
+      // Structured, identifier-free log so the distinction stays available
+      // to operators without ever reaching the caller.
+      logger.warn("marketplace_submit_owner_check_failed", {
+        reason: !businessData ? "business_absent" : "not_owner",
+      });
       throw fail(
         "permission-denied",
         "You are not the owner of this business",
@@ -332,6 +475,9 @@ async function submitMarketplaceProduct({ db, auth, data, submissionFlagValue })
 
 module.exports = {
   submitMarketplaceProduct,
+  assertValidDraftValues,
+  KNOWN_SAFE_PRODUCT_CATEGORIES,
+  MAX_MEDIA_ENTRIES,
   isSubmissionEnabled,
   SUBMIT_REASON,
   SELLER_RELATIONSHIP_VALUES,

@@ -20415,6 +20415,7 @@ exports.submitMarketplaceProduct = onCall({ region: "europe-west3" }, async (req
     auth: request.auth,
     data: request.data,
     submissionFlagValue: MARKETPLACE_PRODUCT_SUBMISSION_ENABLED.value(),
+    bucketName: defaultStorageBucketName(),
   })
 );
 

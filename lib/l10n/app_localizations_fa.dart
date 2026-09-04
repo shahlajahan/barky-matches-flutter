@@ -10533,5 +10533,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get productSubmissionFailedError => 'محصول ثبت نشد. لطفاً دوباره تلاش کنید.';
 
   @override
+  String get productSlotCleanupPendingError => 'این جایگاه محصول هنوز در حال آزادسازی است. لطفاً کمی بعد دوباره تلاش کنید.';
+
+  @override
   String get networkErrorTryAgain => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
 }

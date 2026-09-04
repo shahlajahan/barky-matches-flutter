@@ -4624,5 +4624,6 @@
 ,"invalidProductDataError": "Bazı ürün bilgileri geçersiz. Lütfen formu kontrol edip tekrar deneyin."
 ,"mediaUploadFailedError": "Ürün medyası yüklenemedi. Lütfen tekrar deneyin."
 ,"productSubmissionFailedError": "Ürün gönderilemedi. Lütfen tekrar deneyin."
+,"productSlotCleanupPendingError": "Bu ürün yeri hâlâ boşaltılıyor. Lütfen birazdan tekrar deneyin."
 ,"networkErrorTryAgain": "Ağ hatası. Lütfen tekrar deneyin."
 }

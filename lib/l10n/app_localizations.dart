@@ -19803,6 +19803,12 @@ abstract class AppLocalizations {
   /// **'The product could not be submitted. Please try again.'**
   String get productSubmissionFailedError;
 
+  /// No description provided for @productSlotCleanupPendingError.
+  ///
+  /// In en, this message translates to:
+  /// **'This product slot is still being freed up. Please try again in a moment.'**
+  String get productSlotCleanupPendingError;
+
   /// No description provided for @networkErrorTryAgain.
   ///
   /// In en, this message translates to:

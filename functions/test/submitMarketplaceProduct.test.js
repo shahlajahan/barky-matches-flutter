@@ -49,6 +49,12 @@ async function seedBusiness(overrides = {}) {
   return { businessId, ownerUid: snap.data().ownerUid };
 }
 
+const TEST_BUCKET = "demo-petsupo.appspot.com";
+function validMediaUrl(businessId, file = "a.jpg") {
+  const encoded = encodeURIComponent(`products_raw/${businessId}/${file}`);
+  return `https://firebasestorage.googleapis.com/v0/b/${TEST_BUCKET}/o/${encoded}?alt=media&token=t`;
+}
+
 function baseDraft(overrides = {}) {
   return {
     name: "Dry Dog Food",
@@ -59,17 +65,18 @@ function baseDraft(overrides = {}) {
     brand: "Acme",
     stock: 5,
     kdvRate: 10,
-    media: [{ type: "image", originalUrl: "https://example.test/1.jpg" }],
+    media: [],
     ...overrides,
   };
 }
 
-function call({ businessId, ownerUid, sku, sellerRelationship = "reseller", draft, flag = "true" }) {
+function call({ businessId, ownerUid, sku, sellerRelationship = "reseller", draft, flag = "true", bucketName = TEST_BUCKET }) {
   return submitMarketplaceProduct({
     db,
     auth: ownerUid === null ? null : { uid: ownerUid },
     data: { businessId, sku, sellerRelationship, draft: draft || baseDraft() },
     submissionFlagValue: flag,
+    bucketName,
   });
 }
 
@@ -436,4 +443,221 @@ test("no generation-scoped document ID and no reservation collection are introdu
   assert.match(src, /const productId = `\$\{businessId\}_\$\{sku\}`;/);
   assert.doesNotMatch(src, /generationId\}_/);
   assert.doesNotMatch(src, /skuReservation|sku_reservations|reservationRef/i);
+});
+
+// --- Revision 34: value contract ported from firestore.rules ----------
+const { assertValidDraftValues, KNOWN_SAFE_PRODUCT_CATEGORIES, MAX_MEDIA_ENTRIES } =
+  require("../src/marketplace/product/submitMarketplaceProduct");
+
+function draftReason(overrides) {
+  try {
+    assertValidDraftValues({
+      name: "Dry Food", price: 10, stock: 1,
+      category: "Food > Dry Food", media: [], ...overrides,
+    });
+    return null;
+  } catch (error) {
+    return (error.details && error.details.reasonCode) || "UNEXPECTED";
+  }
+}
+
+test("the draft category allowlist is byte-identical to the Rules set", () => {
+  assert.deepEqual(KNOWN_SAFE_PRODUCT_CATEGORIES, [
+    "Food > Dry Food", "Food > Wet Food", "Food > Treats",
+    "Accessories > Collar", "Accessories > Leash", "Accessories > Clothing",
+    "Health > Vitamins",
+    "Toys > Chew Toy", "Toys > Interactive",
+  ]);
+  // Draft submission is deliberately wider than the four pilot classes;
+  // narrowing publication is Revision 30 slice 7, not this contract.
+  assert.equal(KNOWN_SAFE_PRODUCT_CATEGORIES.includes("Health > Vitamins"), true);
+});
+
+test("name must be a non-empty bounded string", () => {
+  for (const name of [undefined, null, "", "   ", 42, {}, ["x"], "x".repeat(201)]) {
+    assert.equal(draftReason({ name }), SUBMIT_REASON.INVALID_PRODUCT_DATA,
+      `name ${JSON.stringify(name)} must be rejected`);
+  }
+  assert.equal(draftReason({ name: "Ok" }), null);
+});
+
+test("price must be a finite number strictly greater than zero", () => {
+  for (const price of [undefined, null, 0, -1, "10", NaN, Infinity, -Infinity, {}]) {
+    assert.equal(draftReason({ price }), SUBMIT_REASON.INVALID_PRODUCT_DATA,
+      `price ${String(price)} must be rejected`);
+  }
+  assert.equal(draftReason({ price: 0.01 }), null);
+});
+
+test("stock must be an integer of at least one", () => {
+  for (const stock of [undefined, null, 0, -1, 1.5, "1", NaN, Infinity]) {
+    assert.equal(draftReason({ stock }), SUBMIT_REASON.INVALID_PRODUCT_DATA,
+      `stock ${String(stock)} must be rejected`);
+  }
+  assert.equal(draftReason({ stock: 1 }), null);
+});
+
+test("category must be a known draft category", () => {
+  for (const category of [undefined, null, "", "Food", "Medicine > Antibiotics", 42]) {
+    assert.equal(draftReason({ category }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+  }
+  for (const category of KNOWN_SAFE_PRODUCT_CATEGORIES) {
+    assert.equal(draftReason({ category }), null, `${category} must be accepted`);
+  }
+});
+
+test("media must be a bounded list of well-shaped entries", () => {
+  assert.equal(draftReason({ media: "nope" }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+  assert.equal(draftReason({ media: [null] }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+  assert.equal(draftReason({ media: [{ originalUrl: 42 }] }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+  const tooMany = Array.from({ length: MAX_MEDIA_ENTRIES + 1 }, () => ({ type: "image" }));
+  assert.equal(draftReason({ media: tooMany }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+  assert.equal(draftReason({ media: [] }), null);
+});
+
+test("numeric shipping and dimension fields are typed and non-negative", () => {
+  for (const field of ["salePrice", "weightKg", "lengthCm", "shippingFee", "fixedDesi"]) {
+    assert.equal(draftReason({ [field]: -1 }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+    assert.equal(draftReason({ [field]: "5" }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+    assert.equal(draftReason({ [field]: NaN }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+    assert.equal(draftReason({ [field]: 1.5 }), null);
+  }
+  for (const field of ["preparationDays", "maxDeliveryDays", "minStock"]) {
+    assert.equal(draftReason({ [field]: 1.5 }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+    assert.equal(draftReason({ [field]: -1 }), SUBMIT_REASON.INVALID_PRODUCT_DATA);
+    assert.equal(draftReason({ [field]: 2 }), null);
+  }
+});
+
+// --- Revision 34 §6: media provenance at submission --------------------
+itest("media that is not provably this business's own object is rejected", async () => {
+  const { businessId, ownerUid } = await seedBusiness();
+  const bad = [
+    "https://evil.example.com/x.jpg",
+    `https://firebasestorage.googleapis.com/v0/b/other-bucket/o/${encodeURIComponent(`products_raw/${businessId}/a.jpg`)}`,
+    `https://firebasestorage.googleapis.com/v0/b/${TEST_BUCKET}/o/${encodeURIComponent("products_raw/other-biz/a.jpg")}`,
+    `https://firebasestorage.googleapis.com/v0/b/${TEST_BUCKET}/o/${encodeURIComponent(`products_raw/${businessId}/../../secrets`)}`,
+    `https://firebasestorage.googleapis.com/v0/b/${TEST_BUCKET}/o/${encodeURIComponent("compliance_docs/x.pdf")}`,
+    "not-a-url",
+  ];
+  for (const url of bad) {
+    const reason = await reasonOf(call({
+      businessId, ownerUid, sku: "MEDIA-BAD-1",
+      draft: baseDraft({ media: [{ type: "image", originalUrl: url }] }),
+    }));
+    assert.equal(reason, SUBMIT_REASON.INVALID_PRODUCT_DATA, `${url} must be rejected`);
+  }
+  const products = await db.collection("businesses").doc(businessId).collection("products").get();
+  assert.equal(products.size, 0, "no product document is written for a rejected submission");
+});
+
+itest("media that is provably this business's own object is accepted", async () => {
+  const { businessId, ownerUid } = await seedBusiness();
+  const result = await call({
+    businessId, ownerUid, sku: "MEDIA-OK-1",
+    draft: baseDraft({ media: [{ type: "image", originalUrl: validMediaUrl(businessId) }] }),
+  });
+  assert.equal(result.created, true);
+});
+
+// --- Revision 34 §7: no business-existence probing ---------------------
+itest("a missing business and a non-owned business are indistinguishable", async () => {
+  const { businessId } = await seedBusiness();
+
+  const nonOwner = await (async () => {
+    try { await call({ businessId, ownerUid: "someone-else", sku: "PROBE-SKU-1" }); return null; }
+    catch (e) { return { code: e.code, message: e.message, reason: e.details.reasonCode }; }
+  })();
+  const absent = await (async () => {
+    try { await call({ businessId: "does-not-exist-at-all", ownerUid: "someone-else", sku: "PROBE-SKU-1" }); return null; }
+    catch (e) { return { code: e.code, message: e.message, reason: e.details.reasonCode }; }
+  })();
+
+  assert.deepEqual(nonOwner, absent, "existence must not be inferable from the response");
+  assert.equal(absent.code, "permission-denied");
+  assert.equal(absent.reason, SUBMIT_REASON.PERMISSION_DENIED);
+});
+
+// --- Revision 34 §4.2r7: migrated create-side relationship contract ------
+//
+// The twelve parameterised Rules cases 4.2r7-create-3a/3b once proved that a
+// Seller client could directly create a product carrying each of the six
+// frozen relationship values. Direct client create is now denied
+// unconditionally, so that contract lives here, at the only remaining create
+// authority. Acceptance of all six values and rejection of missing, null,
+// wrong-type, unknown, translated-label, whitespace-modified and mis-cased
+// values are already proven above ("each of the six frozen sellerRelationship
+// values is accepted" / "invalid sellerRelationship values are rejected
+// without any database access"); this case closes the remaining half of the
+// migrated 4.2r7 group — productInputRevision's create legality.
+itest("Revision 34 §4.2r7 — productInputRevision is server-stamped at 0 for every relationship and can never be supplied", async () => {
+  for (const relationship of SELLER_RELATIONSHIP_VALUES) {
+    const { businessId, ownerUid } = await seedBusiness();
+
+    // A draft supplying productInputRevision is rejected outright, for any
+    // value, rather than sanitized — the old create rule's "absent or
+    // exactly 0" contract is enforced by making it unsupplied by construction.
+    for (const supplied of [0, 1, null, "0"]) {
+      const reason = await reasonOf(call({
+        businessId, ownerUid, sellerRelationship: relationship,
+        sku: `REV34-PIR-${relationship}`.toUpperCase().slice(0, 24),
+        draft: baseDraft({ productInputRevision: supplied }),
+      }));
+      assert.equal(
+        reason,
+        SUBMIT_REASON.PERMISSION_DENIED,
+        `productInputRevision=${JSON.stringify(supplied)} must be rejected as server-owned`
+      );
+    }
+
+    // And the created document carries exactly 0, stamped by the server.
+    const result = await call({
+      businessId, ownerUid, sellerRelationship: relationship,
+      sku: `REV34-PIROK-${relationship}`.toUpperCase().slice(0, 24),
+    });
+    assert.equal(result.created, true);
+    const snap = await db.collection("businesses").doc(businessId)
+      .collection("products").doc(result.productId).get();
+    assert.equal(snap.data().productInputRevision, 0);
+    assert.equal(snap.data().sellerRelationship, relationship);
+  }
+});
+
+// --- Revision 34 §C: the value contract is WIRED INTO the request path ---
+//
+// The cases above prove assertValidDraftValues itself. This one proves the
+// callable actually calls it: a non-vacuity check found that removing the
+// call site from validateRequest left every unit test green, because they
+// invoke the validator directly. These go through the real entry point.
+itest("an invalid draft value is rejected by the callable itself, writing no product", async () => {
+  const cases = [
+    ["name", { name: "" }],
+    ["name-too-long", { name: "x".repeat(201) }],
+    ["price-zero", { price: 0 }],
+    ["price-NaN", { price: Number.NaN }],
+    ["stock-zero", { stock: 0 }],
+    ["stock-fractional", { stock: 1.5 }],
+    ["category-unknown", { category: "Pharmacy > Antibiotics" }],
+    ["category-veterinary-medicine", { category: "Health > Veterinary Medicine" }],
+    ["media-not-a-list", { media: "http://example.com/a.jpg" }],
+    ["media-over-cap", { media: new Array(MAX_MEDIA_ENTRIES + 1).fill({ type: "image", originalUrl: "x" }) }],
+    ["description-too-long", { description: "x".repeat(5001) }],
+  ];
+
+  for (const [label, override] of cases) {
+    const { businessId, ownerUid } = await seedBusiness();
+    const reason = await reasonOf(call({
+      businessId, ownerUid,
+      sku: `REV34-WIRE-${label}`.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 24),
+      draft: baseDraft(override),
+    }));
+    assert.equal(
+      reason,
+      SUBMIT_REASON.INVALID_PRODUCT_DATA,
+      `${label} must be rejected by the callable`
+    );
+    const products = await db.collection("businesses").doc(businessId)
+      .collection("products").get();
+    assert.equal(products.size, 0, `${label} must write no product document`);
+  }
 });

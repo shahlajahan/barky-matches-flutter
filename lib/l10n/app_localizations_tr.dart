@@ -10533,5 +10533,8 @@ class AppLocalizationsTr extends AppLocalizations {
   String get productSubmissionFailedError => 'Ürün gönderilemedi. Lütfen tekrar deneyin.';
 
   @override
+  String get productSlotCleanupPendingError => 'Bu ürün yeri hâlâ boşaltılıyor. Lütfen birazdan tekrar deneyin.';
+
+  @override
   String get networkErrorTryAgain => 'Ağ hatası. Lütfen tekrar deneyin.';
 }

@@ -10535,5 +10535,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get productSubmissionFailedError => 'Не удалось отправить товар. Попробуйте ещё раз.';
 
   @override
+  String get productSlotCleanupPendingError => 'Место для этого товара ещё освобождается. Пожалуйста, повторите попытку через некоторое время.';
+
+  @override
   String get networkErrorTryAgain => 'Ошибка сети. Попробуйте ещё раз.';
 }

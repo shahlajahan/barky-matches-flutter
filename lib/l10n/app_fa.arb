@@ -4625,5 +4625,6 @@
 ,"invalidProductDataError": "برخی از اطلاعات محصول نامعتبر است. لطفاً فرم را بررسی کنید."
 ,"mediaUploadFailedError": "رسانه محصول بارگذاری نشد. لطفاً دوباره تلاش کنید."
 ,"productSubmissionFailedError": "محصول ثبت نشد. لطفاً دوباره تلاش کنید."
+,"productSlotCleanupPendingError": "این جایگاه محصول هنوز در حال آزادسازی است. لطفاً کمی بعد دوباره تلاش کنید."
 ,"networkErrorTryAgain": "خطای شبکه. لطفاً دوباره تلاش کنید."
 }

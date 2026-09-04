@@ -10533,5 +10533,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productSubmissionFailedError => 'The product could not be submitted. Please try again.';
 
   @override
+  String get productSlotCleanupPendingError => 'This product slot is still being freed up. Please try again in a moment.';
+
+  @override
   String get networkErrorTryAgain => 'Network error. Please try again.';
 }

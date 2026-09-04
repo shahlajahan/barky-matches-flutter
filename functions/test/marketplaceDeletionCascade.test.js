@@ -118,7 +118,7 @@ itest("3+4. cleanup deletes the product document and frees the deterministic ID"
   const submitted = await submitMarketplaceProduct({
     db, auth: { uid: ownerUid }, submissionFlagValue: "true",
     data: { businessId, sku: "FREE-SKU-1", sellerRelationship: "reseller",
-            draft: { name: "Dry Food", price: 10 } },
+            draft: { name: "Dry Food", price: 10, stock: 1, category: "Food > Dry Food", media: [] } },
   });
   assert.equal(await exists(businessId, submitted.productId), true);
 
@@ -129,7 +129,7 @@ itest("3+4. cleanup deletes the product document and frees the deterministic ID"
   const again = await submitMarketplaceProduct({
     db, auth: { uid: ownerUid }, submissionFlagValue: "true",
     data: { businessId, sku: "FREE-SKU-1", sellerRelationship: "reseller",
-            draft: { name: "Dry Food", price: 10 } },
+            draft: { name: "Dry Food", price: 10, stock: 1, category: "Food > Dry Food", media: [] } },
   });
   assert.equal(again.productId, submitted.productId, "the deterministic ID is unchanged");
 });
@@ -144,7 +144,7 @@ itest("17. cleaning an absent product is idempotent success, not an error", asyn
 itest("5. a same-generation duplicate before cleanup is still duplicate_sku", async () => {
   const { businessId, ownerUid } = await seedBusiness();
   const args = { businessId, sku: "DUP-BEFORE-1", sellerRelationship: "reseller",
-                 draft: { name: "Dry Food", price: 10 } };
+                 draft: { name: "Dry Food", price: 10, stock: 1, category: "Food > Dry Food", media: [] } };
   await submitMarketplaceProduct({ db, auth: { uid: ownerUid }, submissionFlagValue: "true", data: args });
   await assert.rejects(
     submitMarketplaceProduct({ db, auth: { uid: ownerUid }, submissionFlagValue: "true", data: args }),
@@ -162,7 +162,7 @@ itest("6+23. an uncleaned old-generation ID blocks the recreated business fail-c
   await assert.rejects(
     submitMarketplaceProduct({ db, auth: { uid: ownerUid }, submissionFlagValue: "true",
       data: { businessId, sku: "OLD-GEN-1", sellerRelationship: "reseller",
-              draft: { name: "Dry Food", price: 10 } } }),
+              draft: { name: "Dry Food", price: 10, stock: 1, category: "Food > Dry Food", media: [] } } }),
     (e) => e.details.reasonCode === SUBMIT_REASON.PREVIOUS_GENERATION_CLEANUP_PENDING
   );
   assert.equal(await exists(businessId, productId), true, "the old product is untouched");
