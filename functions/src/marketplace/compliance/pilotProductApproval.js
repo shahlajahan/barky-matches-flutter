@@ -33,6 +33,9 @@ const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
 
 const { requireAdmin } = require("../../moderation/adminAuth");
+const {
+  PRODUCT_COMPLIANCE_ELIGIBLE_STATUSES,
+} = require("./complianceConstants");
 const { assertCallerOwnsBusiness } = require("./complianceUploadSessions");
 
 const BUSINESSES_COLLECTION = "businesses";
@@ -91,8 +94,76 @@ function pilotApprovalBoundFields() {
   ];
 }
 
+const DECISIONS_COLLECTION = "productComplianceDecisions";
+
 function businessRef(db, businessId) {
   return db.collection(BUSINESSES_COLLECTION).doc(businessId);
+}
+
+function decisionRef(db, productId) {
+  return db.collection(DECISIONS_COLLECTION).doc(productId);
+}
+
+// Marketplace Revision 30 §H (Slice 6) — the decision half of the approval
+// gate. Fail closed on every non-affirmative outcome; a decision that cannot
+// be proven current and provenance-complete is not a decision.
+//
+// Deliberately NOT here: seller activation (already enforced above), the
+// operative pilot-category narrowing, and the Rules-side derivation. Those
+// are Revision 30 §J slice 7 and are not pulled forward.
+function assertUsableComplianceDecision({ decision, businessId, product, now }) {
+  const deny = (reasonCode) => {
+    throw new HttpsError(
+      "failed-precondition",
+      "Product is not eligible for pilot approval",
+      { reasonCode }
+    );
+  };
+
+  if (!decision || typeof decision !== "object" || Array.isArray(decision)) {
+    deny("compliance-decision-missing");
+  }
+  // Provenance must be complete and well-formed — a decision missing its own
+  // identity cannot be bound into a fingerprint at all.
+  if (
+    typeof decision.decisionHash !== "string" ||
+    decision.decisionHash.length === 0 ||
+    typeof decision.policyVersion !== "string" ||
+    decision.policyVersion.length === 0 ||
+    typeof decision.evidenceRevision !== "number" ||
+    !Number.isInteger(decision.evidenceRevision) ||
+    !Array.isArray(decision.activeEvidenceRefs)
+  ) {
+    deny("compliance-decision-malformed");
+  }
+  // The decision must belong to THIS business — never another's.
+  if (decision.businessId !== businessId) {
+    deny("compliance-decision-business-mismatch");
+  }
+  // Positive allowlist. Unknown, unresolved, incomplete and negative
+  // statuses all land outside it.
+  if (!PRODUCT_COMPLIANCE_ELIGIBLE_STATUSES.includes(decision.effectiveStatus)) {
+    deny("compliance-decision-not-eligible");
+  }
+  // A decision with no active evidence is never eligible, whatever its
+  // status field claims.
+  if (decision.activeEvidenceRefs.length === 0) {
+    deny("compliance-decision-no-evidence");
+  }
+  // Expiry is evaluated against SERVER time, inside this transaction.
+  const validUntilMs = millisOrNull(decision.validUntil);
+  if (!Number.isFinite(validUntilMs) || !(validUntilMs > now)) {
+    deny("compliance-decision-expired");
+  }
+  // §F — the decision must have been computed for the product's own current
+  // generation. A recreated business cannot inherit an earlier decision.
+  const productGeneration = product ? product.marketplaceBusinessGenerationId : undefined;
+  if (
+    typeof productGeneration !== "string" ||
+    productGeneration.length === 0
+  ) {
+    deny("compliance-decision-generation-unprovable");
+  }
 }
 
 function productRef(db, businessId, productId) {
@@ -145,6 +216,70 @@ function computeContentFingerprint(product) {
     }
   }
   return crypto.createHash("sha256").update(canonicalStringify(picked)).digest("hex");
+}
+
+// Marketplace Revision 30 §H / §J Slice 6 — the approval fingerprint's
+// evidence half.
+//
+// §H, verbatim: "the fingerprint's bound-field set is extended to include the
+// effective evidence decision and its revision, so any evidence change
+// invalidates a prior approval exactly as a content change does".
+//
+// Only fields §H names are bound; no additional business policy is invented:
+//   decisionHash      — the decision's own canonical identity
+//   policyVersion     — which policy produced it
+//   evidenceRevision  — the business compliance epoch it was computed against
+//   effectiveStatus   — so a status flip alone invalidates
+//   validUntil        — the compliance validity boundary
+//   evidenceDigest    — a canonical digest of the active evidence references
+//
+// ORDERING. `activeEvidenceRefs` is a set in meaning, not a sequence: the same
+// two documents matched in either order are the SAME evidence and must not
+// produce two fingerprints. Each ref is reduced to `documentId|scopeId` and the
+// list is sorted before hashing. This is deliberately unlike `media`, whose
+// array order is real product content and is preserved by canonicalStringify.
+function canonicalEvidenceDigest(activeEvidenceRefs) {
+  if (!Array.isArray(activeEvidenceRefs)) return null;
+  const parts = activeEvidenceRefs
+    .filter((r) => r && typeof r.documentId === "string" && typeof r.scopeId === "string")
+    .map((r) => `${r.documentId}|${r.scopeId}`)
+    .sort();
+  // A ref list that contained malformed entries is not silently narrowed to
+  // its well-formed subset: the count is bound too, so dropping one changes
+  // the digest.
+  return crypto
+    .createHash("sha256")
+    .update(canonicalStringify({ count: activeEvidenceRefs.length, refs: parts }))
+    .digest("hex");
+}
+
+function computeApprovalFingerprint(product, decision) {
+  const content = computeContentFingerprint(product);
+  const bound = {
+    content,
+    // Identity of the product/business the approval is for, so a fingerprint
+    // can never be replayed against another product or a recreated business.
+    businessId: product ? product.businessId : null,
+    marketplaceBusinessGenerationId: product
+      ? product.marketplaceBusinessGenerationId
+      : null,
+    decisionHash: decision ? decision.decisionHash : null,
+    policyVersion: decision ? decision.policyVersion : null,
+    evidenceRevision: decision ? decision.evidenceRevision : null,
+    effectiveStatus: decision ? decision.effectiveStatus : null,
+    validUntil: decision ? millisOrNull(decision.validUntil) : null,
+    evidenceDigest: decision ? canonicalEvidenceDigest(decision.activeEvidenceRefs) : null,
+  };
+  return crypto.createHash("sha256").update(canonicalStringify(bound)).digest("hex");
+}
+
+// Timestamps must reduce to a stable scalar: two Firestore Timestamp objects
+// for the same instant must not hash differently.
+function millisOrNull(value) {
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return null;
 }
 
 function isValidGenerationId(value) {
@@ -301,13 +436,31 @@ async function approvePilotProduct({ db, auth, data }) {
       });
     }
 
+    // Marketplace Revision 30 §H / §J Slice 6 — the effective compliance
+    // decision, read INSIDE this transaction so it joins the read set. A
+    // concurrent change to the decision therefore aborts and retries this
+    // approval against fresh canonical state; a stale admin screen can never
+    // approve against a decision that has already moved on.
+    //
+    // Nothing about the decision is accepted from the caller. The request
+    // schema carries no decision id, hash, revision or policy version, and
+    // the values used below are read here, not asserted.
+    const decisionSnap = await tx.get(decisionRef(db, productId));
+    const decision = decisionSnap.exists ? decisionSnap.data() : null;
+
     // Idempotent replay: already active with an unchanged fingerprint —
     // no write of any kind, skipped entirely before the limit check.
     const alreadyActive = isCurrentlyActivePilotApproval(product);
-    const liveFingerprint = computeContentFingerprint(product);
+    const liveFingerprint = computeApprovalFingerprint(product, decision);
     if (alreadyActive && product.pilotProductApproval.reviewedContentFingerprint === liveFingerprint) {
       return { active: true, idempotent: true };
     }
+
+    // §H — a positive, current, provenance-complete decision is required
+    // before any approval. Fail closed on missing, non-positive, unresolved,
+    // malformed, stale or expired. This is the decision half of §H's gate;
+    // the remaining §H conditions and the Rules half are Slice 7.
+    assertUsableComplianceDecision({ decision, businessId, product, now: Date.now() });
 
     if (product.moderationStatus !== "pending_review") {
       throw new HttpsError("failed-precondition", "Product is not eligible for pilot approval", {
@@ -508,6 +661,8 @@ module.exports = {
   deactivateAllPilotProducts,
   pilotApprovalBoundFields,
   computeContentFingerprint,
+  computeApprovalFingerprint,
+  canonicalEvidenceDigest,
   ALLOWED_PILOT_CATEGORIES,
   REASON_CODE,
   AUDIT_EVENTS_COLLECTION,

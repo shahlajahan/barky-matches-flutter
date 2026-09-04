@@ -341,6 +341,9 @@ const {
   evaluateProductComplianceDecision,
 } = require("./src/marketplace/compliance/complianceProductEvaluation");
 const {
+  runApprovalInvalidationSweep,
+} = require("./src/marketplace/compliance/complianceApprovalInvalidation");
+const {
   reviewProductModeration,
 } = require("./src/marketplace/compliance/productModeration");
 const {
@@ -20197,6 +20200,42 @@ exports.complianceUploadOrphanCleanup = onSchedule(
       logger,
     });
     logger.info("compliance_upload_orphan_cleanup", result);
+    return result;
+  }
+);
+
+// Marketplace Revision 30 §H / §J Slice 6 — approval invalidation sweep.
+// Compares every currently-active approved product's stored approval
+// fingerprint against fresh canonical state and revokes on any mismatch,
+// using the same frozen revocation transition `revokePilotProductApproval`
+// owns. It can only ever REMOVE an approval: it never approves, activates,
+// publishes or increments pilotActiveProductCount.
+//
+// Cadence: every 15 minutes, tighter than the hourly recompute sweep because
+// §H requires expiry and revocation to unpublish promptly. That bounds the
+// worst-case interval during which an already-published product could remain
+// public on evidence that has just expired or been revoked; closing that
+// window entirely (event-driven invalidation at the moment of revocation) is
+// recorded as the remaining gap rather than silently claimed.
+exports.complianceApprovalInvalidationSweep = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+    retryCount: 2,
+    memory: "256MiB",
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const result = await runApprovalInvalidationSweep({ db: admin.firestore(), logger });
+    logger.info("compliance_approval_invalidation_sweep_completed", {
+      examined: result.examined,
+      invalidated: result.invalidated,
+      valid: result.valid,
+      skipped: result.skipped,
+      pages: result.pages,
+      bounded: result.bounded,
+    });
     return result;
   }
 );

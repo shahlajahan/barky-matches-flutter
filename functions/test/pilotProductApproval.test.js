@@ -20,6 +20,7 @@ const db = admin.firestore();
 const functions = require("../index");
 const {
   computeContentFingerprint,
+  computeApprovalFingerprint,
   pilotApprovalBoundFields,
   AUDIT_EVENTS_COLLECTION,
 } = require("../src/marketplace/compliance/pilotProductApproval");
@@ -82,7 +83,35 @@ async function seedProduct(businessId, overrides = {}) {
         ...overrides,
       })
     );
+  // Marketplace Revision 30 §H (Slice 6): approval now requires a positive
+  // canonical compliance decision, and the approval fingerprint binds its
+  // identity. Every product that is expected to reach approval therefore
+  // needs one, exactly as production does. Tests that exercise the DECISION
+  // gate itself override or delete this deliberately.
+  await seedPositiveDecision(businessId, productId);
   return productId;
+}
+
+async function seedPositiveDecision(businessId, productId, overrides = {}) {
+  await db
+    .collection("productComplianceDecisions")
+    .doc(productId)
+    .set({
+      businessId,
+      policyVersion: `policy-${productId}`,
+      evidenceRevision: 0,
+      decisionHash: `hash-${productId}`,
+      effectiveStatus: "verified_valid",
+      activeEvidenceRefs: [
+        {
+          documentId: `doc-${productId}`,
+          scopeId: `scope-${productId}`,
+          expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 365 * 86400000),
+        },
+      ],
+      validUntil: admin.firestore.Timestamp.fromMillis(Date.now() + 365 * 86400000),
+      ...overrides,
+    });
 }
 
 async function seedAdmin(uid = "admin-1") {
@@ -112,11 +141,17 @@ function callUnpublish(args) {
 
 async function approvalPayloadFor(businessId, productId) {
   const product = await getProduct(businessId, productId);
+  // Slice 6: the fingerprint binds the effective decision as well as the
+  // reviewed content, so it is computed from BOTH canonical records.
+  const decSnap = await db.collection("productComplianceDecisions").doc(productId).get();
   return {
     businessId,
     productId,
     allowedPilotCategory: "food",
-    reviewedContentFingerprint: computeContentFingerprint(product),
+    reviewedContentFingerprint: computeApprovalFingerprint(
+      product,
+      decSnap.exists ? decSnap.data() : null
+    ),
     attestNoProhibitedClaim: true,
   };
 }
