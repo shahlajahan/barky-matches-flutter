@@ -10,6 +10,9 @@ const {
   normalizeKnownAdminGrant,
   normalizeStatus,
 } = require("../subscription/adminSubscriptionCore");
+const {
+  buildEffectiveSubscription,
+} = require("../subscription/entitlementCore");
 
 test("admin Gold grant uses USD 9.99 and records no payment", () => {
   const grant = buildAdminGrant({uid: "u1", plan: "gold", now: new Date("2026-08-01T00:00:00Z")});
@@ -70,4 +73,33 @@ test("known admin Gold repair normalizes list pricing without payment", () => {
   assert.equal(repaired.listPrice, 9.99);
   assert.equal(repaired.listPriceCurrency, "USD");
   assert.equal(repaired.paidAmount, null);
+});
+
+test("admin grants preserve legitimate store metadata without fabricating receipts", () => {
+  const now = new Date("2026-09-01T00:00:00Z");
+  const appStore = {
+    source: "app_store",
+    plan: "gold",
+    status: "active",
+    expiresAt: new Date("2026-12-01T00:00:00Z"),
+    transactionId: "real-transaction",
+    originalTransactionId: "real-original",
+    verifiedAt: new Date("2026-08-31T00:00:00Z"),
+  };
+  const current = {sources: {app_store: appStore}};
+  const adminGrant = applyAdminAction({uid: "u1", action: "grant_gold", now});
+  const effective = buildEffectiveSubscription({
+    current,
+    sourceUpdates: {admin_grant: adminGrant},
+    now,
+  });
+
+  assert.equal(effective.sources.app_store.transactionId, "real-transaction");
+  assert.equal(effective.sources.app_store.originalTransactionId, "real-original");
+  assert.ok(effective.sources.app_store.verifiedAt);
+  assert.equal(effective.sources.admin_grant.source, "admin_grant");
+  assert.equal(effective.sources.admin_grant.autoRenew, false);
+  assert.equal("transactionId" in effective.sources.admin_grant, false);
+  assert.equal("originalTransactionId" in effective.sources.admin_grant, false);
+  assert.equal("verifiedAt" in effective.sources.admin_grant, false);
 });

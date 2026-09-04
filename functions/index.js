@@ -32341,6 +32341,9 @@ exports.adminUpdateSubscription = onCall(
     const result = await database.runTransaction(async (transaction) => {
       const subscriptionSnap = await transaction.get(subscriptionRef);
       const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists) {
+        throw new HttpsError("not-found", "Target user does not exist.");
+      }
       const current = subscriptionSnap.exists ? subscriptionSnap.data() || {} : {};
       const now = new Date();
       let next;
