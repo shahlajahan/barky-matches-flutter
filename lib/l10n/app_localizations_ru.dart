@@ -10912,4 +10912,24 @@ class AppLocalizationsRu extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String basketLimitProducts(int count) {
+    return 'В корзину можно добавить не более $count разных товаров.';
+  }
+
+  @override
+  String basketLimitQuantity(int count) {
+    return 'Одного товара можно добавить не более $count шт.';
+  }
+
+  @override
+  String basketLimitTotalUnits(int count) {
+    return 'В корзине может быть не более $count товаров всего.';
+  }
+
+  @override
+  String basketLimitBusinesses(int count) {
+    return 'Можно заказать не более чем из $count магазинов одновременно.';
+  }
 }

@@ -10910,4 +10910,24 @@ class AppLocalizationsFa extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String basketLimitProducts(int count) {
+    return 'حداکثر $count کالای متفاوت می‌توانید به سبد خود اضافه کنید.';
+  }
+
+  @override
+  String basketLimitQuantity(int count) {
+    return 'از هر کالا حداکثر $count عدد می‌توانید اضافه کنید.';
+  }
+
+  @override
+  String basketLimitTotalUnits(int count) {
+    return 'سبد خرید شما حداکثر می‌تواند $count کالا داشته باشد.';
+  }
+
+  @override
+  String basketLimitBusinesses(int count) {
+    return 'هم‌زمان حداکثر از $count فروشگاه می‌توانید سفارش دهید.';
+  }
 }

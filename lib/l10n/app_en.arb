@@ -4769,4 +4769,12 @@
 ,"healthProductsNotSupported": "Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed."
 ,"cartItemsNoLongerAvailable": "{count, plural, =1{1 item is no longer available and was removed from your cart.} other{{count} items are no longer available and were removed from your cart.}}"
 ,"@cartItemsNoLongerAvailable": {"placeholders": {"count": {"type": "int"}}}
+,"basketLimitProducts": "You can add up to {count} different products to your basket."
+,"basketLimitQuantity": "You can add up to {count} of the same product."
+,"basketLimitTotalUnits": "Your basket can hold up to {count} items in total."
+,"basketLimitBusinesses": "You can order from up to {count} shops at once."
+,"@basketLimitProducts": {"placeholders": {"count": {"type": "int"}}}
+,"@basketLimitQuantity": {"placeholders": {"count": {"type": "int"}}}
+,"@basketLimitTotalUnits": {"placeholders": {"count": {"type": "int"}}}
+,"@basketLimitBusinesses": {"placeholders": {"count": {"type": "int"}}}
 }

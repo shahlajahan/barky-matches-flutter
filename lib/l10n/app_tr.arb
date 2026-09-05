@@ -4747,4 +4747,8 @@
 ,"subCategoryGroomingTool": "Bakım Aleti"
 ,"healthProductsNotSupported": "Vitaminler, takviyeler ve veteriner ilaçları Marketplace'te desteklenmez ve listelenemez."
 ,"cartItemsNoLongerAvailable": "{count, plural, =1{1 ürün artık mevcut değil ve sepetinizden kaldırıldı.} other{{count} ürün artık mevcut değil ve sepetinizden kaldırıldı.}}"
+,"basketLimitProducts": "Sepetinize en fazla {count} farklı ürün ekleyebilirsiniz."
+,"basketLimitQuantity": "Aynı üründen en fazla {count} adet ekleyebilirsiniz."
+,"basketLimitTotalUnits": "Sepetinizde toplam en fazla {count} ürün bulunabilir."
+,"basketLimitBusinesses": "Aynı anda en fazla {count} mağazadan sipariş verebilirsiniz."
 }

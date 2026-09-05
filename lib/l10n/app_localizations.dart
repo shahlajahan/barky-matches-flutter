@@ -20540,6 +20540,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 item is no longer available and was removed from your cart.} other{{count} items are no longer available and were removed from your cart.}}'**
   String cartItemsNoLongerAvailable(int count);
+
+  /// No description provided for @basketLimitProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'You can add up to {count} different products to your basket.'**
+  String basketLimitProducts(int count);
+
+  /// No description provided for @basketLimitQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'You can add up to {count} of the same product.'**
+  String basketLimitQuantity(int count);
+
+  /// No description provided for @basketLimitTotalUnits.
+  ///
+  /// In en, this message translates to:
+  /// **'Your basket can hold up to {count} items in total.'**
+  String basketLimitTotalUnits(int count);
+
+  /// No description provided for @basketLimitBusinesses.
+  ///
+  /// In en, this message translates to:
+  /// **'You can order from up to {count} shops at once.'**
+  String basketLimitBusinesses(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

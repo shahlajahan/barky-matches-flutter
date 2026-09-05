@@ -10910,4 +10910,24 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String basketLimitProducts(int count) {
+    return 'You can add up to $count different products to your basket.';
+  }
+
+  @override
+  String basketLimitQuantity(int count) {
+    return 'You can add up to $count of the same product.';
+  }
+
+  @override
+  String basketLimitTotalUnits(int count) {
+    return 'Your basket can hold up to $count items in total.';
+  }
+
+  @override
+  String basketLimitBusinesses(int count) {
+    return 'You can order from up to $count shops at once.';
+  }
 }

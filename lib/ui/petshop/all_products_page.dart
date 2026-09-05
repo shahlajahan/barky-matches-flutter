@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/marketplace_basket_limits.dart';
 import '../../models/public_marketplace_product.dart';
 import '../../models/public_marketplace_product_adapter.dart';
 import '../../services/marketplace_catalog_service.dart';
@@ -141,9 +142,77 @@ class _AllProductsPageState extends State<AllProductsPage> {
     );
   }
 
+  /// Marketplace Revision 47 §0.45 (Slice 7F-2) — the ONE cart-guard.
+  ///
+  /// Both cart mutation paths (`_addToBasket` and `_changeQuantity`) route
+  /// through this, so a bound cannot be enforced on one and forgotten on the
+  /// other. It is UX only: the identical bounds are enforced authoritatively
+  /// in the trusted callable before any database read, so a patched or
+  /// outdated client gains nothing by ignoring it.
+  ///
+  /// Returns null when the change is allowed, or a localized message to show.
+  /// The existing cart is never modified or emptied by a refusal.
+  String? _basketGuardMessage({
+    required Product product,
+    required int newQuantityForProduct,
+    required bool isNewDistinctProduct,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+
+    if (newQuantityForProduct > MarketplaceBasketLimits.maxQuantityPerProduct) {
+      return l10n.basketLimitQuantity(
+        MarketplaceBasketLimits.maxQuantityPerProduct,
+      );
+    }
+
+    if (isNewDistinctProduct &&
+        _cart.length >= MarketplaceBasketLimits.maxDistinctProducts) {
+      return l10n.basketLimitProducts(
+        MarketplaceBasketLimits.maxDistinctProducts,
+      );
+    }
+
+    if (isNewDistinctProduct) {
+      final shops = _cart.map((e) => e.shopId).toSet()..add(product.businessId);
+      if (shops.length > MarketplaceBasketLimits.maxBusinesses) {
+        return l10n.basketLimitBusinesses(
+          MarketplaceBasketLimits.maxBusinesses,
+        );
+      }
+    }
+
+    final currentUnits = _cart.fold<int>(0, (sum, e) => sum + e.quantity);
+    final existingForProduct = _cart
+        .where((e) => e.productId == product.id)
+        .fold<int>(0, (sum, e) => sum + e.quantity);
+    final projectedUnits =
+        currentUnits - existingForProduct + newQuantityForProduct;
+    if (projectedUnits > MarketplaceBasketLimits.maxTotalUnits) {
+      return l10n.basketLimitTotalUnits(MarketplaceBasketLimits.maxTotalUnits);
+    }
+
+    return null;
+  }
+
+  void _showBasketLimitMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
   void _addToBasket(Product product) {
     final l10n = AppLocalizations.of(context)!;
     final index = _cart.indexWhere((e) => e.productId == product.id);
+
+    final refusal = _basketGuardMessage(
+      product: product,
+      newQuantityForProduct: index >= 0 ? _cart[index].quantity + 1 : 1,
+      isNewDistinctProduct: index < 0,
+    );
+    if (refusal != null) {
+      _showBasketLimitMessage(refusal);
+      return;
+    }
 
     setState(() {
       if (index >= 0) {
@@ -183,6 +252,21 @@ class _AllProductsPageState extends State<AllProductsPage> {
   void _changeQuantity(CartItem item, int delta) {
     final index = _cart.indexWhere((e) => e.productId == item.productId);
     if (index < 0) return;
+
+    // Slice 7F-2 — an increase goes through the same guard as an add. A
+    // decrease never needs checking: it can only move further inside every
+    // bound.
+    if (delta > 0) {
+      final refusal = _basketGuardMessage(
+        product: _cart[index].product,
+        newQuantityForProduct: _cart[index].quantity + delta,
+        isNewDistinctProduct: false,
+      );
+      if (refusal != null) {
+        _showBasketLimitMessage(refusal);
+        return;
+      }
+    }
 
     setState(() {
       final current = _cart[index];

@@ -2366,6 +2366,45 @@ Writers and readers are trusted Cloud Functions only, through the Admin SDK. No 
 ---
 
 
+### 0.45 Revision 47 change log — Bounded Marketplace basket (Slice 7F-2, 2026-09-06)
+
+**Status.** Closes Revision 45 **UNRESOLVED-3**. `createMarketplaceOrderV2` accepted an unbounded `items` array; this freezes and enforces one conservative set of bounds. M3 and M5 remain disabled, no reservation runtime was implemented, and nothing is deployed.
+
+**A. What was wrong, measured.** At `17e4b91` the callable had no size bound of any kind, and quantity was normalized with `Math.max(1, Math.floor(asNumber(...)))`. Two defects were demonstrated behaviourally against the emulator: a **500-line basket reached a per-product database read** (it failed with `Product not found`, i.e. the work was unbounded and read-driven), and a **quantity of `0.5` was silently coerced to `1`** and carried through to the eligibility gate rather than being refused.
+
+**B. The frozen bounds.**
+
+| Bound | Value | Derivation |
+|---|---|---|
+| `MAX_SUBMITTED_LINES` | 50 | raw payload guard; deliberately above the distinct bound so a split product is refused with a precise reason |
+| `MAX_DISTINCT_PRODUCTS` | 20 | **equal to `BATCH_MAX_ITEMS`**, the repository's already-frozen batch-hydration bound — a cart may never hold more products than the hydration callable can serve in one request |
+| `MAX_QUANTITY_PER_PRODUCT` | 20 | bounds units per line |
+| `MAX_TOTAL_UNITS` | 100 | bounds units per order |
+| `MAX_BUSINESSES` | 5 | bounds seller-order projections and per-business reads |
+
+**C. Cost model and safety margin.** Per distinct product the acceptance transaction reads product, business, policy pointer, policy version, business epoch and compliance decision (6); the frozen M3 reservation adds product, reservation, movement, event, order and seller order (6). At the bounds, worst case with reservation enabled: **reads = 20 × 12 = 240**, **writes = 1 root + 5 seller orders + 20 × 4 = 86**. Against the documented Firestore limit of 500 writes per transaction that is ~17%, a ~5.8× margin. **That 500 figure is the long-standing published limit but was NOT re-verified against live documentation in this session**; the margin is wide enough that the bounds hold even if the true limit were several times smaller. No payment-provider item-count fact is recorded in this repository, so `MAX_TOTAL_UNITS` was chosen so the backend bound does **not** depend on one (the same absence Revision 45 UNRESOLVED-2 records for session lifetime).
+
+**Revisit if:** the per-line read or write count grows; a provider item-count limit below 100 is established; the transaction gains further per-line documents; or the Pilot moves beyond Pharos-only.
+
+**D. Duplicate policy, frozen: MERGE.** Lines naming the same canonical `(businessId, productId)` are merged by summing quantities, and the **merged** quantity is then capped. Merging matches the frozen checkout fingerprint, which hashes one entry per canonical product — so two equivalent baskets expressed differently produce the same fingerprint, the same order lines and the same reservation. Canonical order is `businessId` then `productId`, both ascending, so submission order cannot change the normalized basket. A duplicate can therefore never bypass the per-product, distinct-product or total-unit bounds, nor reserve twice. The same product id under two different businesses remains two products.
+
+**E. Validation order.** Type and null → not-a-list → empty → **raw line count** → per-item identity and quantity → duplicate merge (with the merged cap) → distinct-product → total units → businesses. Everything above happens in `basketLimits.js`, which performs **no database access at all**, and is called **before** any product, business or shipping read. An oversized payload therefore costs one length comparison, not a fan-out.
+
+**F. Backend authority; Flutter is UX only.** `functions/src/marketplace/orders/basketLimits.js` is the single source: frozen, integer-validated at load, with no environment override and no client input path. `lib/models/marketplace_basket_limits.dart` mirrors the values for the cart and is documented as non-authoritative; a Dart drift test parses the JavaScript contract and compares every value, and a JS guard additionally asserts the mirror can never be more permissive. The cart's two mutation points (`_addToBasket`, `_changeQuantity`) both route through one `_basketGuardMessage` guard, with localized TR/EN/FA/RU messages; a refusal never empties or modifies the existing cart.
+
+**G. Old and manipulated clients.** A client that predates or patches the mirror gains nothing: the server rejects with stable, non-sensitive `reasonCode`s (`too_many_lines`, `too_many_products`, `too_many_units`, `too_many_businesses`, `quantity_invalid`, `quantity_too_large`, `item_malformed`, `basket_empty`, `items_not_a_list`, `items_missing`) that disclose nothing about inventory or compliance. A rejected basket creates **no order, no seller order and no checkout-attempt record**, proven by query after each rejection.
+
+**H. M3/M5 compatibility.** The checkout loop now consumes the normalized lines, so when mandatory reservation is enabled it will receive already-validated, already-merged quantities; a guard asserts the M3 canonical-line builder runs after validation. Eligibility enforcement from Revision 44 is untouched, and one ineligible product still rejects an in-bounds basket.
+
+**I. Tests.** `marketplaceBasketLimits.test.js` (19) covers the pure contract and drives the real callable end to end — boundary and boundary-plus-one for lines, products, quantity, units and businesses; every malformed quantity and identity; duplicate merging; multi-business checkout; concurrent isolation; and no-side-effect rejection. `marketplaceBasketLimitsArchitectureGuard.test.js` (12) pins ordering, single-source bounds, no-db-access, no alternate creator, and the Flutter guard. `basket_limits_drift_test.dart` (4) detects mirror drift. **Twelve mutations, all killed**: raw-count, distinct, total-unit, per-line and merged-cap enforcement removed; fractional quantity allowed; business bound removed; backend limit raised alone; mirror raised alone (killed by both guards); enforcement removed from the checkout; and a legacy bypass callable added.
+
+**J. Unchanged.** No M3/M5 activation, canary change, reservation runtime, expiry worker, provider policy, payment callback, refund/return behaviour, index or Rules change. Revision 45 **UNRESOLVED-1** (no per-product "not stock-tracked" switch) and **UNRESOLVED-2** (provider session lifetime) remain open and fail-closed.
+
+**K. Next slice: 7F-3** — enable and prove the M5 release/expiry workers on the emulator, which the frozen sequence requires before reservation becomes mandatory in 7F-5.
+
+---
+
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.

@@ -384,6 +384,11 @@ const {
 const {
   assertCheckoutItemsAcceptable,
 } = require("./src/marketplace/orders/atomicCheckoutGuard");
+// Marketplace Revision 47 §0.45 (Slice 7F-2) — the canonical basket bounds,
+// enforced before any database read in the checkout path.
+const {
+  validateAndNormalizeBasket,
+} = require("./src/marketplace/orders/basketLimits");
 const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
@@ -21538,31 +21543,25 @@ exports.createMarketplaceOrderV2 = onCall(
     const legal = data.legal || {};
     const currency = data.currency || "TRY";
     const checkoutAttemptId = String(data.checkoutAttemptId || "").trim();
-    const rawItems = Array.isArray(data.items) ? data.items : [];
+    const rawItems = data.items;
     const selectedCarrier = normalizeCarrier(data.carrier || "");
 
     let rootSubtotal = 0;
     let rootShippingTotal = 0;
     let rootTaxTotal = 0;
 
-    if (rawItems.length === 0) {
-      throw new HttpsError("invalid-argument", "Items are required.");
-    }
-
-    const invalidItem = rawItems.find(
-      (item) =>
-        !item ||
-        !item.shopId ||
-        !item.productId ||
-        asNumber(item.quantity) <= 0
-    );
-
-    if (invalidItem) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Each item must include shopId, productId, and quantity."
-      );
-    }
+    // Marketplace Revision 47 §0.45 (Slice 7F-2) — BOUNDED BASKET.
+    //
+    // This runs before ANY product, business or compliance read, so an
+    // oversized or malformed basket costs a length comparison rather than a
+    // fan-out of transactional reads. It replaces a check that treated a
+    // non-array as empty and coerced 0, -5 and 0.5 into a quantity of 1.
+    //
+    // `normalizedBasket.lines` are the canonical, duplicate-merged lines in a
+    // stable order; the loop below consumes them so a product split across
+    // several submitted lines becomes exactly one order line, one reservation
+    // and one fingerprint entry.
+    const normalizedBasket = validateAndNormalizeBasket(rawItems);
 
     const invoiceType = billing.invoiceType || "individual";
 
@@ -21598,10 +21597,15 @@ exports.createMarketplaceOrderV2 = onCall(
 
     const shippingConfigByBusiness = new Map();
     const items = [];
-    for (const rawItem of rawItems) {
-      const businessId = String(rawItem.shopId || "").trim();
-      const productId = String(rawItem.productId || "").trim();
-      const quantity = Math.max(1, Math.floor(asNumber(rawItem.quantity, 1)));
+    // Slice 7F-2: iterate the NORMALIZED lines, not the raw payload, so
+    // duplicates have already been merged and every identity and quantity is
+    // known valid. `line.rawItem` is carried only so the existing spread
+    // below keeps its previous shape for fields this path does not own.
+    for (const line of normalizedBasket.lines) {
+      const rawItem = line.rawItem;
+      const businessId = line.businessId;
+      const productId = line.productId;
+      const quantity = line.quantity;
       const productSnap = await db
         .collection("businesses")
         .doc(businessId)

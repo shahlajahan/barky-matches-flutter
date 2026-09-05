@@ -3553,4 +3553,8 @@
 ,"subCategoryGroomingTool": "Инструмент для ухода"
 ,"healthProductsNotSupported": "Витамины, добавки и ветеринарные препараты не поддерживаются на Маркетплейсе и не могут быть размещены."
 ,"cartItemsNoLongerAvailable": "{count, plural, =1{1 товар больше недоступен и удалён из корзины.} other{{count} товара(ов) больше недоступны и удалены из корзины.}}"
+,"basketLimitProducts": "В корзину можно добавить не более {count} разных товаров."
+,"basketLimitQuantity": "Одного товара можно добавить не более {count} шт."
+,"basketLimitTotalUnits": "В корзине может быть не более {count} товаров всего."
+,"basketLimitBusinesses": "Можно заказать не более чем из {count} магазинов одновременно."
 }

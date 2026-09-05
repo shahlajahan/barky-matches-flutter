@@ -10910,4 +10910,24 @@ class AppLocalizationsTr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String basketLimitProducts(int count) {
+    return 'Sepetinize en fazla $count farklı ürün ekleyebilirsiniz.';
+  }
+
+  @override
+  String basketLimitQuantity(int count) {
+    return 'Aynı üründen en fazla $count adet ekleyebilirsiniz.';
+  }
+
+  @override
+  String basketLimitTotalUnits(int count) {
+    return 'Sepetinizde toplam en fazla $count ürün bulunabilir.';
+  }
+
+  @override
+  String basketLimitBusinesses(int count) {
+    return 'Aynı anda en fazla $count mağazadan sipariş verebilirsiniz.';
+  }
 }
