@@ -160,6 +160,59 @@ class FakeCollectionRef {
   }
 }
 
+// Marketplace Revision 38 §0.36 (Slice 7B) — fixture normalization.
+//
+// The public catalogue now also asserts conditions 3/4/6/9: the owning
+// business must exist, be approved and Marketplace-eligible, have a valid
+// seller activation and a live generation the product matches, and the
+// product must carry a valid `pilotProductClass`. Before Slice 7B these
+// fixtures seeded products with no business document at all — a world that
+// cannot exist in production.
+//
+// Rather than rewrite 125 fixtures, `createFakeDb` completes the world: every
+// seeded product gets a valid owning business and the two product fields the
+// new conditions read, UNLESS the fixture already supplies them. A test that
+// wants an orphaned, unclassified, deactivated, unapproved or
+// wrong-generation world simply provides that value itself and this
+// normalization leaves it alone.
+const DEFAULT_TEST_GENERATION = (businessId) => `gen-${businessId}`;
+const NESTED_PRODUCT_FIXTURE_RE = /^businesses\/([^/]+)\/products\/([^/]+)$/;
+
+function normalizeSeededWorld(seedDocs) {
+  const seeded = Object.assign({}, seedDocs || {});
+  for (const [fullPath, data] of Object.entries(seedDocs || {})) {
+    const match = NESTED_PRODUCT_FIXTURE_RE.exec(fullPath);
+    if (!match) continue;
+    const businessId = match[1];
+    if (!data || typeof data !== "object" || Array.isArray(data)) continue;
+
+    const generation =
+      typeof data.marketplaceBusinessGenerationId === "string" &&
+      data.marketplaceBusinessGenerationId.length > 0
+        ? data.marketplaceBusinessGenerationId
+        : DEFAULT_TEST_GENERATION(businessId);
+
+    // Complete the product only where the fixture is silent.
+    seeded[fullPath] = Object.assign(
+      {
+        marketplaceBusinessGenerationId: generation,
+        pilotProductClass: "sealed_dry_food",
+      },
+      data
+    );
+
+    const businessPath = `businesses/${businessId}`;
+    if (!Object.prototype.hasOwnProperty.call(seeded, businessPath)) {
+      seeded[businessPath] = {
+        status: "approved",
+        marketplaceSellerActivation: { active: true },
+        marketplaceBusinessGenerationId: generation,
+      };
+    }
+  }
+  return seeded;
+}
+
 function createFakeDb(seedDocs) {
   const db = {
     docsByPath: new Map(),
@@ -167,7 +220,7 @@ function createFakeDb(seedDocs) {
     pointReadPaths: [],
     queryError: null,
   };
-  for (const [fullPath, data] of Object.entries(seedDocs || {})) {
+  for (const [fullPath, data] of Object.entries(normalizeSeededWorld(seedDocs))) {
     db.docsByPath.set(fullPath, { data });
   }
   db.collectionGroup = (name) => new FakeQuery(db, name);
@@ -202,7 +255,7 @@ function readyImage(url, overrides) {
 }
 
 function baseProduct(overrides) {
-  return Object.assign(
+  const merged = Object.assign(
     {
       businessId: "biz1",
       name: "Chew Toy",
@@ -212,9 +265,20 @@ function baseProduct(overrides) {
       isActive: true,
       moderationStatus: "approved",
       media: [readyImage("https://cdn.example.test/a.jpg")],
+      // Marketplace Revision 38 §0.36 A — a publicly visible product is
+      // classified (condition 9) and belongs to the LIVE business generation
+      // (condition 6). A fixture that wants an unclassified or
+      // wrong-generation product overrides these explicitly.
+      pilotProductClass: "sealed_dry_food",
     },
     overrides || {}
   );
+  // Derived AFTER the merge so an overridden `businessId` still gets a
+  // generation that matches its own business.
+  if (!Object.prototype.hasOwnProperty.call(overrides || {}, "marketplaceBusinessGenerationId")) {
+    merged.marketplaceBusinessGenerationId = DEFAULT_TEST_GENERATION(merged.businessId);
+  }
+  return merged;
 }
 
 // =====================================================================
@@ -527,8 +591,15 @@ test("detail: never searches globally by productId — reads exactly the nested 
     featureEnabled: true,
     evaluator,
   });
-  assert.deepEqual(db.pointReadPaths, ["businesses/biz1/products/prod1"]);
-  assert.equal(db.queryCalls.length, 0);
+  // Revision 38 §0.36 A adds one owning-business point read (conditions
+  // 3/4/6). The property this test exists to protect is unchanged and still
+  // asserted: the product is reached by its exact nested path, and NO global
+  // query by productId is ever issued.
+  assert.deepEqual(db.pointReadPaths, [
+    "businesses/biz1/products/prod1",
+    "businesses/biz1",
+  ]);
+  assert.equal(db.queryCalls.length, 0, "never a global search by productId");
 });
 
 // =====================================================================
@@ -1029,6 +1100,28 @@ test("list [Case J]: examine cap stops mid-batch only if a fetch over-returns be
     },
     doc(p) {
       return { path: p };
+    },
+    // Revision 38 §0.36 A — the catalogue now reads the owning business to
+    // answer conditions 3/4/6/9. This hand-rolled db predates that, so it
+    // must serve a valid business or every candidate would be rejected
+    // before the evaluator and this test would measure nothing.
+    collection(name) {
+      return {
+        doc(businessId) {
+          return {
+            async get() {
+              return {
+                exists: true,
+                data: () => ({
+                  status: "approved",
+                  marketplaceSellerActivation: { active: true },
+                  marketplaceBusinessGenerationId: `gen-${businessId}`,
+                }),
+              };
+            },
+          };
+        },
+      };
     },
   };
 

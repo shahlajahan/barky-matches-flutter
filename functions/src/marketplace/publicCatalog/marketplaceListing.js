@@ -33,6 +33,9 @@ const { FieldPath } = require("firebase-admin/firestore");
 const {
   evaluateLiveProductEligibility,
 } = require("../compliance/complianceEligibilityEvaluator");
+const {
+  isValidPilotProductClass,
+} = require("../compliance/complianceConstants");
 
 const PRODUCTS_COLLECTION = "businesses";
 
@@ -47,6 +50,78 @@ const EXAMINE_CAP_MULTIPLIER = 6; // pageSize * 6, <= 120
 const MAX_FETCHES = 2;
 const CURSOR_MAX_ENCODED_LENGTH = 256;
 const CURSOR_VERSION = 1;
+
+// Marketplace Revision 38 §0.36 A — the four public-visibility conditions
+// `evaluateLiveProductEligibility` does NOT subsume, and which this module
+// must therefore assert itself:
+//
+//   3. the business is approved and Marketplace-eligible
+//   4. the business's seller activation is currently valid
+//   6. the product's generation equals the LIVE business generation
+//   9. `pilotProductClass` is one of the four Revision 31 §C values
+//
+// Condition 9 matters most and is the least obvious: the evaluator compares
+// the class only for snapshot EQUALITY, so an UNCLASSIFIED product — a null
+// live class matching a null recorded snapshot — passes it, and would be
+// publicly listed if this module did not assert validity separately.
+const BUSINESS_PUBLISHABLE_STATUSES = Object.freeze(["approved"]);
+
+/// Reads the owning business ONCE per request per business (bounded by page
+/// size) and answers conditions 3, 4, 6 and 9 for one product.
+///
+/// Returns true only on an affirmative answer: a missing business, a
+/// malformed activation object, an uninitialized generation and an
+/// unrecognised status all fail closed, exactly like every other unknown in
+/// this path.
+async function isPubliclyVisibleBeyondEligibility({ db, product, businessCache }) {
+  // 9. class validity — no alias, no case folding, no inference.
+  if (!isValidPilotProductClass(product.pilotProductClass)) return false;
+
+  const businessId = product.businessId;
+  if (typeof businessId !== "string" || businessId.length === 0) return false;
+
+  // A prefixed plain-object cache, deliberately neither a Map nor
+  // `Object.create(null)`: `cache.set(...)` and `Object.create(...)` both trip
+  // this module's own frozen "no write call of any kind" static guard, and
+  // weakening a security guard to accommodate a cache is the wrong trade. The
+  // `b:` prefix additionally means a business id of `__proto__` or
+  // `constructor` can never collide with an object-prototype key.
+  const cacheKey = `b:${businessId}`;
+  if (!Object.prototype.hasOwnProperty.call(businessCache, cacheKey)) {
+    let snap = null;
+    try {
+      snap = await db.collection(PRODUCTS_COLLECTION).doc(businessId).get();
+    } catch (err) {
+      snap = null;
+    }
+    businessCache[cacheKey] = snap && snap.exists ? snap.data() || {} : null;
+  }
+  const business = businessCache[cacheKey];
+  // 2. the business must exist.
+  if (business === null) return false;
+
+  // 3. approved and Marketplace-eligible.
+  if (!BUSINESS_PUBLISHABLE_STATUSES.includes(business.status)) return false;
+
+  // 4. seller activation currently valid.
+  const activation = business.marketplaceSellerActivation;
+  const sellerActive = Boolean(
+    activation &&
+      typeof activation === "object" &&
+      !Array.isArray(activation) &&
+      activation.active === true
+  );
+  if (!sellerActive) return false;
+
+  // 6. the product's generation must equal the LIVE business generation. A
+  // product left behind by a previous generation of a same-id business is
+  // never publicly visible, however approved its own fields look.
+  const liveGeneration = business.marketplaceBusinessGenerationId;
+  if (typeof liveGeneration !== "string" || liveGeneration.length === 0) return false;
+  if (product.marketplaceBusinessGenerationId !== liveGeneration) return false;
+
+  return true;
+}
 
 const LIST_REQUEST_ALLOWED_FIELDS = Object.freeze(["pageSize", "cursor"]);
 const DETAIL_REQUEST_ALLOWED_FIELDS = Object.freeze(["businessId", "productId"]);
@@ -411,6 +486,9 @@ async function getMarketplaceProductList({
   const examineCap = pageSize * EXAMINE_CAP_MULTIPLIER;
 
   const items = [];
+  // One business read per DISTINCT business per request, not per candidate:
+  // bounded by the examine cap, so this adds no unbounded fan-out.
+  const businessCache = {};
   let examinedCount = 0;
   let lastExaminedPath = null;
   let fetchCount = 0;
@@ -463,6 +541,23 @@ async function getMarketplaceProductList({
         projected = null;
       }
       if (projected === null) continue;
+
+      // Revision 38 §0.36 A — conditions 3/4/6/9, which the evaluator does
+      // not subsume. Evaluated against the RAW document (the projection
+      // deliberately drops class, generation and status), and before the
+      // evaluator so an unclassified or orphaned candidate costs no
+      // decision/policy/epoch reads at all.
+      let visible;
+      try {
+        visible = await isPubliclyVisibleBeyondEligibility({
+          db,
+          product: doc.data(),
+          businessCache,
+        });
+      } catch (err) {
+        visible = false;
+      }
+      if (!visible) continue;
 
       let result;
       try {
@@ -539,6 +634,25 @@ async function getMarketplaceProductDetail({
     throw new HttpsError("not-found", "Product not found");
   }
   if (rawData.isActive !== true || rawData.moderationStatus !== "approved") {
+    throw new HttpsError("not-found", "Product not found");
+  }
+
+  // Revision 38 §0.36 A — conditions 3/4/6/9, identical to the list path and
+  // sharing the same helper rather than a second copy. Every failure here
+  // collapses into the same indistinguishable not-found as every other
+  // absence, so the response never reveals WHY a product is hidden — whether
+  // it was evidence, moderation, generation or enforcement.
+  let visibleBeyondEligibility;
+  try {
+    visibleBeyondEligibility = await isPubliclyVisibleBeyondEligibility({
+      db,
+      product: rawData,
+      businessCache: {},
+    });
+  } catch (err) {
+    visibleBeyondEligibility = false;
+  }
+  if (!visibleBeyondEligibility) {
     throw new HttpsError("not-found", "Product not found");
   }
 

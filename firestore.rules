@@ -1867,12 +1867,40 @@ match /dogs/{dogId}/visits/{visitId} {
       && isBusinessOwner(existing.businessId);
   }
 
+  // Marketplace Revision 38 §0.36 B (Slice 7B) — CALLABLE-ONLY PUBLIC
+  // DISCOVERY. The branch that permitted ANY caller to read a product merely
+  // because it was `approved && isActive` is removed.
+  //
+  // Those two fields are persisted product state. They converge toward
+  // compliance truth through the recompute and invalidation sweeps, but
+  // between an evidence revocation, a policy change, a business-generation
+  // change or a decision invalidation and the sweep that propagates it, they
+  // still read "approved and active". Revision 30 §H named that interval, and
+  // a Rules predicate over product fields cannot close it: Rules cannot
+  // recompute a `decisionHash`, cannot compare the active policy pointer, and
+  // cannot compare the business compliance epoch. Denormalized mirrors such
+  // as `complianceEffectiveStatus`/`complianceValidUntil` would not close it
+  // either — expiry alone is checkable against request time, revocation and
+  // policy drift are not.
+  //
+  // Public discovery therefore runs through `getMarketplaceProductList`/
+  // `Detail`/`Batch`, which evaluate the live predicate against authoritative
+  // state at the instant of the request. Deliberately NO `get()` into the
+  // compliance collections is introduced here as a substitute: a partial
+  // Rules predicate would re-open exactly the interval this closes.
+  //
+  // What remains: an admin reads for moderation, and a business owner reads
+  // products canonically owned by their OWN business in every moderation
+  // state, for management. Admin-SDK and callable paths are unaffected by
+  // Rules by construction.
+  // `'businessId' in resource.data` precedes the type test deliberately: on a
+  // `list` operation a document missing the field raises "Property businessId
+  // is undefined on object" as an EVALUATION ERROR, which fails the entire
+  // query rather than merely excluding that document. Presence-first keeps a
+  // malformed sibling from denying an owner their whole catalogue.
   allow read: if isAdmin()
     || (
-      resource.data.moderationStatus == 'approved' &&
-      resource.data.isActive == true
-    )
-    || (
+      'businessId' in resource.data &&
       resource.data.businessId is string &&
       isBusinessOwner(resource.data.businessId)
     );

@@ -161,6 +161,17 @@ async function resetSeed() {
       pilotActiveProductCount: 0,
     });
     await setDoc(doc(db, "users", "admin-1"), { role: "admin" });
+    // Revision 38 §0.36 C — with the public read branch removed, the owner
+    // branch is the only non-admin one, so owner reads now evaluate
+    // `isAdmin()` first. `isAdmin()` dereferences `get(users/<uid>).data`,
+    // which raises a null-value EVALUATION ERROR (not a plain deny) when the
+    // user document is absent — and on a `list` that error fails the whole
+    // query. Seeding role-less user documents makes the predicate evaluable
+    // for these identities; absent a `role` they remain non-admin, so no
+    // security property changes.
+    await setDoc(doc(db, "users", "seller-1"), {});
+    await setDoc(doc(db, "users", "seller-2"), {});
+    await setDoc(doc(db, "users", "customer-1"), {});
   });
 }
 
@@ -606,8 +617,15 @@ rulesTest(
         })
       );
     });
+    // Marketplace Revision 38 §0.36 B (Slice 7B) — public discovery is now
+    // callable-only. An unauthenticated caller can no longer read a product
+    // directly merely because it is approved and active; the approved+active
+    // pair is persisted state that lags evidence revocation, policy change
+    // and generation change (Revision 30 §H's interval). The product is
+    // reachable only through `getMarketplaceProductList`/`Detail`/`Batch`,
+    // which evaluate live eligibility at request time.
     const db = rulesEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(
+    await assertFails(
       getDoc(doc(db, "businesses/biz-1/products/p1"))
     );
   }
@@ -721,7 +739,7 @@ rulesTest(
   }
 );
 
-rulesTest("published + approved products are publicly readable", async () => {
+rulesTest("published + approved products are NOT directly readable — discovery is callable-only (Revision 38)", async () => {
   await resetSeed();
   const rulesEnv = await env();
   await rulesEnv.withSecurityRulesDisabled(async (context) => {
@@ -730,8 +748,26 @@ rulesTest("published + approved products are publicly readable", async () => {
       safeProduct({ isActive: true, moderationStatus: "approved" })
     );
   });
-  const db = rulesEnv.unauthenticatedContext().firestore();
-  await assertSucceeds(getDoc(doc(db, "businesses/biz-1/products/p1")));
+  // Marketplace Revision 38 §0.36 B — the structurally most "publishable"
+  // product there is (isActive:true, moderationStatus:'approved') is still
+  // unreadable through the client SDK, for every non-owner, non-admin caller.
+  const rulesEnv2 = rulesEnv;
+  await assertFails(
+    getDoc(doc(rulesEnv2.unauthenticatedContext().firestore(), "businesses/biz-1/products/p1"))
+  );
+  await assertFails(
+    getDoc(doc(rulesEnv2.authenticatedContext("customer-1").firestore(), "businesses/biz-1/products/p1"))
+  );
+  await assertFails(
+    getDoc(doc(rulesEnv2.authenticatedContext("seller-2").firestore(), "businesses/biz-1/products/p1"))
+  );
+  // The owner and an admin keep their management reads.
+  await assertSucceeds(
+    getDoc(doc(rulesEnv2.authenticatedContext("seller-1").firestore(), "businesses/biz-1/products/p1"))
+  );
+  await assertSucceeds(
+    getDoc(doc(rulesEnv2.authenticatedContext("admin-1").firestore(), "businesses/biz-1/products/p1"))
+  );
 });
 
 rulesTest(
@@ -875,6 +911,11 @@ rulesTest(
 // the new rules, not just single-document get().
 // ---------------------------------------------------------------------
 async function seedFullCatalog() {
+  // Revision 38 §0.36 C — the owner-management read branch is now the ONLY
+  // non-admin read branch, so these fixtures need the business documents
+  // `isBusinessOwner` resolves against. Without them the owner branch hits a
+  // null-value error rather than evaluating.
+  await resetSeed();
   const rulesEnv = await env();
   await rulesEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
@@ -906,35 +947,58 @@ async function seedFullCatalog() {
 }
 
 rulesTest(
-  "4. the real public list query (collectionGroup, isActive+moderationStatus) returns only approved+active products",
+  "4. the real public list query (collectionGroup, isActive+moderationStatus) is DENIED — Revision 38 callable-only discovery",
   async () => {
     await seedFullCatalog();
-    const db = (await env()).unauthenticatedContext().firestore();
-    const q = query(
-      collectionGroup(db, "products"),
-      where("isActive", "==", true),
-      where("moderationStatus", "==", "approved")
+    // This query WAS the public catalogue read. Revision 38 §0.36 B removes
+    // the branch that made it provably safe, so Firestore rejects it for
+    // every public caller. The same catalogue is served by
+    // `getMarketplaceProductList`, which additionally evaluates live
+    // compliance eligibility per candidate at request time.
+    const rulesEnv = await env();
+    const publicCollectionGroupQuery = (db) =>
+      query(
+        collectionGroup(db, "products"),
+        where("isActive", "==", true),
+        where("moderationStatus", "==", "approved")
+      );
+    await assertFails(
+      getDocs(publicCollectionGroupQuery(rulesEnv.unauthenticatedContext().firestore()))
     );
-    const snap = await assertSucceeds(getDocs(q));
-    const ids = snap.docs.map((d) => d.id).sort();
-    assert.deepEqual(ids, ["approved-1", "approved-2"]);
+    await assertFails(
+      getDocs(publicCollectionGroupQuery(rulesEnv.authenticatedContext("customer-1").firestore()))
+    );
+    // Not even a seller may cross-tenant scan: the owner branch cannot prove
+    // a collection-group query safe across businesses.
+    await assertFails(
+      getDocs(publicCollectionGroupQuery(rulesEnv.authenticatedContext("seller-1").firestore()))
+    );
   }
 );
 
 rulesTest(
-  "4. the real seller-scoped list query excludes pending/rejected/suspended for that seller",
+  "4. the seller-scoped list query is denied to the public and scoped to the owner — Revision 38",
   async () => {
     await seedFullCatalog();
-    const db = (await env()).unauthenticatedContext().firestore();
-    const q = query(
-      collectionGroup(db, "products"),
-      where("isActive", "==", true),
-      where("moderationStatus", "==", "approved"),
-      where("businessId", "==", "biz-1")
+    const rulesEnv = await env();
+    const sellerScoped = (db) =>
+      query(
+        collectionGroup(db, "products"),
+        where("isActive", "==", true),
+        where("moderationStatus", "==", "approved"),
+        where("businessId", "==", "biz-1")
+      );
+    // Revision 38 §0.36 B — even narrowed to one business, a public
+    // collection-group scan is denied: `businessId` is document data, not a
+    // path segment, so no read branch can prove it safe for a public caller.
+    await assertFails(getDocs(sellerScoped(rulesEnv.unauthenticatedContext().firestore())));
+    await assertFails(
+      getDocs(sellerScoped(rulesEnv.authenticatedContext("customer-1").firestore()))
     );
-    const snap = await assertSucceeds(getDocs(q));
-    const ids = snap.docs.map((d) => d.id);
-    assert.deepEqual(ids, ["approved-1"]);
+
+    // Owner management reads are asserted by the dedicated owner tests in
+    // this suite (P0.1-16, REV35-CLS-*) and by the Slice 7B adversarial
+    // suite; this case's subject is the PUBLIC denial.
   }
 );
 
@@ -1080,18 +1144,26 @@ rulesTest(
 );
 
 rulesTest(
-  "18g. the normal approved+active public query against the same path still succeeds",
+  "18g. the approved+active public LIST QUERY is denied outright — Revision 38 callable-only discovery",
   async () => {
     await seedFullCatalog();
-    const db = (await env()).unauthenticatedContext().firestore();
-    const q = query(
-      collection(db, "businesses/biz-1/products"),
-      where("isActive", "==", true),
-      where("moderationStatus", "==", "approved")
-    );
-    const snap = await assertSucceeds(getDocs(q));
-    const ids = snap.docs.map((d) => d.id);
-    assert.deepEqual(ids, ["approved-1"]);
+    // Revision 38 §0.36 B: the query that WAS the public catalogue read is
+    // now rejected at the Rules layer for an unauthenticated caller, because
+    // no `allow read` branch can prove it safe. The owner's own equivalent
+    // query still succeeds, which is what keeps seller management working.
+    const rulesEnv = await env();
+    const publicQuery = (db) =>
+      query(
+        collection(db, "businesses/biz-1/products"),
+        where("isActive", "==", true),
+        where("moderationStatus", "==", "approved")
+      );
+    await assertFails(getDocs(publicQuery(rulesEnv.unauthenticatedContext().firestore())));
+    await assertFails(getDocs(publicQuery(rulesEnv.authenticatedContext("customer-1").firestore())));
+
+    // Owner management reads are asserted by the dedicated owner tests in
+    // this suite and by the Slice 7B adversarial suite; this case's subject
+    // is the PUBLIC denial of what used to be the catalogue query.
   }
 );
 
@@ -1955,11 +2027,14 @@ rulesTest(
         safeProduct({ isActive: true, moderationStatus: "approved" })
       );
     });
-    // No complianceEffectiveStatus field exists on this document at all —
-    // if a read gate had been introduced, this would now be expected to
-    // fail; it must still succeed, exactly as before Slice 4.2.
+    // Slice 4.2 introduced no compliance read gate, and Revision 38 still
+    // introduces none: it REMOVES the public branch rather than adding a
+    // `get()` into the compliance collections (§0.36 B — a partial Rules
+    // predicate would re-open the very interval this closes). The product is
+    // therefore unreadable publicly for a structural reason, not because
+    // Rules consulted a decision.
     const db = rulesEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(
+    await assertFails(
       getDoc(doc(db, "businesses/biz-1/products/piv-reg-41"))
     );
   }
@@ -2957,8 +3032,11 @@ rulesTest(
         })
       );
     });
+    // Revision 38 §0.36 B — still no compliance read gate in Rules; the
+    // public branch is simply gone. A valid `sellerRelationship` changes
+    // nothing about that.
     const db = rulesEnv.unauthenticatedContext().firestore();
-    await assertSucceeds(
+    await assertFails(
       getDoc(doc(db, "businesses/biz-1/products/r7-reg35"))
     );
   }
