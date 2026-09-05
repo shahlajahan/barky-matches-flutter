@@ -150,7 +150,8 @@ async function approvalPayloadFor(businessId, productId) {
     allowedPilotCategory: "food",
     reviewedContentFingerprint: computeApprovalFingerprint(
       product,
-      decSnap.exists ? decSnap.data() : null
+      decSnap.exists ? decSnap.data() : null,
+      productId
     ),
     attestNoProhibitedClaim: true,
   };

@@ -26,6 +26,8 @@ const {
   invalidateProductApprovalIfStale,
   runApprovalInvalidationSweep,
   INVALIDATION_REASON,
+  CHECKPOINT_COLLECTION,
+  CHECKPOINT_DOC_ID,
 } = require("../src/marketplace/compliance/complianceApprovalInvalidation");
 const {
   PRODUCT_COMPLIANCE_EFFECTIVE_STATUS,
@@ -127,7 +129,7 @@ async function approve(adminUid, businessId, productId, fingerprint) {
 async function liveFingerprint(businessId, productId) {
   const product = await readProduct(businessId, productId);
   const dec = await db.collection("productComplianceDecisions").doc(productId).get();
-  return computeApprovalFingerprint(product, dec.exists ? dec.data() : null);
+  return computeApprovalFingerprint(product, dec.exists ? dec.data() : null, productId);
 }
 
 async function failureOf(promise) {
@@ -169,14 +171,14 @@ test("the approval fingerprint binds decision identity, and each input matters",
     validUntil: TS(2000),
     activeEvidenceRefs: [{ documentId: "d1", scopeId: "s1" }],
   };
-  const base = computeApprovalFingerprint(product, decision);
+  const base = computeApprovalFingerprint(product, decision, "prod-1");
 
   // Determinism.
-  assert.equal(base, computeApprovalFingerprint(product, decision));
+  assert.equal(base, computeApprovalFingerprint(product, decision, "prod-1"));
   // A Timestamp and an equal Date must not disagree.
   assert.equal(
     base,
-    computeApprovalFingerprint(product, { ...decision, validUntil: new Date(2000) })
+    computeApprovalFingerprint(product, { ...decision, validUntil: new Date(2000) }, "prod-1")
   );
 
   // Every §H-bound input changes it.
@@ -188,17 +190,17 @@ test("the approval fingerprint binds decision identity, and each input matters",
     ["validUntil", { ...decision, validUntil: TS(3000) }],
     ["evidence", { ...decision, activeEvidenceRefs: [{ documentId: "d2", scopeId: "s2" }] }],
   ]) {
-    assert.notEqual(computeApprovalFingerprint(product, mutated), base, `${label} must change it`);
+    assert.notEqual(computeApprovalFingerprint(product, mutated, "prod-1"), base, `${label} must change it`);
   }
   // Product identity and generation are bound too.
-  assert.notEqual(computeApprovalFingerprint({ ...product, marketplaceBusinessGenerationId: "g2" }, decision), base);
-  assert.notEqual(computeApprovalFingerprint({ ...product, businessId: "b2" }, decision), base);
+  assert.notEqual(computeApprovalFingerprint({ ...product, marketplaceBusinessGenerationId: "g2" }, decision, "prod-1"), base);
+  assert.notEqual(computeApprovalFingerprint({ ...product, businessId: "b2" }, decision, "prod-1"), base);
   // Reviewed content still matters.
-  assert.notEqual(computeApprovalFingerprint({ ...product, price: 2 }, decision), base);
+  assert.notEqual(computeApprovalFingerprint({ ...product, price: 2 }, decision, "prod-1"), base);
   // media order is real product content and DOES change it.
-  assert.notEqual(computeApprovalFingerprint({ ...product, media: ["b", "a"] }, decision), base);
+  assert.notEqual(computeApprovalFingerprint({ ...product, media: ["b", "a"] }, decision, "prod-1"), base);
   // A missing decision is not the same as a present one.
-  assert.notEqual(computeApprovalFingerprint(product, null), base);
+  assert.notEqual(computeApprovalFingerprint(product, null, "prod-1"), base);
   // ...and the old content-only fingerprint is no longer sufficient.
   assert.notEqual(base, computeContentFingerprint(product));
 });
@@ -258,7 +260,7 @@ itest("a client-supplied fingerprint cannot authorize approval", async () => {
   for (const forged of [
     computeContentFingerprint(product),
     "0".repeat(64),
-    computeApprovalFingerprint(product, { ...w.decision, evidenceRevision: 99 }),
+    computeApprovalFingerprint(product, { ...w.decision, evidenceRevision: 99 }, w.productId),
   ]) {
     const failure = await failureOf(approve(adminUid, w.businessId, w.productId, forged));
     assert.notEqual(failure, null, "a fingerprint the server did not compute must be refused");
@@ -536,4 +538,319 @@ itest("no invalidation path ever activates, approves or publishes", async () => 
   assert.equal(product.isActive, false);
   assert.notEqual(product.moderationStatus, "approved");
   void revokePilotProductApproval;
+});
+
+// =========================================================================
+// Slice 6 corrective audit — product identity binding
+// =========================================================================
+
+test("A1. productId is bound directly into the hashed payload", () => {
+  const product = { businessId: "b1", marketplaceBusinessGenerationId: "g1", name: "N", price: 1 };
+  const decision = {
+    decisionHash: "h1",
+    policyVersion: "p1",
+    evidenceRevision: 0,
+    effectiveStatus: "verified_valid",
+    validUntil: TS(9999),
+    // Brand-scoped evidence: SHARED by two sibling products by construction,
+    // so `activeEvidenceRefs` cannot distinguish them. This is why productId
+    // has to be bound directly rather than relied upon indirectly.
+    activeEvidenceRefs: [{ documentId: "shared-doc", scopeId: "shared-brand-scope" }],
+  };
+  const a = computeApprovalFingerprint(product, decision, "prod-A");
+  const b = computeApprovalFingerprint(product, decision, "prod-B");
+  assert.notEqual(a, b, "two sibling products must never share a fingerprint");
+  // Deterministic for the same product.
+  assert.equal(a, computeApprovalFingerprint(product, decision, "prod-A"));
+  // Absent productId is its own distinct value, never equal to a real one.
+  assert.notEqual(computeApprovalFingerprint(product, decision, undefined), a);
+  assert.equal(
+    computeApprovalFingerprint(product, decision, ""),
+    computeApprovalFingerprint(product, decision, null)
+  );
+  // The three identity bindings are independent: none substitutes for another.
+  assert.notEqual(
+    computeApprovalFingerprint({ ...product, businessId: "b2" }, decision, "prod-A"),
+    a
+  );
+  assert.notEqual(
+    computeApprovalFingerprint({ ...product, marketplaceBusinessGenerationId: "g2" }, decision, "prod-A"),
+    a
+  );
+});
+
+itest("A2. two sibling products with identical content and shared evidence get distinct fingerprints", async () => {
+  const adminUid = await seedAdmin();
+  const a = await seedApprovable();
+  // A second product in the SAME business, byte-identical reviewed content,
+  // and a decision whose provenance fields are identical in every respect
+  // except the document it belongs to.
+  const productB = nextId("prod-b");
+  const productA = await readProduct(a.businessId, a.productId);
+  const { pilotProductApproval, ...contentOnly } = productA;
+  await db
+    .collection("businesses")
+    .doc(a.businessId)
+    .collection("products")
+    .doc(productB)
+    .set(contentOnly);
+  await db
+    .collection("productComplianceDecisions")
+    .doc(productB)
+    .set({ ...a.decision });
+
+  const fpA = await liveFingerprint(a.businessId, a.productId);
+  const fpB = await liveFingerprint(a.businessId, productB);
+  assert.notEqual(fpA, fpB, "identical content + identical decision must still differ by product");
+
+  // Product A's fingerprint cannot approve product B.
+  const failure = await failureOf(approve(adminUid, a.businessId, productB, fpA));
+  assert.notEqual(failure, null, "A's fingerprint must not validate for B");
+  assert.equal((await readProduct(a.businessId, productB)).isActive, false);
+  assert.equal(await readCount(a.businessId), 0);
+});
+
+itest("A3. copying pilotProductApproval from A to B is invalidated", async () => {
+  const adminUid = await seedAdmin();
+  const a = await seedApprovable();
+  const fpA = await liveFingerprint(a.businessId, a.productId);
+  await approve(adminUid, a.businessId, a.productId, fpA);
+
+  // An Admin-SDK copy/migration/stale-record path clones A's whole approval
+  // onto a sibling product — the exact attack productId binding must stop.
+  const productB = nextId("prod-b");
+  const productA = await readProduct(a.businessId, a.productId);
+  await db
+    .collection("businesses")
+    .doc(a.businessId)
+    .collection("products")
+    .doc(productB)
+    .set(productA);
+  await db.collection("productComplianceDecisions").doc(productB).set({ ...a.decision });
+  await db.collection("businesses").doc(a.businessId).update({ pilotActiveProductCount: 2 });
+
+  const result = await invalidateProductApprovalIfStale({
+    db,
+    businessId: a.businessId,
+    productId: productB,
+    logger: quiet,
+  });
+  assert.equal(result.outcome, "invalidated", "a copied approval must not survive");
+  const b = await readProduct(a.businessId, productB);
+  assert.equal(b.isActive, false);
+  assert.equal(b.pilotProductApproval.active, false);
+  // A itself is untouched and still valid.
+  const stillValid = await invalidateProductApprovalIfStale({
+    db,
+    businessId: a.businessId,
+    productId: a.productId,
+    logger: quiet,
+  });
+  assert.equal(stillValid.outcome, "valid");
+  assert.equal((await readProduct(a.businessId, a.productId)).isActive, true);
+});
+
+itest("A4. a recreated generation still invalidates independently of productId", async () => {
+  const adminUid = await seedAdmin();
+  const w = await approveThen(adminUid, (x) =>
+    db.collection("businesses").doc(x.businessId).collection("products").doc(x.productId)
+      .update({ marketplaceBusinessGenerationId: "gen-RECREATED" })
+  );
+  const result = await invalidateProductApprovalIfStale({
+    db, businessId: w.businessId, productId: w.productId, logger: quiet,
+  });
+  assert.equal(result.outcome, "invalidated");
+});
+
+// =========================================================================
+// Slice 6 corrective audit — sweep completeness and starvation
+// =========================================================================
+
+async function seedActiveApproved(businessId, index) {
+  const productId = `sweep-${RUN_TOKEN}-${String(index).padStart(4, "0")}`;
+  const generationId = `gen-${businessId}`;
+  await db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("products")
+    .doc(productId)
+    .set({
+      businessId,
+      marketplaceBusinessGenerationId: generationId,
+      name: "P",
+      price: 1,
+      isActive: true,
+      moderationStatus: "approved",
+      pilotProductApproval: {
+        schemaVersion: 1,
+        active: true,
+        // Deliberately stale: no decision exists, so every one of these is
+        // invalidation-eligible and a skipped record is provably unprocessed.
+        reviewedContentFingerprint: "stale-fingerprint",
+      },
+    });
+  return productId;
+}
+
+itest("B1. records beyond one run's cap are processed on later runs, with wrap-around", async () => {
+  const businessId = nextId("sweep-biz");
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid: "o",
+    marketplaceBusinessGenerationId: `gen-${businessId}`,
+    pilotActiveProductCount: 9,
+  });
+  const ids = [];
+  for (let i = 0; i < 9; i += 1) ids.push(await seedActiveApproved(businessId, i));
+
+  // A deliberately tiny cap: 2 per page x 2 pages = 4 per run, so the set
+  // cannot fit in one run and the tail can only be reached by continuation.
+  const opts = { db, pageSize: 2, maxPages: 2, logger: quiet };
+
+  const seen = new Set();
+  let runs = 0;
+  while (seen.size < ids.length && runs < 20) {
+    const before = await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).get();
+    const result = await runApprovalInvalidationSweep(opts);
+    runs += 1;
+    for (const id of ids) {
+      const p = await readProduct(businessId, id);
+      if (p.isActive === false) seen.add(id);
+    }
+    // The checkpoint is durable, not in-memory.
+    const after = await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).get();
+    assert.equal(after.exists, true, "a checkpoint must be persisted");
+    void before;
+    void result;
+  }
+
+  assert.equal(seen.size, ids.length, `every record must be reached (took ${runs} runs)`);
+  assert.ok(runs > 1, "the cap must genuinely have forced continuation");
+
+  // Wrap-around: once exhausted, the checkpoint clears so the next run
+  // restarts at the beginning rather than stopping forever at the tail.
+  let guard = 0;
+  let cp = (await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).get()).data();
+  while (cp && cp.lastExaminedPath !== null && guard < 20) {
+    await runApprovalInvalidationSweep(opts);
+    cp = (await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).get()).data();
+    guard += 1;
+  }
+  assert.equal(cp.lastExaminedPath, null, "an exhausted sweep wraps back to the start");
+});
+
+itest("B2. a deleted checkpoint target does not block continuation", async () => {
+  const businessId = nextId("sweep-del-biz");
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid: "o", marketplaceBusinessGenerationId: `gen-${businessId}`, pilotActiveProductCount: 4,
+  });
+  const ids = [];
+  for (let i = 0; i < 4; i += 1) ids.push(await seedActiveApproved(businessId, 100 + i));
+
+  await runApprovalInvalidationSweep({ db, pageSize: 2, maxPages: 1, logger: quiet });
+  const cp = (await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).get()).data();
+  assert.ok(cp.lastExaminedPath, "a partial run leaves a cursor");
+
+  // The product the cursor names is deleted before the next run.
+  await db.doc(cp.lastExaminedPath).delete();
+  const result = await runApprovalInvalidationSweep({ db, pageSize: 2, maxPages: 5, logger: quiet });
+  assert.ok(result.examined >= 1, "the sweep continues past a deleted cursor target");
+});
+
+itest("B3. a malformed checkpoint restarts safely instead of stalling", async () => {
+  const businessId = nextId("sweep-bad-biz");
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid: "o", marketplaceBusinessGenerationId: `gen-${businessId}`, pilotActiveProductCount: 2,
+  });
+  const ids = [];
+  for (let i = 0; i < 2; i += 1) ids.push(await seedActiveApproved(businessId, 200 + i));
+
+  for (const bad of ["not/a/product/path/at/all", "", 42, { x: 1 }]) {
+    await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).set({ lastExaminedPath: bad });
+    const result = await runApprovalInvalidationSweep({ db, pageSize: 50, maxPages: 5, logger: quiet });
+    assert.ok(result.examined >= 0, `checkpoint ${JSON.stringify(bad)} must not throw`);
+  }
+  for (const id of ids) {
+    assert.equal((await readProduct(businessId, id)).isActive, false);
+  }
+});
+
+itest("B4. duplicate sweep invocations are idempotent and never over-decrement", async () => {
+  const businessId = nextId("sweep-idem-biz");
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid: "o", marketplaceBusinessGenerationId: `gen-${businessId}`, pilotActiveProductCount: 3,
+  });
+  for (let i = 0; i < 3; i += 1) await seedActiveApproved(businessId, 300 + i);
+
+  for (let i = 0; i < 4; i += 1) {
+    await runApprovalInvalidationSweep({ db, pageSize: 50, maxPages: 5, logger: quiet });
+  }
+  const count = await readCount(businessId);
+  assert.equal(count, 0, "three invalidations decrement exactly three times, never more");
+  assert.ok(count >= 0);
+});
+
+itest("B5. the checkpoint clears on the run that exhausts the set, not a run later", async () => {
+  const businessId = nextId("sweep-wrap-biz");
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid: "o", marketplaceBusinessGenerationId: `gen-${businessId}`, pilotActiveProductCount: 2,
+  });
+  for (let i = 0; i < 2; i += 1) await seedActiveApproved(businessId, 400 + i);
+
+  // A page size larger than the candidate set: this single run reaches the
+  // end, so it must clear the cursor itself. Relying on a LATER empty page
+  // to clear it would leave the tail as the resume point in between.
+  const result = await runApprovalInvalidationSweep({ db, pageSize: 50, maxPages: 5, logger: quiet });
+  assert.equal(result.exhausted, true);
+  assert.equal(result.nextCursor, null, "an exhausting run must clear its own cursor");
+  const cp = (await db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID).get()).data();
+  assert.equal(cp.lastExaminedPath, null);
+});
+
+itest("B6. one failing candidate never aborts the sweep or starves the rest", async () => {
+  const businessId = nextId("sweep-fail-biz");
+  await db.collection("businesses").doc(businessId).set({
+    ownerUid: "o", marketplaceBusinessGenerationId: `gen-${businessId}`, pilotActiveProductCount: 3,
+  });
+  const ids = [];
+  for (let i = 0; i < 3; i += 1) ids.push(await seedActiveApproved(businessId, 500 + i));
+
+  // The sweep is a collection-group scan, so it also sees candidates other
+  // tests left behind. The injected failure is therefore scoped to MY first
+  // product by id, not to call order, and the assertions look only at mine.
+  const failing = ids[0];
+  let attempted = 0;
+  const result = await runApprovalInvalidationSweep({
+    db,
+    pageSize: 50,
+    maxPages: 5,
+    logger: quiet,
+    invalidateOne: async (args) => {
+      if (ids.includes(args.productId)) attempted += 1;
+      if (args.productId === failing) {
+        throw new Error("synthetic per-candidate failure");
+      }
+      return invalidateProductApprovalIfStale(args);
+    },
+  });
+
+  assert.equal(attempted, 3, "every one of my candidates is attempted despite one failing");
+  assert.ok(result.skipped >= 1, "the failure is counted, not swallowed as success");
+  assert.equal(
+    (await readProduct(businessId, failing)).isActive,
+    true,
+    "the failed candidate is left for a later run, not marked done"
+  );
+  // The records behind the failure really were processed.
+  let invalidatedCount = 0;
+  for (const id of ids) {
+    if ((await readProduct(businessId, id)).isActive === false) invalidatedCount += 1;
+  }
+  assert.equal(invalidatedCount, 2, "the two records behind the failure are invalidated");
+  // ...and the failed one is retried on the next run rather than lost.
+  await runApprovalInvalidationSweep({ db, pageSize: 50, maxPages: 5, logger: quiet });
+  let allDone = 0;
+  for (const id of ids) {
+    if ((await readProduct(businessId, id)).isActive === false) allDone += 1;
+  }
+  assert.equal(allDone, 3, "the failed record is picked up by a later run");
 });

@@ -253,12 +253,30 @@ function canonicalEvidenceDigest(activeEvidenceRefs) {
     .digest("hex");
 }
 
-function computeApprovalFingerprint(product, decision) {
+// `productId` is a REQUIRED parameter, not read off the product body: the
+// canonical identity of an approval is the document being approved, and the
+// caller passes the id it resolved the reference from. It is never taken from
+// a client request field, and never from a mutable display value or a
+// seller-authored `sku`.
+//
+// CORRECTIVE NOTE (Slice 6 audit). The first implementation bound `businessId`
+// and `marketplaceBusinessGenerationId` but NOT `productId`, while its own
+// comment claimed replay across products was impossible. That was wrong.
+// `decisionHash` does not include a product id either (see
+// DECISION_HASH_INCLUDED_FIELDS), and `activeEvidenceRefs` distinguishes
+// products only when the scope happens to be product-scoped — brand-, sku_set-
+// and business-scoped evidence is shared by construction. So two sibling
+// products with identical reviewed content and shared brand-scoped evidence
+// produced the SAME fingerprint, and one product's approval record could
+// validate for another. Business id, business generation and product id are
+// three separate bindings; none substitutes for another.
+function computeApprovalFingerprint(product, decision, productId) {
   const content = computeContentFingerprint(product);
   const bound = {
     content,
     // Identity of the product/business the approval is for, so a fingerprint
     // can never be replayed against another product or a recreated business.
+    productId: typeof productId === "string" && productId.length > 0 ? productId : null,
     businessId: product ? product.businessId : null,
     marketplaceBusinessGenerationId: product
       ? product.marketplaceBusinessGenerationId
@@ -451,7 +469,7 @@ async function approvePilotProduct({ db, auth, data }) {
     // Idempotent replay: already active with an unchanged fingerprint —
     // no write of any kind, skipped entirely before the limit check.
     const alreadyActive = isCurrentlyActivePilotApproval(product);
-    const liveFingerprint = computeApprovalFingerprint(product, decision);
+    const liveFingerprint = computeApprovalFingerprint(product, decision, productId);
     if (alreadyActive && product.pilotProductApproval.reviewedContentFingerprint === liveFingerprint) {
       return { active: true, idempotent: true };
     }

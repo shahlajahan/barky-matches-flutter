@@ -58,6 +58,37 @@ const MODERATION_STATUS_APPROVED = "approved";
 const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_MAX_PAGES = 20;
 
+// CORRECTIVE NOTE (Slice 6 audit). The first implementation started every
+// scheduled run from the first page with an in-memory cursor, so with more
+// than pageSize*maxPages (1000) currently-active approved products the tail
+// was NEVER examined: an approval past position 1000 could stay published on
+// revoked or expired evidence indefinitely. `PILOT_PRODUCT_ACTIVE_LIMIT` is 5
+// PER BUSINESS, not a global cap, so 1000 candidates is only ~200 businesses
+// — a reachable scale, not a theoretical one.
+//
+// Fixed by reusing the checkpoint pattern `complianceProductRecomputeSweep.js`
+// already froze: a server-owned singleton holding the last examined product
+// path, resumed on the next run and cleared on exhaustion so the sweep wraps
+// around and revisits the start. Its own collection has no Rules block, so
+// Firestore's default deny applies and no client can read or write it — the
+// same posture the recompute checkpoint relies on.
+const CHECKPOINT_COLLECTION = "complianceApprovalInvalidationCheckpoint";
+const CHECKPOINT_DOC_ID = "current";
+
+function checkpointRef(db) {
+  return db.collection(CHECKPOINT_COLLECTION).doc(CHECKPOINT_DOC_ID);
+}
+
+// A stored path is usable only if it still looks like a product document
+// path. Anything else — malformed, wrong depth, wrong collection — is
+// discarded and the sweep restarts from the beginning rather than resuming
+// from a position it cannot trust.
+function isPlausibleCheckpointPath(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value !== "string" || value.length === 0) return false;
+  return productPathParts(value) !== null;
+}
+
 const INVALIDATION_REASON = Object.freeze({
   FINGERPRINT_MISMATCH: "fingerprint_mismatch",
   DECISION_MISSING: "decision_missing",
@@ -133,7 +164,7 @@ async function invalidateProductApprovalIfStale({ db, businessId, productId, log
     } else if (typeof decision !== "object" || Array.isArray(decision)) {
       reason = INVALIDATION_REASON.DECISION_UNREADABLE;
     } else {
-      const live = computeApprovalFingerprint(product, decision);
+      const live = computeApprovalFingerprint(product, decision, productId);
       if (live !== stored) reason = INVALIDATION_REASON.FINGERPRINT_MISMATCH;
     }
 
@@ -183,13 +214,36 @@ async function runApprovalInvalidationSweep({
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
   logger = console,
+  // Test seam only: production always uses the real per-product operation.
+  // It exists so a candidate that FAILS can be exercised, proving one bad
+  // record cannot abort the run and starve everything behind it.
+  invalidateOne = invalidateProductApprovalIfStale,
 } = {}) {
   let examined = 0;
   let invalidated = 0;
   let valid = 0;
   let skipped = 0;
-  let cursor = null;
   let pages = 0;
+  let exhausted = false;
+
+  // Resume where the previous run stopped. A read failure is fatal rather
+  // than silently restarting: restarting looks like progress while quietly
+  // re-processing only the prefix forever.
+  let cursor = null;
+  let lastExamined = null;
+  const checkpointSnap = await checkpointRef(db).get();
+  if (checkpointSnap.exists) {
+    const raw = (checkpointSnap.data() || {}).lastExaminedPath;
+    if (isPlausibleCheckpointPath(raw)) {
+      // A checkpoint may name a product that has since been deleted.
+      // `startAfter(DocumentReference)` orders by key and does not require
+      // the document to exist, so deletion cannot block continuation.
+      cursor = raw ? db.doc(raw) : null;
+    } else {
+      logger.warn("compliance_approval_invalidation_checkpoint_malformed");
+      cursor = null;
+    }
+  }
 
   for (let page = 0; page < maxPages; page += 1) {
     let query = db
@@ -201,7 +255,12 @@ async function runApprovalInvalidationSweep({
     if (cursor) query = query.startAfter(cursor);
 
     const snap = await query.get();
-    if (snap.empty) break;
+    if (snap.empty) {
+      // Nothing left at or after the cursor: the ordered set is exhausted,
+      // so the checkpoint clears and the next run wraps to the beginning.
+      exhausted = true;
+      break;
+    }
     pages += 1;
 
     for (const doc of snap.docs) {
@@ -212,7 +271,7 @@ async function runApprovalInvalidationSweep({
         continue;
       }
       try {
-        const result = await invalidateProductApprovalIfStale({
+        const result = await invalidateOne({
           db,
           businessId: parts.businessId,
           productId: parts.productId,
@@ -228,14 +287,43 @@ async function runApprovalInvalidationSweep({
       }
     }
 
-    cursor = snap.docs[snap.docs.length - 1];
-    if (snap.docs.length < pageSize) break;
+    // Advance only AFTER the whole page has been attempted, so a page that
+    // failed part-way is re-attempted next run rather than skipped. Every
+    // per-product outcome is idempotent, so re-processing is safe;
+    // permanent omission would not be.
+    lastExamined = snap.docs[snap.docs.length - 1];
+    cursor = lastExamined;
+    if (snap.docs.length < pageSize) {
+      exhausted = true;
+      break;
+    }
   }
 
-  return { examined, invalidated, valid, skipped, pages, bounded: pages >= maxPages };
+  // Wrap-around: a run that reached the end clears the checkpoint, so the
+  // next run starts again at the first product. Every eligible product is
+  // therefore revisited within a bounded number of runs.
+  // `lastExamined` is a QueryDocumentSnapshot: its path lives on `.ref`.
+  const nextCursor = exhausted ? null : lastExamined ? lastExamined.ref.path : null;
+  await checkpointRef(db).set({
+    lastExaminedPath: nextCursor,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    examined,
+    invalidated,
+    valid,
+    skipped,
+    pages,
+    exhausted,
+    nextCursor,
+    bounded: pages >= maxPages,
+  };
 }
 
 module.exports = {
+  CHECKPOINT_COLLECTION,
+  CHECKPOINT_DOC_ID,
   invalidateProductApprovalIfStale,
   runApprovalInvalidationSweep,
   INVALIDATION_REASON,
