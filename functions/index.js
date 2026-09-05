@@ -24201,13 +24201,17 @@ exports.createOrderReturnRequest = onCall(
       timestamp: requestedAt,
     });
 
-    const refundAmount = Number(
-      (
-        requestedRefundAmount > 0
-          ? requestedRefundAmount
-          : calculatedRefundAmount
-      ).toFixed(2)
-    );
+    // Marketplace Revision 40 §0.38 — REFUND AMOUNT IS SERVER-DERIVED.
+    //
+    // This previously read
+    //   requestedRefundAmount > 0 ? requestedRefundAmount : calculatedRefundAmount
+    // so a buyer-supplied `data.refundAmount` won unconditionally, with no
+    // upper bound against the line total, the order total or the captured
+    // amount. `calculatedRefundAmount` is derived above from the IMMUTABLE
+    // paid order line (`orderItem.unitPrice ?? price ?? subtotal` × quantity),
+    // which is the only defensible authority. The client value is now ignored
+    // entirely — not clamped — so no client number can ever reach a refund.
+    const refundAmount = Number(calculatedRefundAmount.toFixed(2));
 
     const payload = {
       returnId: returnRef.id,
@@ -24257,7 +24261,79 @@ exports.createOrderReturnRequest = onCall(
       updatedAt: requestedAt,
     };
 
-    await returnRef.set(payload);
+    // Marketplace Revision 40 §0.38 — CUMULATIVE RETURN GUARD.
+    //
+    // Quantity was validated per REQUEST against the ordered quantity, but
+    // nothing looked at returns that already exist for the same seller order.
+    // A buyer could therefore submit N separate returns each covering the full
+    // quantity; `triggerOrderReturnRefund` clamps each one individually to
+    // `min(returnItemsAmount, originalPaidAmount)`, so N returns could refund
+    // up to N times the captured amount.
+    //
+    // The read of prior returns and the create of this one happen in ONE
+    // transaction, so two concurrent requests cannot both observe the same
+    // "nothing returned yet" state and both commit. `tx.create` additionally
+    // guarantees the document is new.
+    const priorReturnsQuery = db
+      .collection("order_returns")
+      .where("sellerOrderId", "==", sellerOrderSnap.id);
+
+    await db.runTransaction(async (tx) => {
+      const priorSnap = await tx.get(priorReturnsQuery);
+
+      const priorQuantityByProduct = new Map();
+      for (const priorDoc of priorSnap.docs) {
+        const prior = priorDoc.data() || {};
+        // A rejected or cancelled return consumes no balance. Every other
+        // state — pending included — does, so an in-flight request cannot be
+        // duplicated while it is still being reviewed.
+        const priorStatus = normalizeReturnStatus(prior.status);
+        if (["rejected", "refund_rejected", "cancelled", "canceled"].includes(priorStatus)) {
+          continue;
+        }
+        const priorItems = Array.isArray(prior.returnItems) ? prior.returnItems : [];
+        for (const priorItem of priorItems) {
+          const priorProductId = String(priorItem?.productId || "");
+          if (!priorProductId) continue;
+          priorQuantityByProduct.set(
+            priorProductId,
+            (priorQuantityByProduct.get(priorProductId) || 0) +
+              Math.max(0, asNumber(priorItem?.quantity, 0))
+          );
+        }
+      }
+
+      for (const returnItem of normalizedReturnItems) {
+        const productId = String(returnItem.productId || "");
+        const orderItem = orderItemsByProductId.get(productId);
+        // Purchased quantity comes from the immutable order line, never the
+        // request. An order line that has gone missing fails closed.
+        if (!orderItem) {
+          failValidation("failed-precondition", `Return item not in order: ${productId}`, {
+            productId,
+            sellerOrderId: sellerOrderSnap.id,
+          });
+        }
+        const purchasedQuantity = Math.max(1, asNumber(orderItem.quantity, 1));
+        const alreadyReturned = priorQuantityByProduct.get(productId) || 0;
+        const requested = Math.max(0, asNumber(returnItem.quantity, 0));
+        if (alreadyReturned + requested > purchasedQuantity) {
+          failValidation(
+            "failed-precondition",
+            `Return quantity exceeds remaining balance for ${productId}`,
+            {
+              productId,
+              sellerOrderId: sellerOrderSnap.id,
+              purchasedQuantity,
+              alreadyReturned,
+              requested,
+            }
+          );
+        }
+      }
+
+      tx.create(returnRef, payload);
+    });
 
     logger.info("✅ RETURN REQUEST CREATED", {
       returnId: returnRef.id,

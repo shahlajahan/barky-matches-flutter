@@ -254,6 +254,41 @@ itest("15. verification authorization precedes the payment-callback claim and ev
   }
 });
 
+itest("25. the client-supplied refundAmount can no longer control the stored amount", async () => {
+  const body = bodyOf("createOrderReturnRequest", "exports.reviewOrderReturnRequest");
+  // Executable lines only: the replacement's own comment quotes the removed
+  // expression verbatim to record what it replaced, and a raw scan would read
+  // that documentation as the defect it describes.
+  const executable = body
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//"))
+    .join("\n");
+  assert.equal(
+    /requestedRefundAmount\s*>\s*0\s*\?\s*requestedRefundAmount/.test(executable),
+    false,
+    "the client override expression must not exist"
+  );
+  assert.ok(
+    body.includes("Number(calculatedRefundAmount.toFixed(2))"),
+    "the stored amount must be the server-derived line total"
+  );
+});
+
+itest("26/28/30. the cumulative return guard reads prior returns and creates inside one transaction", async () => {
+  const body = bodyOf("createOrderReturnRequest", "exports.reviewOrderReturnRequest");
+  assert.ok(body.includes("db.runTransaction"), "the guard must be transactional");
+  assert.ok(body.includes('.where("sellerOrderId", "==", sellerOrderSnap.id)'));
+  assert.ok(body.includes("tx.create(returnRef, payload)"), "creation must be inside the transaction");
+  assert.ok(
+    body.includes("Return quantity exceeds remaining balance"),
+    "a cumulative balance guard must exist"
+  );
+  // Rejected/cancelled prior returns must not consume balance.
+  assert.ok(body.includes('"rejected", "refund_rejected", "cancelled", "canceled"'));
+  // The non-transactional single write must be gone.
+  assert.equal(body.includes("await returnRef.set(payload)"), false);
+});
+
 itest("ownership helper is the single source used by every repaired callable", async () => {
   // Four call sites: createCheckoutSession, verifyPaymentByOrderId,
   // verifyPayment (and its verifyHotelBookingPayment alias, same handler) and
@@ -374,4 +409,169 @@ itest("5e. the Isbank INNER function is untouched — internal callers keep thei
   const innerEnd = INDEX_SOURCE.indexOf("exports.createIsbank3DPayHostingCheckout");
   const inner = INDEX_SOURCE.slice(innerStart, innerEnd);
   assert.equal(inner.includes("assessOrderOwnership"), false, "the inner function must stay unchanged");
+});
+
+// =====================================================================
+// E. Return / refund integrity — functional
+// =====================================================================
+
+/// A delivered seller order with one line, ready for a return request.
+async function seedDeliveredSellerOrder({ buyerUid = "alice", quantity = 2, unitPrice = 50 } = {}) {
+  const rootOrderId = nextId("root");
+  const sellerOrderId = nextId("so");
+  const businessId = nextId("biz");
+  const productId = nextId("prod");
+  const deliveredAt = admin.firestore.Timestamp.fromMillis(Date.now() - 86400000);
+
+  await orderRef(rootOrderId).set({
+    orderId: rootOrderId,
+    buyerUid,
+    status: "paid",
+    paymentStatus: "paid",
+    currency: "TRY",
+    pricing: { grandTotal: unitPrice * quantity },
+    payment: { provider: "iyzico", paymentId: "pay-1", status: "paid" },
+  });
+  await sellerOrderRef(sellerOrderId).set({
+    rootOrderId,
+    sellerOrderId,
+    buyerUid,
+    businessId,
+    shopId: businessId,
+    sellerUid: nextId("seller"),
+    status: "delivered",
+    deliveredAt,
+    currency: "TRY",
+    pricing: { grandTotal: unitPrice * quantity },
+    payment: { provider: "iyzico", paymentId: "pay-1", status: "paid" },
+    items: [{ productId, name: "Thing", quantity, unitPrice, price: unitPrice }],
+  });
+  await db.collection("businesses").doc(businessId).collection("products").doc(productId).set({
+    businessId,
+    name: "Thing",
+    allowReturns: true,
+    returnWindowDays: 3650,
+    returnShippingPayer: "seller_if_contract_carrier",
+  });
+  return { rootOrderId, sellerOrderId, businessId, productId, quantity, unitPrice };
+}
+
+const callReturn = (uid, data) =>
+  functions.createOrderReturnRequest.run({ auth: uid ? { uid } : null, data });
+
+itest("23/25/26. a buyer's return stores the SERVER-derived amount, never the client's", async () => {
+  const w = await seedDeliveredSellerOrder({ buyerUid: "alice", quantity: 2, unitPrice: 50 });
+  const r = await outcomeOf(
+    callReturn("alice", {
+      sellerOrderId: w.sellerOrderId,
+      rootOrderId: w.rootOrderId,
+      reason: "damaged",
+      description: "arrived broken",
+      // A forged amount, far above the line total.
+      refundAmount: 999999,
+      returnItems: [{ productId: w.productId, quantity: 1 }],
+    })
+  );
+  assert.equal(r.ok, true, `return should be accepted: ${JSON.stringify(r)}`);
+
+  const stored = await db.collection("order_returns").where("sellerOrderId", "==", w.sellerOrderId).get();
+  assert.equal(stored.size, 1);
+  const returnDoc = stored.docs[0].data();
+  // 1 unit x 50 = 50, derived from the immutable paid order line.
+  assert.equal(returnDoc.refundAmount, 50, "the forged client amount must be ignored entirely");
+});
+
+itest("24. a foreign customer cannot open a return on another buyer's order", async () => {
+  const w = await seedDeliveredSellerOrder({ buyerUid: "alice" });
+  const r = await outcomeOf(
+    callReturn("mallory", {
+      sellerOrderId: w.sellerOrderId,
+      rootOrderId: w.rootOrderId,
+      reason: "damaged",
+      description: "not mine",
+      returnItems: [{ productId: w.productId, quantity: 1 }],
+    })
+  );
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "permission-denied");
+  const stored = await db.collection("order_returns").where("sellerOrderId", "==", w.sellerOrderId).get();
+  assert.equal(stored.size, 0, "no return document may be created");
+});
+
+itest("27. a quantity above the purchased amount is refused", async () => {
+  const w = await seedDeliveredSellerOrder({ buyerUid: "alice", quantity: 2 });
+  const r = await outcomeOf(
+    callReturn("alice", {
+      sellerOrderId: w.sellerOrderId,
+      rootOrderId: w.rootOrderId,
+      reason: "damaged",
+      description: "too many",
+      returnItems: [{ productId: w.productId, quantity: 5 }],
+    })
+  );
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "invalid-argument");
+});
+
+itest("28/29. CUMULATIVE returns cannot exceed the purchased quantity across separate requests", async () => {
+  const w = await seedDeliveredSellerOrder({ buyerUid: "alice", quantity: 2, unitPrice: 50 });
+  const body = (quantity) => ({
+    sellerOrderId: w.sellerOrderId,
+    rootOrderId: w.rootOrderId,
+    reason: "damaged",
+    description: "partial return",
+    returnItems: [{ productId: w.productId, quantity }],
+  });
+
+  // Two units purchased: 1 + 1 is fine...
+  assert.equal((await outcomeOf(callReturn("alice", body(1)))).ok, true, "first unit");
+  assert.equal((await outcomeOf(callReturn("alice", body(1)))).ok, true, "second unit");
+
+  // ...a third is not, even though each request passes the per-line check.
+  const third = await outcomeOf(callReturn("alice", body(1)));
+  assert.equal(third.ok, false, "cumulative balance must be exhausted");
+  assert.equal(third.code, "failed-precondition");
+
+  const stored = await db.collection("order_returns").where("sellerOrderId", "==", w.sellerOrderId).get();
+  assert.equal(stored.size, 2, "exactly two returns may exist");
+  const total = stored.docs.reduce((sum, d) => sum + Number(d.data().refundAmount || 0), 0);
+  assert.equal(total, 100, "cumulative refund cannot exceed the captured line total");
+});
+
+itest("30. concurrent duplicate returns cannot both consume the last unit", async () => {
+  const w = await seedDeliveredSellerOrder({ buyerUid: "alice", quantity: 1, unitPrice: 40 });
+  const body = {
+    sellerOrderId: w.sellerOrderId,
+    rootOrderId: w.rootOrderId,
+    reason: "damaged",
+    description: "race",
+    returnItems: [{ productId: w.productId, quantity: 1 }],
+  };
+  const settled = await Promise.allSettled([
+    callReturn("alice", body),
+    callReturn("alice", body),
+  ]);
+  assert.ok(settled.some((x) => x.status === "fulfilled"), "at least one must succeed");
+
+  const stored = await db.collection("order_returns").where("sellerOrderId", "==", w.sellerOrderId).get();
+  assert.equal(stored.size, 1, "exactly one return may exist for a single purchased unit");
+  assert.equal(Number(stored.docs[0].data().refundAmount), 40);
+});
+
+itest("31. a rejected prior return releases its balance again", async () => {
+  const w = await seedDeliveredSellerOrder({ buyerUid: "alice", quantity: 1, unitPrice: 40 });
+  const body = {
+    sellerOrderId: w.sellerOrderId,
+    rootOrderId: w.rootOrderId,
+    reason: "damaged",
+    description: "first",
+    returnItems: [{ productId: w.productId, quantity: 1 }],
+  };
+  assert.equal((await outcomeOf(callReturn("alice", body))).ok, true);
+  assert.equal((await outcomeOf(callReturn("alice", body))).ok, false, "balance consumed");
+
+  // Reject the first one; the unit becomes returnable again.
+  const first = await db.collection("order_returns").where("sellerOrderId", "==", w.sellerOrderId).get();
+  await first.docs[0].ref.update({ status: "rejected" });
+  assert.equal((await outcomeOf(callReturn("alice", body))).ok, true, "a rejected return frees balance");
 });
