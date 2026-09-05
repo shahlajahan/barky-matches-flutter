@@ -2969,6 +2969,27 @@ test("SC4. removing the class from a classified product also invalidates its dec
   assert.equal(after.reason, "eligibility_pilot_product_class_snapshot_mismatch");
 });
 
+test("SC0. a decision whose businessId names a DIFFERENT business is malformed — the evaluator never evaluates another tenant's decision", async () => {
+  // Marketplace Revision 37 §0.35: this check had no test anywhere, which a
+  // mutation of the evaluator exposed. It matters independently of
+  // `assertUsableComplianceDecision`'s own business check, because
+  // `reviewProductModeration` reaches the evaluator WITHOUT that gate.
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  const decision = getRawDoc(store, DECISIONS_COLLECTION, PRODUCT_ID);
+  assert.equal(decision.businessId, BUSINESS_ID);
+
+  seedDoc(store, DECISIONS_COLLECTION, PRODUCT_ID, { ...decision, businessId: "some-other-business" });
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(result.eligible, false);
+  assert.equal(result.reason, "eligibility_decision_malformed");
+});
+
 test("SC5. a legacy decision written before pilotProductClassSnapshot existed is malformed, never silently treated as matching", async () => {
   const store = createStore();
   seedActivePolicy(store);

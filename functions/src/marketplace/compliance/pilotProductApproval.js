@@ -38,6 +38,13 @@ const {
   isValidPilotProductClass,
 } = require("./complianceConstants");
 const { assertCallerOwnsBusiness } = require("./complianceUploadSessions");
+// Marketplace Revision 37 §0.35 — the ONE canonical live-eligibility
+// predicate, shared with `reviewProductModeration` and
+// `getPilotProductApprovalReadiness`. Required lazily at the call site below
+// to avoid a require cycle: the readiness module already requires this one.
+const {
+  evaluateLiveProductEligibility,
+} = require("./complianceEligibilityEvaluator");
 
 const BUSINESSES_COLLECTION = "businesses";
 const AUDIT_EVENTS_COLLECTION = "pilotProductApprovalAuditEvents";
@@ -499,6 +506,58 @@ async function approvePilotProduct({ db, auth, data }) {
     }
 
     assertUsableComplianceDecision({ decision, businessId, product, now: Date.now() });
+
+    // Marketplace Revision 37 §0.35 — APPROVAL AUTHORITY PARITY.
+    //
+    // The gate above is necessary but not sufficient: it type-checks the
+    // decision and checks status, expiry, business ownership and evidence
+    // presence, but it never re-derives the decision's own hash and never
+    // compares the decision against LIVE state — the active policy pointer,
+    // the business compliance epoch, the product's input revision, or the
+    // relationship and pilot-class snapshots the decision was computed under.
+    //
+    // Before this revision that left ten drifted states approvable and
+    // publishable (§0.35), reachable directly: `productComplianceDecisions`
+    // is admin-readable by the frozen Rules, so a caller who could read a
+    // decision could recompute the live approval fingerprint and satisfy the
+    // only remaining check. Readiness already rejected every one of them —
+    // the stricter predicate was simply on the advisory side of the boundary.
+    //
+    // This is the SAME function `reviewProductModeration` gates on and the
+    // same one readiness reports, never a second or weaker copy. It is given
+    // this transaction's own `tx`, so the product, decision, policy pointer,
+    // active policy version and business epoch all join the approval
+    // transaction's read set and are re-verified at commit time — no
+    // non-transactional pre-check precedes the authoritative write.
+    //
+    // `productSnapshot` is deliberately NOT passed: that parameter makes the
+    // evaluator *throw* on a contract failure (an invalid live
+    // `sellerRelationship`, for one), whereas letting it perform its own
+    // transactional read returns a clean ineligible reason that this path can
+    // report as a stable HttpsError. The extra `tx.get` is on a document
+    // already in the read set.
+    const liveEligibility = await evaluateLiveProductEligibility({
+      db,
+      businessId,
+      productId,
+      now: new Date(),
+      tx,
+    });
+    if (
+      !liveEligibility ||
+      typeof liveEligibility !== "object" ||
+      liveEligibility.eligible !== true
+    ) {
+      // Fail closed on a malformed evaluator result too, never only on an
+      // explicit negative.
+      throw new HttpsError("failed-precondition", "Product is not eligible for pilot approval", {
+        reasonCode: "compliance-not-live-eligible",
+        eligibilityReason:
+          liveEligibility && typeof liveEligibility === "object"
+            ? liveEligibility.reason || null
+            : null,
+      });
+    }
 
     if (product.moderationStatus !== "pending_review") {
       throw new HttpsError("failed-precondition", "Product is not eligible for pilot approval", {

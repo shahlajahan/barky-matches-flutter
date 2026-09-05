@@ -24,6 +24,24 @@ const {
   pilotApprovalBoundFields,
   AUDIT_EVENTS_COLLECTION,
 } = require("../src/marketplace/compliance/pilotProductApproval");
+// Marketplace Revision 37 §0.35 I — approval now re-evaluates the canonical
+// live-eligibility predicate inside its own transaction, so a hand-planted
+// decision with no policy registry, pointer or epoch behind it is no longer
+// approvable. It never was in production; these fixtures now build the world
+// the real engine produces.
+const {
+  recomputeProductComplianceStatus,
+} = require("../src/marketplace/compliance/complianceProductRecompute");
+const {
+  buildRevision30PolicyVersion,
+} = require("../src/marketplace/compliance/complianceRevision30Policy");
+const {
+  COMPLIANCE_DOCUMENT_TYPE,
+  COMPLIANCE_DOCUMENT_STATUS,
+  COMPLIANCE_SCOPE_TYPE,
+  COMPLIANCE_SCOPE_STATUS,
+  COMPLIANCE_POLICY_REGISTRY_STATUS,
+} = require("../src/marketplace/compliance/complianceConstants");
 
 const hasFirestoreEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 function itest(name, fn) {
@@ -90,13 +108,76 @@ async function seedProduct(businessId, overrides = {}) {
         ...overrides,
       })
     );
-  // Marketplace Revision 30 §H (Slice 6): approval now requires a positive
-  // canonical compliance decision, and the approval fingerprint binds its
-  // identity. Every product that is expected to reach approval therefore
-  // needs one, exactly as production does. Tests that exercise the DECISION
-  // gate itself override or delete this deliberately.
-  await seedPositiveDecision(businessId, productId);
+  // Marketplace Revision 30 §H (Slice 6) / Revision 37 §0.35: approval
+  // requires a positive canonical compliance decision AND re-verifies it
+  // against live state inside its own transaction. So the decision is
+  // produced here by the REAL engine over real approved evidence, under a
+  // real active policy — not planted. Tests that exercise the DECISION gate
+  // itself override or delete it deliberately, afterwards.
+  if (overrides.skipDecision !== true) {
+    await seedApprovedEvidenceFor(businessId, productId);
+    await recomputeProductComplianceStatus({ db, businessId, productId });
+  }
   return productId;
+}
+
+/// EMULATOR-ONLY synthetic active policy. Written to the emulator's registry
+/// and pointer so `resolveActivePolicy` resolves it exactly as production
+/// would; never written to, or activated in, any real project.
+async function seedSyntheticActivePolicy() {
+  const versionId = nextId("synthetic-policy");
+  await db
+    .collection("compliancePolicyRegistry")
+    .doc(versionId)
+    .set(
+      buildRevision30PolicyVersion({
+        createdBy: "emulator-test-fixture",
+        effectiveFrom: admin.firestore.Timestamp.fromMillis(Date.now() - 86400000),
+        createdAt: admin.firestore.Timestamp.fromMillis(Date.now() - 86400000),
+        changeNote: "SYNTHETIC emulator-only Revision 30 §D transcription",
+        status: COMPLIANCE_POLICY_REGISTRY_STATUS.ACTIVE,
+      })
+    );
+  await db
+    .collection("compliancePolicyRegistryPointer")
+    .doc("current")
+    .set({ activeVersionId: versionId });
+  return versionId;
+}
+
+/// One approved document plus the approved product-scope that names it —
+/// the minimum the reseller branch of the frozen §D policy requires.
+async function seedApprovedEvidenceFor(businessId, productId) {
+  await seedSyntheticActivePolicy();
+  const generationId = (await db.collection("businesses").doc(businessId).get()).data()
+    .marketplaceBusinessGenerationId;
+  const documentId = nextId("pilot-doc");
+  // ONE validity value shared by the document and its scope copy: the engine
+  // requires every denormalized scope copy to agree with its source to the
+  // millisecond.
+  const validUntil = admin.firestore.Timestamp.fromMillis(Date.now() + 365 * 86400000);
+  await db.collection("complianceDocuments").doc(documentId).set({
+    businessId,
+    marketplaceBusinessGenerationId: generationId,
+    documentType: COMPLIANCE_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    sellerRelationship: "reseller",
+    status: COMPLIANCE_DOCUMENT_STATUS.APPROVED,
+    validUntil,
+    contentHash: `hash-${documentId}`,
+    storagePath: `compliance_docs/${businessId}/${documentId}/o.pdf`,
+  });
+  await db.collection("complianceDocumentScopes").doc(nextId("pilot-scope")).set({
+    businessId,
+    documentId,
+    sellerRelationship: "reseller",
+    documentType: COMPLIANCE_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    scopeType: COMPLIANCE_SCOPE_TYPE.PRODUCT,
+    scopeValue: productId,
+    status: COMPLIANCE_SCOPE_STATUS.APPROVED,
+    approvedAt: admin.firestore.Timestamp.fromMillis(Date.now() - 86400000),
+    validUntil,
+  });
+  return documentId;
 }
 
 async function seedPositiveDecision(businessId, productId, overrides = {}) {

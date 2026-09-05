@@ -31,7 +31,21 @@ const {
 } = require("../src/marketplace/compliance/complianceApprovalInvalidation");
 const {
   PRODUCT_COMPLIANCE_EFFECTIVE_STATUS,
+  COMPLIANCE_DOCUMENT_TYPE,
+  COMPLIANCE_DOCUMENT_STATUS,
+  COMPLIANCE_SCOPE_TYPE,
+  COMPLIANCE_SCOPE_STATUS,
+  COMPLIANCE_POLICY_REGISTRY_STATUS,
 } = require("../src/marketplace/compliance/complianceConstants");
+// Marketplace Revision 37 §0.35 I — approval re-evaluates the canonical
+// live-eligibility predicate inside its own transaction, so the decision this
+// suite approves against must be one the real engine could have produced.
+const {
+  recomputeProductComplianceStatus,
+} = require("../src/marketplace/compliance/complianceProductRecompute");
+const {
+  buildRevision30PolicyVersion,
+} = require("../src/marketplace/compliance/complianceRevision30Policy");
 
 const hasFs = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const itest = (n, f) => test(n, { skip: !hasFs }, f);
@@ -52,9 +66,14 @@ async function seedAdmin() {
   return uid;
 }
 
-/// A business + pending product + a positive canonical decision. The decision
-/// is written directly (synthetic) so this suite tests the APPROVAL binding,
-/// not the engine that produces decisions — that is Slice 5's suite.
+/// A business + pending product + a positive canonical decision.
+///
+/// Revision 37 §0.35 I: the decision is now produced by the REAL engine over
+/// real approved evidence under a real active policy, because approval
+/// re-verifies it against live state. `decisionOverrides` is still applied on
+/// top afterwards, so tests that deliberately drift a decision field keep
+/// working — they simply start from a decision that was genuinely valid
+/// rather than from one that could never have existed.
 async function seedApprovable({ decisionOverrides = {}, productOverrides = {} } = {}) {
   const businessId = nextId("biz");
   const productId = nextId("prod");
@@ -96,19 +115,70 @@ async function seedApprovable({ decisionOverrides = {}, productOverrides = {} } 
       ...productOverrides,
     });
 
-  const decision = {
-    businessId,
-    policyVersion: nextId("policy"),
-    evidenceRevision: 0,
-    decisionHash: nextId("hash"),
-    effectiveStatus: PRODUCT_COMPLIANCE_EFFECTIVE_STATUS.VERIFIED_VALID,
-    activeEvidenceRefs: [{ documentId: nextId("doc"), scopeId: nextId("scope"), expiresAt: FUTURE() }],
-    validUntil: FUTURE(),
-    ...decisionOverrides,
-  };
-  await db.collection("productComplianceDecisions").doc(productId).set(decision);
+  await seedApprovedEvidenceFor(businessId, productId, generationId);
+  await recomputeProductComplianceStatus({ db, businessId, productId });
+
+  const decisionRef = db.collection("productComplianceDecisions").doc(productId);
+  if (Object.keys(decisionOverrides).length > 0) {
+    await decisionRef.update(decisionOverrides);
+  }
+  const decision = (await decisionRef.get()).data();
+  assert.equal(
+    decision.effectiveStatus,
+    decisionOverrides.effectiveStatus || PRODUCT_COMPLIANCE_EFFECTIVE_STATUS.VERIFIED_VALID,
+    "fixture must start from a genuinely positive engine-produced decision"
+  );
 
   return { businessId, productId, generationId, decision };
+}
+
+/// EMULATOR-ONLY synthetic active policy + the one approved document and
+/// product-scope the frozen §D reseller branch requires. Never written to, or
+/// activated in, any real project.
+async function seedApprovedEvidenceFor(businessId, productId, generationId) {
+  const versionId = nextId("synthetic-policy");
+  await db
+    .collection("compliancePolicyRegistry")
+    .doc(versionId)
+    .set(
+      buildRevision30PolicyVersion({
+        createdBy: "emulator-test-fixture",
+        effectiveFrom: TS(Date.now() - 86400000),
+        createdAt: TS(Date.now() - 86400000),
+        changeNote: "SYNTHETIC emulator-only Revision 30 §D transcription",
+        status: COMPLIANCE_POLICY_REGISTRY_STATUS.ACTIVE,
+      })
+    );
+  await db
+    .collection("compliancePolicyRegistryPointer")
+    .doc("current")
+    .set({ activeVersionId: versionId });
+
+  const documentId = nextId("doc");
+  // ONE validity value shared by the document and its scope copy — the engine
+  // requires the denormalized copy to agree with its source to the millisecond.
+  const validUntil = FUTURE();
+  await db.collection("complianceDocuments").doc(documentId).set({
+    businessId,
+    marketplaceBusinessGenerationId: generationId,
+    documentType: COMPLIANCE_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    sellerRelationship: "reseller",
+    status: COMPLIANCE_DOCUMENT_STATUS.APPROVED,
+    validUntil,
+    contentHash: `hash-${documentId}`,
+    storagePath: `compliance_docs/${businessId}/${documentId}/o.pdf`,
+  });
+  await db.collection("complianceDocumentScopes").doc(nextId("scope")).set({
+    businessId,
+    documentId,
+    sellerRelationship: "reseller",
+    documentType: COMPLIANCE_DOCUMENT_TYPE.PURCHASE_INVOICE,
+    scopeType: COMPLIANCE_SCOPE_TYPE.PRODUCT,
+    scopeValue: productId,
+    status: COMPLIANCE_SCOPE_STATUS.APPROVED,
+    approvedAt: TS(Date.now() - 86400000),
+    validUntil,
+  });
 }
 
 const readProduct = async (businessId, productId) =>
@@ -316,7 +386,29 @@ itest("a decision change between screen and submit prevents a stale approval", a
   assert.notEqual(failure, null, "a stale screen must not approve");
   assert.equal(await readCount(w.businessId), 0);
 
-  // Re-reading canonical state and approving afresh works.
+  // Revision 37 §0.35: re-reading canonical state is not by itself enough —
+  // a freshly-computed fingerprint over a decision that is still drifted is
+  // rejected by the live-eligibility predicate inside the transaction, which
+  // is exactly the authority-parity guarantee.
+  const stillDrifted = await failureOf(
+    approve(
+      adminUid,
+      w.businessId,
+      w.productId,
+      await liveFingerprint(w.businessId, w.productId)
+    )
+  );
+  assert.notEqual(stillDrifted, null, "a drifted decision is not approvable at any fingerprint");
+  assert.equal(stillDrifted.reason, "compliance-not-live-eligible");
+  assert.equal(await readCount(w.businessId), 0);
+
+  // Once the decision is genuinely re-derived by the engine, a fresh read and
+  // a fresh fingerprint DO approve.
+  await recomputeProductComplianceStatus({
+    db,
+    businessId: w.businessId,
+    productId: w.productId,
+  });
   const freshFp = await liveFingerprint(w.businessId, w.productId);
   const ok = await approve(adminUid, w.businessId, w.productId, freshFp);
   assert.equal(ok.active, true);

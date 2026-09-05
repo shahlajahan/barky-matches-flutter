@@ -670,15 +670,27 @@ itest("25. a classification change between readiness and approval fails closed",
       pilotProductClass: PILOT_PRODUCT_CLASS.NON_MEDICINAL_TREATS,
     })
   );
-  // The class is bound into the fingerprint, so the token no longer matches.
-  assert.equal(error.details.reasonCode, "stale-content");
+  // Revision 37 §0.35: the canonical live-eligibility predicate now runs
+  // inside the approval transaction and catches the drifted class snapshot
+  // BEFORE the fingerprint comparison. The token is stale too — the class is
+  // bound into it — but the compliance predicate is the stricter statement
+  // and is the one reported.
+  assert.equal(error.details.reasonCode, "compliance-not-live-eligible");
+  assert.equal(
+    error.details.eligibilityReason,
+    "eligibility_pilot_product_class_snapshot_mismatch"
+  );
 });
 
 itest("26. a decision change between readiness and approval fails closed", async () => {
   const error = await readinessThenMutateThenApprove(({ productId }) =>
     decisionRef(productId).update({ decisionHash: "0".repeat(64) })
   );
-  assert.equal(error.details.reasonCode, "stale-content");
+  // Revision 37 §0.35 — the decision's own hash is re-derived inside the
+  // approval transaction, so a tampered one is rejected on its own merits and
+  // not merely because it perturbed a fingerprint.
+  assert.equal(error.details.reasonCode, "compliance-not-live-eligible");
+  assert.equal(error.details.eligibilityReason, "eligibility_decision_hash_mismatch");
 });
 
 itest("27. expiry crossing between readiness and approval fails closed", async () => {
