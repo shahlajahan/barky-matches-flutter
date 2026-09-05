@@ -379,6 +379,11 @@ const {
 const {
   assessOrderOwnership,
 } = require("./src/marketplace/orders/orderOwnership");
+// Marketplace Revision 44 §0.42 (Slice 7E) — the transactional acceptance
+// gate for Marketplace checkout.
+const {
+  assertCheckoutItemsAcceptable,
+} = require("./src/marketplace/orders/atomicCheckoutGuard");
 const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
@@ -22160,9 +22165,28 @@ exports.createMarketplaceOrderV2 = onCall(
     const taxTotal = Number(rootTaxTotal.toFixed(2));
     const grandTotal = Number((subtotal + shippingTotal + taxTotal).toFixed(2));
 
-    const batch = db.batch();
+    // Marketplace Revision 44 §0.42 (Slice 7E) — ATOMIC ACCEPTANCE.
+    //
+    // This was `db.batch()` + `batch.commit()`, preceded by non-transactional
+    // product reads and no eligibility check at all (Revision 39 §0.37 E).
+    // It is now a real transaction whose read set includes every product and
+    // business the order depends on, so the order tree cannot be created from
+    // state that changed after it was read.
+    //
+    // Reads happen first (Firestore requires it), then every write commits
+    // together: no accepted order can exist without having passed the live
+    // eligibility predicate at acceptance time.
+    await db.runTransaction(async (tx) => {
+      // ---- READ PHASE: the canonical acceptance gate --------------------
+      await assertCheckoutItemsAcceptable({
+        db,
+        tx,
+        items,
+        currency,
+      });
 
-    batch.set(rootOrderRef, {
+      // ---- WRITE PHASE --------------------------------------------------
+      tx.set(rootOrderRef, {
       orderNumber,
       buyerUid: auth.uid,
       buyerName: name,
@@ -22240,28 +22264,28 @@ exports.createMarketplaceOrderV2 = onCall(
         buyerPhoneDigits: normalizeDigits(buyer.phone),
       },
     });
-    if (legal.marketingConsent === true) {
-      batch.set(
-        db.collection("users").doc(auth.uid),
-        {
-          marketingConsent: true,
-          marketingConsentAt: admin.firestore.FieldValue.serverTimestamp(),
-          marketingConsentSource: "checkout",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }
-    for (let i = 0; i < sellerOrderRefs.length; i++) {
-      batch.set(sellerOrderRefs[i], sellerOrderPayloads[i]);
-    }
+      if (legal.marketingConsent === true) {
+        tx.set(
+          db.collection("users").doc(auth.uid),
+          {
+            marketingConsent: true,
+            marketingConsentAt: admin.firestore.FieldValue.serverTimestamp(),
+            marketingConsentSource: "checkout",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+      for (let i = 0; i < sellerOrderRefs.length; i++) {
+        tx.set(sellerOrderRefs[i], sellerOrderPayloads[i]);
+      }
+    });
     logger.info("💰 ROOT ORDER PRICING", {
       subtotal,
       shippingTotal,
       taxTotal,
       grandTotal,
     });
-    await batch.commit();
 
     if (m3Enabled) {
       await updateAttempt(m3Claim.ref, {

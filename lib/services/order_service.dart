@@ -1,10 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class OrderService {
-  final _db = FirebaseFirestore.instance;
 
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: 'europe-west3',
@@ -80,43 +77,19 @@ class OrderService {
   }
 
   /// ⚠️ OLD SYSTEM (KEEP TEMPORARILY)
-  Future<String> createOrder({
-    required List<Map<String, dynamic>> items,
-    required double subtotal,
-    required double kdv,
-    required double shippingTotal,
-    required double grandTotal,
-    required String currency,
-    required String businessId,
-    required Map<String, dynamic> address,
-    required Map<String, dynamic> billing,
-    required Map<String, dynamic> legal,
-    required String buyerName,
-    required String buyerPhone,
-    required String buyerEmail,
-  }) async {
-    debugPrint("⚠️ OLD createOrder USED (SHOULD BE REMOVED LATER)");
+  // Marketplace Revision 44 §0.42 (Slice 7E) — the legacy `createOrder`
+  // is REMOVED.
+  //
+  // It wrote an `orders` document directly from the client, with a
+  // client-supplied businessId and a client-computed subtotal, KDV,
+  // shipping total and grand total. Its own comment already said it
+  // "SHOULD BE REMOVED LATER". Its single caller, `CheckoutButton`, was
+  // unreachable — nothing in lib/ or test/ ever constructed it — so removing
+  // both closes a client order-creation path that no journey used.
+  //
+  // Marketplace checkout goes through `createMarketplaceOrderV2` (above),
+  // which derives every commercial value server-side inside a transaction.
+  // Firestore Rules now deny direct `orders` creation outright, so a
+  // reintroduced client write would fail regardless.
 
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      throw Exception("User not logged in");
-    }
-
-    final orderRef = _db.collection('orders').doc();
-
-    await orderRef.set({
-      "orderId": orderRef.id,
-      "userId": user.uid,
-      "buyerUid": user.uid,
-      "businessId": businessId,
-      "buyerName": buyerName,
-      "buyerEmail": buyerEmail,
-      "buyerPhone": buyerPhone,
-      "paymentStatus": "pending",
-      "createdAt": FieldValue.serverTimestamp(),
-    });
-
-    return orderRef.id;
-  }
 }

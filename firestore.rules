@@ -2201,17 +2201,29 @@ match /dogs/{dogId}/visits/{visitId} {
 
     match /orders/{orderId} {
       allow read: if isAdmin() || isOrderOwner(resource.data) || isBusinessOwner(resource.data.businessId);
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        request.resource.data.buyerUid == request.auth.uid ||
-        request.resource.data.buyerEmail == request.auth.token.email
-      ) && (
-        request.resource.data.type != 'pet_taxi' ||
-        (
-          request.resource.data.status == 'pending' &&
-          request.resource.data.paymentStatus == 'pending'
-        )
-      );
+      // Marketplace Revision 44 §0.42 (Slice 7E) — DIRECT CLIENT ORDER
+      // CREATION IS CLOSED, for every sector and every actor.
+      //
+      // This previously allowed any signed-in caller to create an `orders`
+      // document simply by naming themselves as the buyer. That let a client
+      // author its own commercial record — order type, plan, seller identity,
+      // pricing, payment status — and it was the reachable half of two
+      // separate defects already recorded: the web-subscription underpayment
+      // chain (Revision 42 §A) and the Marketplace acceptance gap
+      // (Revision 39 §0.37 E).
+      //
+      // No client needs it. Every order-creating journey in the app already
+      // goes through a trusted server callable that derives the commercial
+      // values itself: `createMarketplaceOrderV2`, `createPetTaxiOrder`,
+      // `createAppointmentOrder`, `createHotelBooking`,
+      // `createGroomyAppointment`, `createVetAppointment`,
+      // `createPromotionCheckout` and `createWebSubscriptionCheckout`. The
+      // Admin SDK those callables use bypasses Rules, so closing this denies
+      // only the client-SDK path — exactly as `sellerOrders` already does.
+      //
+      // An admin using the client SDK is denied too: privileged order
+      // mutations belong to the trusted callables, not to a console session.
+      allow create: if false;
       allow update, delete: if false;
     }
 

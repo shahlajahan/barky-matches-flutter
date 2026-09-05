@@ -8680,20 +8680,23 @@ rulesTest(
 );
 
 rulesTest(
-  "REV40-ORD-4. (documented exposure) a client CAN still directly create an orders document for itself",
+  "REV40-ORD-4. (SUPERSEDED by Revision 44 §0.42) a client can NO LONGER create an orders document",
   async () => {
     await resetSeed();
     const db = (await env()).authenticatedContext("customer-1").firestore();
 
-    // Marketplace Revision 40 §0.38 F — this is the legacy
-    // `OrderService.createOrder` path. It is pinned here rather than closed:
-    // the same `orders` create rule serves non-Marketplace sectors (note its
-    // own `pet_taxi` carve-out), so narrowing it is a separate, cross-sector
-    // task. What bounds the exposure is that (a) the creator must name
-    // ITSELF as buyer, (b) `update`/`delete` are denied to every client, and
-    // (c) every server callable that acts on an order now proves ownership
-    // and re-derives money from canonical state.
-    await assertSucceeds(
+    // Revision 40 §0.38 F pinned this as a documented, bounded exposure: the
+    // legacy `OrderService.createOrder` path, left open because the same
+    // `orders` create rule served non-Marketplace sectors and narrowing it
+    // was "a separate, cross-sector task".
+    //
+    // Slice 7E is that task. Every order-creating journey — Marketplace, Pet
+    // Taxi, appointments, hotel, groomy, vet, promotion and web subscription
+    // — already goes through a trusted server callable whose Admin SDK
+    // bypasses Rules, so the client branch had no remaining legitimate user.
+    // The assertion is inverted rather than deleted, so the exposure cannot
+    // silently return.
+    await assertFails(
       setDoc(doc(db, "orders/rev40-legacy"), {
         orderId: "rev40-legacy",
         userId: "customer-1",
@@ -8704,7 +8707,7 @@ rulesTest(
       })
     );
 
-    // But it may NOT name someone else as the buyer...
+    // Naming someone else as the buyer was already denied, and still is.
     await assertFails(
       setDoc(doc(db, "orders/rev40-legacy-foreign"), {
         orderId: "rev40-legacy-foreign",
@@ -8712,7 +8715,8 @@ rulesTest(
         userId: "seller-2",
       })
     );
-    // ...and it may not edit what it created.
+
+    // Update remains denied for every client actor.
     await assertFails(updateDoc(doc(db, "orders/rev40-legacy"), { status: "paid" }));
   }
 );

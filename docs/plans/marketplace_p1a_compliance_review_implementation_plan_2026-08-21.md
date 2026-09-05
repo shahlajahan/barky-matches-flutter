@@ -2220,6 +2220,40 @@ The six Group B identifiers are new. The four Group A identifiers are **byte-ide
 ---
 
 
+### 0.42 Revision 44 change log — Atomic checkout acceptance and order-write closure (Slice 7E, 2026-09-05, PARTIAL)
+
+**Status.** Two of the three blockers §0.37 E recorded are closed: order acceptance is now atomic and eligibility-enforcing, and direct client order creation is structurally denied. **Stock reservation and checkout idempotency are NOT closed** and are reported precisely in §G. **Nothing is deployed; no flag is enabled; the Marketplace remains Pre-pilot.** This revision amends by addition and supersedes one earlier assertion, named in §F.
+
+**A. What was wrong.** `createMarketplaceOrderV2` read products and businesses non-transactionally, performed **no publication or compliance check of any kind**, and committed the order tree with `batch.commit()`. Measured at `649931e` against the emulator: a product with no pilot class, no approval and no compliance decision — one `assessProductVisibility` refuses outright — **was accepted and a canonical order created** (grandTotal 125). Separately, `firestore.rules` let any signed-in caller create an `orders` document naming itself as buyer.
+
+**B. Atomic acceptance, frozen.** `src/marketplace/orders/atomicCheckoutGuard.js` exposes `assertCheckoutItemsAcceptable({db, tx, items, currency})`, called inside the single `db.runTransaction` that now writes the order tree. Its read set, per item, is whatever `assessProductVisibility` reads transactionally — product, business, and through `evaluateLiveProductEligibility` the compliance decision, `decisionHash`, policy epoch, evidence refs, approval fingerprint, generation binding and pilot class. **There is no second predicate**: discovery and checkout call the same code, so they cannot drift. A gate invoked without a transaction is a hard error, not a silent non-transactional read.
+
+Writes — root order, seller order projections and the marketing-consent merge — all occur in that same transaction after the gate. **No accepted order can exist that did not pass live eligibility at acceptance time**, and one ineligible item refuses the entire basket: there is no partial acceptance.
+
+**C. Server-derived commercial values.** Unit price is re-derived inside the transaction from the authoritative product (`salePrice || price`); currency is compared against the product's own. A client-offered price that disagrees is **refused as `price_changed`, never silently repriced** — a customer is never charged an amount they were not shown. Two otherwise-identical checkouts, one carrying tampered `price`/`unitPrice`/`total`/`subtotal`/`currency`/`businessId`, store byte-identical pricing. Refusal codes (`item_unavailable`, `price_changed`, `currency_mismatch`, `business_mismatch`) are stable and disclose nothing about a seller's compliance state.
+
+**D. Rules closure.** `orders` is now `allow create: if false` with `update, delete` already denied, matching `sellerOrders`. The previous rule accepted any of three buyer-identity spellings and carried a `pet_taxi` carve-out. **No client needs it**: every order-creating journey — `createMarketplaceOrderV2`, `createPetTaxiOrder`, `createAppointmentOrder`, `createHotelBooking`, `createGroomyAppointment`, `createVetAppointment`, `createPromotionCheckout`, `createWebSubscriptionCheckout` — is a server callable whose Admin SDK bypasses Rules. An admin using the client SDK is denied too. Buyer and seller **reads** are unchanged and explicitly re-proven, so this is not a vacuous closure. Seller fulfilment continues through `updateSellerOrderStatusV2` and cancellation through `cancelSellerOrderBeforeShipment`.
+
+**E. Flutter.** `checkout_page` already used the callable. The legacy `OrderService.createOrder` — which wrote an `orders` document directly with client-computed subtotal, KDV, shipping and grand total, and whose own comment said it "SHOULD BE REMOVED LATER" — is **deleted**, together with its single caller `CheckoutButton`, which was unreachable from anywhere in `lib/` or `test/`. `OrderService` now touches no Firestore at all.
+
+**F. Superseded assertion.** Revision 40 §0.38 F pinned the client order-create exposure as documented and bounded, with the test `REV40-ORD-4. (documented exposure) a client CAN still directly create an orders document for itself`, deferring closure as "a separate, cross-sector task". Slice 7E is that task; the test is **inverted, not deleted**, so the exposure cannot silently return.
+
+**G. NOT closed — precise blockers.**
+
+1. **Stock and overselling.** There is still no stock authority in the default configuration: `reserveInventory`/`commitInventory` are reached only when `m3FeatureEnabled`/`m5FeatureEnabled` return true, and both are `false` unless `M3_INVENTORY_RESERVATION_ENABLED` is set with an explicit canary list. With no reservation there is nothing to make atomic, so this slice makes **no** claim about overselling, "exactly one succeeds for the last unit", or stock/order write pairing.
+2. **Idempotency.** A complete contract exists — `claimCheckoutAttempt`, deterministic `buildM3OrderIds` from `checkoutAttemptId`, and `validateExistingCheckoutTree` — but it is reached **only when M3 is enabled**, and `checkoutAttemptId` is required only then. Making it unconditional changes order-id derivation and replay behaviour on a live payment path; that is a deliberate, separate decision and was not taken here. Replay, double-tap, retry and concurrent-duplicate guarantees therefore remain **unproven** for the default configuration.
+3. **Reservation release / expiry.** The plan does not define expiry or failed-payment stock release sufficiently to implement, and none was invented. It remains an owner decision.
+4. **Multi-business.** Order creation groups items by `shopId` into per-business seller orders, so multi-business baskets ARE supported and each projection has unambiguous ownership. Per-item currency is now enforced against each product, so a mixed-currency basket is refused. Duplicate-product normalization was not changed.
+
+**H. Tests.** 18 behavioural (emulator, real callables and the real predicate), 11 Rules (real `firestore.rules`), 10 architecture guards, plus the inverted `REV40-ORD-4`. Eleven mutations — eligibility bypassed, client price trusted, client price stored, business binding removed, currency check removed, transaction requirement removed, gate moved after the writes, gate removed, batch boundary restored, Rules create reopened, Rules update reopened — **all killed**. Against an isolated `649931e` worktree the Rules suite failed behaviourally (a buyer could create its own order under every identity spelling) and an end-to-end probe created a real order for a product the predicate refuses.
+
+**I. Exact pending disposition string, unchanged and reaffirmed:** `SELLER/PRODUCT EVIDENCE ENFORCEMENT REQUIRED — IMPLEMENTATION, DEPLOYMENT AND COUNSEL PENDING`.
+
+**J. Before the Pharos-only Pilot** the remaining work is: enable and prove the inventory/idempotency model (§G1, §G2), settle reservation-release policy (§G3), re-verify the greenfield inventory, and deploy — none of which this slice performs. **The Pilot is not live and checkout is not yet safe against overselling.**
+
+---
+
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.
