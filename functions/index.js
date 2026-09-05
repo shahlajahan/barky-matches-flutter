@@ -377,6 +377,9 @@ const {
   getPilotProductApprovalReadiness,
 } = require("./src/marketplace/compliance/pilotProductApprovalReadiness");
 const {
+  assessOrderOwnership,
+} = require("./src/marketplace/orders/orderOwnership");
+const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
   getMarketplaceProductBatch,
@@ -3473,12 +3476,76 @@ async function createIsbank3DPayHostingCheckoutResult(request) {
   };
 }
 
+// Marketplace Revision 40 §0.38 — ORDER OWNERSHIP on the exported callable.
+//
+// `createIsbank3DPayHostingCheckoutResult` signs a bank 3D-Pay gateway form
+// from a caller-supplied `oid` and `amount` and never loads the order. That is
+// correct for the five INTERNAL callers (appointment, pet-taxi, subscription,
+// promotion and marketplace checkout creators), which have already established
+// the order and its amount themselves and invoke the inner function directly.
+//
+// It is not correct for the exported callable, which any signed-in user may
+// invoke with any `oid` and any `amount` — a payment-form forgery and
+// amount-tampering vector. This wrapper therefore authorizes what the inner
+// function cannot: the caller must own the order, and the requested amount
+// must match the canonical stored total.
+//
+// The inner function is deliberately left untouched, so no appointment,
+// pet-taxi, promotion or subscription flow changes behaviour.
 exports.createIsbank3DPayHostingCheckout = onCall(
   {
     region: "europe-west3",
     secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
   },
-  async (request) => createIsbank3DPayHostingCheckoutResult(request)
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+    const data = request.data || {};
+    const orderId = normalizeIsbankValue(data.oid || data.orderId);
+    if (!orderId) {
+      throw new HttpsError("invalid-argument", "oid required");
+    }
+
+    const db = admin.firestore();
+    const orderSnap = await db.collection("orders").doc(orderId).get();
+    const orderData = orderSnap.exists ? orderSnap.data() || {} : {};
+    const ownership = assessOrderOwnership({
+      orderData,
+      callerUid,
+      orderExists: orderSnap.exists,
+    });
+    if (!ownership.owner) {
+      logger.warn("isbank_hosting_checkout_denied", { reason: ownership.result });
+      // Indistinguishable from a nonexistent order — no enumeration oracle.
+      throw new HttpsError("not-found", "Order not found");
+    }
+
+    // The amount is the canonical stored total, never the caller's number.
+    // A missing or malformed total fails closed rather than falling back to
+    // whatever the client asked for.
+    const canonicalTotal = Number(
+      orderData?.pricing?.grandTotal ??
+        orderData?.financial?.grossAmount ??
+        orderData?.amount ??
+        NaN
+    );
+    if (!Number.isFinite(canonicalTotal) || canonicalTotal <= 0) {
+      logger.warn("isbank_hosting_checkout_denied", { reason: "canonical_total_missing" });
+      throw new HttpsError("failed-precondition", "Order total is not available");
+    }
+    const requestedAmount = Number(data.amount ?? data.price ?? canonicalTotal);
+    if (Number.isFinite(requestedAmount) && Math.abs(requestedAmount - canonicalTotal) > 0.005) {
+      logger.warn("isbank_hosting_checkout_denied", { reason: "amount_mismatch" });
+      throw new HttpsError("failed-precondition", "Order total is not available");
+    }
+
+    return createIsbank3DPayHostingCheckoutResult({
+      ...request,
+      data: { ...data, amount: canonicalTotal, price: canonicalTotal },
+    });
+  }
 );
 
 function promotionProviderName() {
@@ -14759,6 +14826,32 @@ exports.createCheckoutSession = onCall(
 
       const orderData = orderSnap.data() || {};
 
+      // Marketplace Revision 40 §0.38 — ORDER OWNERSHIP.
+      //
+      // This callable previously accepted ANY `orderId` from ANY signed-in
+      // caller and never compared that caller against the stored order's
+      // buyer. It is the payable-session creator: it writes `orders/{id}`
+      // pricing/payment state, overwrites `items`, rewrites every matching
+      // seller order's financial and payout blocks, and returns a live
+      // provider checkout URL. A caller who knew or guessed a foreign order id
+      // could do all of that on someone else's order.
+      //
+      // Placed here deliberately: after the order is loaded, but BEFORE any
+      // provider call, any pricing derivation and any write of any kind, so an
+      // unauthorized caller triggers no external side effect at all.
+      //
+      // A foreign order returns the SAME `not-found "Order not found"` as a
+      // nonexistent one, so this is not an order-id enumeration oracle.
+      const ownership = assessOrderOwnership({
+        orderData,
+        callerUid: auth.uid,
+        orderExists: true,
+      });
+      if (!ownership.owner) {
+        logger.warn("marketplace_checkout_session_denied", { reason: ownership.result });
+        throw new HttpsError("not-found", "Order not found");
+      }
+
       const items = Array.isArray(data.items) ? data.items : [];
       const currency = normalizeText(data.currency || "TRY") || "TRY";
       const successUrl = normalizeText(data.successUrl);
@@ -16855,6 +16948,36 @@ exports.verifyPaymentByOrderId = onCall(
       }
 
       const orderData = orderSnap.data() || {};
+
+      // Marketplace Revision 40 §0.38 — ORDER OWNERSHIP.
+      //
+      // This callable previously accepted ANY `orderId` from ANY signed-in
+      // caller. It reads provider payment state, can flip `orders/{id}` and
+      // every matching seller order to `paid`, and — for inventory-managed
+      // orders — commits stock. A caller who knew or guessed a foreign order
+      // id could observe another customer's payment state and drive their
+      // order to paid.
+      //
+      // Placed BEFORE the payment-callback claim, before any provider lookup
+      // and before any write, so an unauthorized caller causes no mutation and
+      // no external call. A foreign order returns the SAME
+      // `not-found "Order not found"` as a nonexistent one.
+      //
+      // Provider callbacks (`isbank3DPayHostingCallback`) are unaffected:
+      // they authenticate through their own provider hash contract, not
+      // customer ownership, and do not route through this callable.
+      const verificationOwnership = assessOrderOwnership({
+        orderData,
+        callerUid: auth.uid,
+        orderExists: true,
+      });
+      if (!verificationOwnership.owner) {
+        logger.warn("marketplace_payment_verification_denied", {
+          reason: verificationOwnership.result,
+        });
+        throw new HttpsError("not-found", "Order not found");
+      }
+
       const paymentToken = orderData?.payment?.token || null;
       let paymentCallbackClaim = null;
 
@@ -17667,6 +17790,33 @@ exports.verifyPayment = onCall(
       });
 
       const orderData = orderSnap.data() || {};
+
+      // Marketplace Revision 40 §0.38 — ORDER OWNERSHIP.
+      //
+      // Same defect class as `verifyPaymentByOrderId`, and the more exposed
+      // of the two: this handler is reachable from six Flutter call sites
+      // (including `main.dart`) and is also exported under the alias
+      // `verifyHotelBookingPayment`. It accepted ANY `orderId` from ANY
+      // signed-in caller, read the provider payment state, and could flip the
+      // order — and its appointment/booking side effects — to paid, adopting
+      // the caller as owner through `orderData.buyerUid || orderData.userId
+      // || auth.uid` further down.
+      //
+      // Placed before the payment token is read, so an unauthorized caller
+      // never observes provider state and causes no mutation. Every writer of
+      // these orders (`createMarketplaceOrderV2`, `createAppointmentOrder`,
+      // `createPetTaxiOrder`, `createWebSubscriptionCheckout`) sets
+      // `buyerUid`, so no legitimate flow loses access.
+      const paymentOwnership = assessOrderOwnership({
+        orderData,
+        callerUid: auth.uid,
+        orderExists: true,
+      });
+      if (!paymentOwnership.owner) {
+        logger.warn("payment_verification_denied", { reason: paymentOwnership.result });
+        throw new HttpsError("not-found", "Order not found");
+      }
+
       const token = orderData.payment?.checkoutToken;
 
       if (!token) {

@@ -8474,3 +8474,163 @@ rulesTest(
     }
   }
 );
+
+// =======================================================================
+// Marketplace Revision 40 §0.38 — order/return collections are callable-owned.
+//
+// The server-side ownership repair is only half the boundary; these pin the
+// other half: no client may reach across users through Firestore directly.
+// =======================================================================
+
+rulesTest(
+  "REV40-ORD-1. orders and sellerOrders cannot be mutated by any client, across users or their own",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, "orders", "rev40-order"), {
+        orderId: "rev40-order",
+        buyerUid: "customer-1",
+        status: "payment_pending",
+        paymentStatus: "pending",
+        pricing: { grandTotal: 100 },
+      });
+      await setDoc(doc(db, "sellerOrders", "rev40-so"), {
+        rootOrderId: "rev40-order",
+        buyerUid: "customer-1",
+        businessId: "biz-1",
+        status: "payment_pending",
+      });
+    });
+
+    // 35/37. No client — owner, foreign, seller or admin — may update an
+    // order, and in particular may not inject a paid/refunded status.
+    for (const uid of ["customer-1", "seller-1", "admin-1", "seller-2"]) {
+      const db = rulesEnv.authenticatedContext(uid).firestore();
+      await assertFails(updateDoc(doc(db, "orders/rev40-order"), { status: "paid" }));
+      await assertFails(updateDoc(doc(db, "orders/rev40-order"), { paymentStatus: "paid" }));
+      await assertFails(updateDoc(doc(db, "orders/rev40-order"), { pricing: { grandTotal: 1 } }));
+      await assertFails(deleteDoc(doc(db, "orders/rev40-order")));
+      // sellerOrders are wholly server-owned: not even create is permitted.
+      await assertFails(updateDoc(doc(db, "sellerOrders/rev40-so"), { status: "paid" }));
+      await assertFails(setDoc(doc(db, "sellerOrders/rev40-so-new"), { buyerUid: uid }));
+      await assertFails(deleteDoc(doc(db, "sellerOrders/rev40-so")));
+    }
+    await assertFails(
+      updateDoc(doc(rulesEnv.unauthenticatedContext().firestore(), "orders/rev40-order"), {
+        status: "paid",
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV40-ORD-2. a foreign customer cannot READ another buyer's order or seller order",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, "orders", "rev40-order-2"), {
+        buyerUid: "customer-1",
+        businessId: "biz-1",
+        pricing: { grandTotal: 100 },
+      });
+      await setDoc(doc(db, "sellerOrders", "rev40-so-2"), {
+        rootOrderId: "rev40-order-2",
+        buyerUid: "customer-1",
+        businessId: "biz-1",
+      });
+    });
+    // `seller-2` owns neither the order nor its business.
+    const foreign = rulesEnv.authenticatedContext("seller-2").firestore();
+    await assertFails(getDoc(doc(foreign, "orders/rev40-order-2")));
+    await assertFails(getDoc(doc(foreign, "sellerOrders/rev40-so-2")));
+    await assertFails(
+      getDoc(doc(rulesEnv.unauthenticatedContext().firestore(), "orders/rev40-order-2"))
+    );
+    // The buyer keeps their own access.
+    await assertSucceeds(
+      getDoc(doc(rulesEnv.authenticatedContext("customer-1").firestore(), "orders/rev40-order-2"))
+    );
+  }
+);
+
+rulesTest(
+  "REV40-ORD-3. order_returns are server-written only, and unreadable across users",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "order_returns", "rev40-ret"), {
+        buyerUid: "customer-1",
+        sellerUid: "seller-1",
+        businessId: "biz-1",
+        sellerOrderId: "rev40-so",
+        refundAmount: 50,
+        status: "pending",
+      });
+    });
+
+    // 36. No client may create, alter or erase a return — in particular a
+    // buyer cannot raise their own `refundAmount`, which is exactly what the
+    // server-side derivation exists to control.
+    for (const uid of ["customer-1", "seller-1", "admin-1", "seller-2"]) {
+      const db = rulesEnv.authenticatedContext(uid).firestore();
+      await assertFails(updateDoc(doc(db, "order_returns/rev40-ret"), { refundAmount: 999999 }));
+      await assertFails(updateDoc(doc(db, "order_returns/rev40-ret"), { status: "approved" }));
+      await assertFails(setDoc(doc(db, "order_returns/rev40-ret-new"), { buyerUid: uid, refundAmount: 1 }));
+      await assertFails(deleteDoc(doc(db, "order_returns/rev40-ret")));
+    }
+
+    // 34. An unrelated customer cannot read it; the buyer and seller can.
+    await assertFails(
+      getDoc(doc(rulesEnv.authenticatedContext("seller-2").firestore(), "order_returns/rev40-ret"))
+    );
+    await assertSucceeds(
+      getDoc(doc(rulesEnv.authenticatedContext("customer-1").firestore(), "order_returns/rev40-ret"))
+    );
+    await assertSucceeds(
+      getDoc(doc(rulesEnv.authenticatedContext("seller-1").firestore(), "order_returns/rev40-ret"))
+    );
+  }
+);
+
+rulesTest(
+  "REV40-ORD-4. (documented exposure) a client CAN still directly create an orders document for itself",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("customer-1").firestore();
+
+    // Marketplace Revision 40 §0.38 F — this is the legacy
+    // `OrderService.createOrder` path. It is pinned here rather than closed:
+    // the same `orders` create rule serves non-Marketplace sectors (note its
+    // own `pet_taxi` carve-out), so narrowing it is a separate, cross-sector
+    // task. What bounds the exposure is that (a) the creator must name
+    // ITSELF as buyer, (b) `update`/`delete` are denied to every client, and
+    // (c) every server callable that acts on an order now proves ownership
+    // and re-derives money from canonical state.
+    await assertSucceeds(
+      setDoc(doc(db, "orders/rev40-legacy"), {
+        orderId: "rev40-legacy",
+        userId: "customer-1",
+        buyerUid: "customer-1",
+        businessId: "biz-1",
+        status: "pending",
+        paymentStatus: "pending",
+      })
+    );
+
+    // But it may NOT name someone else as the buyer...
+    await assertFails(
+      setDoc(doc(db, "orders/rev40-legacy-foreign"), {
+        orderId: "rev40-legacy-foreign",
+        buyerUid: "seller-2",
+        userId: "seller-2",
+      })
+    );
+    // ...and it may not edit what it created.
+    await assertFails(updateDoc(doc(db, "orders/rev40-legacy"), { status: "paid" }));
+  }
+);
