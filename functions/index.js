@@ -3522,7 +3522,26 @@ exports.createIsbank3DPayHostingCheckout = onCall(
       throw new HttpsError("not-found", "Order not found");
     }
 
-    // The amount is the canonical stored total, never the caller's number.
+    // The amount used is the order's STORED total, never the number supplied
+    // on this request.
+    //
+    // Precisely what that guarantees, and what it does not: the stored total
+    // is authoritative only for orders written by a server creator
+    // (`createWebSubscriptionCheckout` from the subscription catalogue,
+    // `createAppointmentOrder`, `createPetTaxiOrder`,
+    // `createMarketplaceOrderV2`). Firestore Rules still permit a signed-in
+    // user to CREATE its own `orders` document with an arbitrary
+    // `pricing.grandTotal`; that caller owns the document and so passes the
+    // ownership gate above, and this check then compares its number against
+    // itself. This gate therefore stops amount tampering against ANOTHER
+    // user's order and against a server-created order — it does not by itself
+    // make a self-created order's total trustworthy.
+    //
+    // The downstream consumer is responsible for that: the web-subscription
+    // finalizer authorizes the entitlement against the server-owned catalogue
+    // rather than against this total. Any future consumer of a stored order
+    // total must do the same.
+    //
     // A missing or malformed total fails closed rather than falling back to
     // whatever the client asked for.
     const canonicalTotal = Number(
@@ -3999,6 +4018,30 @@ function webSubscriptionOrderId(uid, planId, now = Date.now()) {
   return `websub_${ownerHash}_${planId}_${fiveMinuteBucket}`;
 }
 
+/// Re-derives the deterministic web-subscription order id using the
+/// five-minute bucket the supplied id itself carries.
+///
+/// `webSubscriptionOrderId` buckets on wall-clock time, so a callback that
+/// arrives minutes later cannot recompute the id from `Date.now()`. Reading
+/// the bucket back out of the id and re-deriving the rest proves the id was
+/// produced by that function for exactly this uid and plan — a forged or
+/// re-pointed id fails, as does an order whose stored `planId` disagrees with
+/// the identity embedded in its own id.
+///
+/// This is an identity binding, NOT an authorization boundary on its own: the
+/// owner hash is a plain SHA-256 of a non-secret uid, so a caller able to
+/// create its own order document could construct a matching id. The canonical
+/// price and currency comparison is what actually authorizes the entitlement.
+function webSubscriptionOrderIdMatchesIdentity(orderId, uid, planId) {
+  const parts = String(orderId || "").split("_");
+  if (parts.length !== 4) return false;
+  if (parts[0] !== "websub") return false;
+  const bucket = Number(parts[3]);
+  if (!Number.isInteger(bucket) || bucket < 0) return false;
+  const expected = webSubscriptionOrderId(uid, planId, bucket * 5 * 60 * 1000);
+  return expected === orderId;
+}
+
 function webSubscriptionReturnOrigin() {
   return requireIsbankAbsoluteUrl(WEB_APP_ORIGIN.value(), "WEB_APP_ORIGIN")
     .replace(/\/+$/, "");
@@ -4188,6 +4231,48 @@ async function finalizeWebSubscriptionPayment({
     const uid = normalizeIsbankValue(order.buyerUid || order.userId);
     const planId = requireWebSubscriptionPlan(order.planId);
     if (!uid) return { status: "failed", reason: "owner_missing" };
+
+    // ---------------------------------------------------------------
+    // SERVER-AUTHORITATIVE PAYMENT AMOUNT VALIDATION.
+    //
+    // Firestore Rules permit a signed-in user to CREATE its own `orders`
+    // document with an arbitrary `orderType`, `planId` and
+    // `pricing.grandTotal`. Such a caller owns that document, so it passes the
+    // order-ownership gate; the İş Bank callback then compares the paid amount
+    // against `orderData.pricing.grandTotal` — the caller's own number — and
+    // this finalizer previously granted the entitlement on that basis alone.
+    // A one-kuruş payment could therefore buy a full subscription.
+    //
+    // The order's stored total is authoritative only for orders that
+    // `createWebSubscriptionCheckout` itself wrote from the catalogue. It is
+    // deliberately NOT consulted here: the entitlement is authorized against
+    // the server-owned catalogue, resolved fresh at callback time.
+    //
+    // This runs before the first write, so any refusal leaves subscription,
+    // user and order state entirely unchanged.
+    let catalog = null;
+    try {
+      catalog = webSubscriptionCatalog();
+    } catch (_) {
+      // An unresolvable catalogue fails closed rather than falling back to
+      // anything carried on the order.
+      catalog = null;
+    }
+    const authorization = webSubscriptionCore.authorizeWebSubscriptionPayment({
+      orderId,
+      uid,
+      planId,
+      callbackAmount,
+      callbackCurrency,
+      catalog,
+      normalizeAmount: normalizeIsbankAmount,
+      canonicalizeCurrency: canonicalizeIsbankCurrency,
+      orderIdMatchesIdentity: webSubscriptionOrderIdMatchesIdentity,
+    });
+    if (!authorization.ok) {
+      return { status: "failed", reason: authorization.reason };
+    }
+    // ---------------------------------------------------------------
 
     const subscriptionRef = db.collection("subscriptions").doc(uid);
     const userRef = db.collection("users").doc(uid);
