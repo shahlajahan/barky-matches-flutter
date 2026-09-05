@@ -2254,6 +2254,82 @@ Writes — root order, seller order projections and the marketing-consent merge 
 ---
 
 
+### 0.43 Revision 45 change log — Stock reservation, idempotency and release policy, FROZEN (contract-only, 2026-09-05)
+
+**Status.** Revision 44 §G left three items unresolved: stock reservation, checkout idempotency and reservation-release policy. This revision freezes all three. **It is documentation-only**: no runtime file, Rules file, index or Flutter file is changed, M3/M5 stay disabled, and nothing is deployed. The Marketplace remains Pre-pilot.
+
+**The central finding.** The M3/M5 design is **already substantially built and internally coherent** — reservation transactions, an expiry scheduler, a lease-recovery worker, payment-callback claims, a late-payment recorder and a return-restock path all exist in `functions/src/inventory/`. What was missing was not code but a *frozen contract*: the semantics were only discoverable by reading the implementation, so the next slice could not be mechanical. This revision transcribes those semantics, names the one genuinely unresolved external fact, and fixes the rollout target.
+
+**A. Inventory authority, frozen.**
+
+| Concept | Frozen meaning |
+|---|---|
+| Authoritative document | `businesses/{businessId}/products/{productId}` — the canonical product, bound by deterministic product ID and business generation |
+| `stock` | **physical on-hand quantity**. NOT decremented at reservation |
+| `reservedStock` | quantity held by currently-open reservations |
+| `availableStock` | **`stock − reservedStock`** — derived, never stored |
+| Reserve | `reservedStock += q`; `stock` unchanged |
+| Commit (payment verified) | `stock −= q` **and** `reservedStock −= q` |
+| Release (expiry/cancel/failure) | `reservedStock −= q`; `stock` unchanged |
+| Restock (return) | `stock += q`, only when explicitly restockable (§E) |
+
+Invariants, enforced in-transaction and already implemented: both values are non-negative integers; `stock >= reservedStock` at rest and after every transition; a reserve requires `stock − reservedStock >= q`; a commit requires `reservedStock >= q` **and** `stock >= q`; a release requires `reservedStock >= q`. Any violation throws with `manualReview: true` rather than clamping. A missing/null `reservedStock` reads as 0; a malformed value fails closed. `SERVER_OWNED_INVENTORY_FIELDS` (`reservedStock`, `inventorySchemaVersion`, `inventoryOperationVersion`, `inventoryUpdatedAt`) are never client-writable.
+
+**Not-stock-tracked products: UNRESOLVED-1.** No per-business or per-product "inventory disabled" switch exists in the code. Until one is frozen, **every** Marketplace product under M3 is stock-tracked and a product without a usable numeric `stock` **fails closed** (cannot be reserved, therefore cannot be sold). This is deliberately restrictive; loosening it is a separate owner decision.
+
+**B. Reservation lifecycle, frozen.** The states are exactly the six `RESERVATION_STATUS` values and no others: `reserving`, `reserved`, `releasing`, `released`, `expired`, `committed`. The permitted transitions are `reserving` → `reserved`; `reserved` → `releasing` → `released`; `reserved` → `expired`; `reserved` → `committed`. `released`, `expired` and `committed` are **terminal**. Release and commit are mutually exclusive: a committed reservation can never be released, and a released/expired one can never be committed — the transactions assert the current state before acting, so a replayed call returns the existing terminal outcome instead of applying a second stock effect. Every operation carries a deterministic `operationId` (`buildOperationId`) and writes an idempotent movement plus event, so retry is safe at every level.
+
+**C. TTL and clock authority, frozen — with one unresolved input.** TTL is `DEFAULT_RESERVATION_LEASE_MS` = **15 minutes**, beginning when the reservation is created, measured on the **Firestore server clock** (`admin.firestore.Timestamp`), never a client clock. Expiry is swept by `recoverMarketplaceInventoryM5` every 5 minutes, which pages through `status == reserved && expiresAt <= now` behind a persisted checkpoint; double release is prevented by the terminal-state assertion, not by scheduler exclusivity, so a repeated or overlapping run is safe.
+
+**UNRESOLVED-2 — provider session lifetime.** The repository records **no** İş Bankası or iyzico session/callback expiry fact anywhere; none was invented and no provider was contacted. The 15-minute lease is therefore **not proven** to exceed the provider's own session lifetime. This does **not** block the freeze, because the consequence is already fail-closed: a payment that verifies after its reservation expired is routed by `recordLatePaymentAfterExpiry` to a `manual_review` recovery record in `inventoryLatePaymentRecoveries`, keyed by a deterministic `late-payment:{orderId}:{paymentId}` operation id, recording whether stock is currently re-acquirable. **No automatic re-reservation and no automatic refund.** Before enabling M3 the owner must confirm the provider lifetime and either keep 15 minutes or raise it.
+
+**D. Idempotency, frozen.** The client generates an opaque `checkoutAttemptId` and nothing else; it never chooses order ownership or any commercial value. The attempt document id is `{buyerUid}__{checkoutAttemptId}`, so **idempotency is customer-scoped by construction** and the same raw key used by two customers is two independent attempts. The intent fingerprint (`checkoutFingerprint`) is a SHA-256 over stable-ordered JSON of exactly: per item `businessId`, `productId`, `quantity`, `unitPrice`, `carrier`; plus request `currency` and computed `amount`. Delivery address, billing identity, legal consents and payment provider are **deliberately excluded** — changing a delivery note must not fork a reservation. Same key + identical fingerprint returns the original result and creates no second order or reservation; same key + different fingerprint is an **idempotency conflict**; deterministic root and seller order ids derive from the attempt, so a retry cannot mint a second order tree. **One successful logical attempt ⇒ at most one canonical order tree and one net reservation effect.**
+
+**E. Cancellation, refund and return — three separate things, frozen.**
+
+| Scenario | Stock effect |
+|---|---|
+| Customer abandons / payment session never created | release on expiry |
+| Payment failed, cancelled, or expired | release |
+| Cancelled after payment, before fulfilment | release of the committed quantity is **not** automatic — manual review |
+| Full or partial monetary refund | **no stock effect** |
+| Return requested / approved | **no stock effect** |
+| Return physically received AND `restockable === true` | `stock += q`, `RESTORED` |
+| Return physically received AND `restockable === false` | **no stock effect**, `NOT_RESTORED` |
+| Damaged, lost, chargeback | manual review, no automatic restock |
+
+`restoreReturnedInventory` already refuses to act unless the line records `physicallyReceived === true` and an explicit boolean `restockable`. **A financial refund is never a physical restock**, and this revision authorizes no automatic restock anywhere.
+
+**F. Payment sequencing, frozen.** External payment calls must never occur inside a Firestore transaction. The order is: (1) transactionally claim the attempt, validate live eligibility (Revision 44 §B) and reserve inventory; (2) commit the pending order tree; (3) create the external payment session; (4) bind the provider session; (5) finalize through the idempotent callback, which claims the callback via `paymentCallbackClaims` before acting; (6) consume or release the reservation exactly once. A callback replay hits an existing claim and returns the recorded outcome. Amount and currency remain server-authoritative and bound to the order — Marketplace checkout and **web-subscription** checkout are separate paths and must not be conflated (Revision 42).
+
+**G. Multi-business, frozen.** One attempt may contain several businesses: it produces one root order plus one deterministic seller-order projection per business, each with unambiguous ownership. Checkout is **all-or-nothing** — one unavailable or ineligible line refuses the whole basket (already true of eligibility, Revision 44 §B). **Mixed currency fails closed.** Reservations for all lines are claimed under the single attempt. Firestore's 500-write transaction limit bounds a basket; **UNRESOLVED-3**: no explicit maximum line/business count is currently frozen, and one must be set before enabling M3.
+
+**H. Recovery, frozen.** Order without reservation, reservation without order, `reservedStock > stock`, duplicate attempts, duplicate projections, generation change during pending payment, product becoming ineligible after reservation, business disabled after reservation, delayed or repeated scheduler runs — all resolve to either an idempotent no-op (terminal state already reached) or a **`manual_review` record that preserves the evidence**. Nothing in the recovery path deletes an inconsistent document. `validateExistingCheckoutTree` already refuses to continue against an incomplete tree and marks the attempt for review.
+
+**I. Rules authority, frozen.** Canonical orders and seller projections are already `create/update/delete: if false` (Revision 44 §D). `reservedStock` and the inventory version fields are already in the product server-owned list. `inventoryReservations`, `inventoryMovements`, `inventoryEvents`, the checkout-attempt collection, `inventoryLatePaymentRecoveries` and `inventoryRecoveryCheckpoints` have **no `match` block at all** and are therefore denied by Firestore's default. **That is correct but implicit**; the implementation slice must add explicit `allow read, write: if false` blocks so the intent is auditable, without changing effective behaviour.
+
+**J. Rollout target, frozen.** The end state is **M3 unconditional for every new Marketplace order** — no silent unprotected default path. Staging: (1) enable the M5 release/expiry workers first, so reservations can always be released before any are created; (2) enable M3 for a canary business list; (3) after the exit criteria below, remove the canary and make it unconditional. Exit criteria: zero `manual_review` recoveries attributable to the mechanism, zero `reservedStock > stock` observations, and every canary order reaching a terminal reservation state. **Rollback constraint:** disabling M3 must never orphan an existing reservation, so the release/expiry workers must remain enabled through and after any rollback.
+
+**K. Superseded.** Revision 44 §G1/§G2/§G3 recorded stock reservation, idempotency and release policy as unresolved. §A–§J above supersede that, **except** the three items explicitly named UNRESOLVED-1 (not-stock-tracked products), UNRESOLVED-2 (provider session lifetime) and UNRESOLVED-3 (maximum basket size), which remain owner/provider decisions and are fail-closed until settled.
+
+**L. Implementation slices, in order.** Each is bounded to one commit.
+
+| # | Slice | Prerequisite | Rollback constraint |
+|---|---|---|---|
+| 7F-1 | Explicit Rules deny blocks for the six inventory/attempt collections | none | none — no behaviour change |
+| 7F-2 | Freeze the maximum basket size (UNRESOLVED-3) and enforce it pre-transaction | none | none |
+| 7F-3 | Enable and prove the M5 release/expiry workers on the emulator | 7F-1 | must stay enabled thereafter |
+| 7F-4 | Make `checkoutAttemptId` mandatory and the attempt claim unconditional | 7F-3 | attempts already claimed stay valid |
+| 7F-5 | Make reservation unconditional inside the Revision 44 acceptance transaction | 7F-4 | reservations must remain releasable |
+| 7F-6 | Idempotent success consumption and late-payment review wiring | 7F-5 | — |
+| 7F-7 | Flutter attempt-key persistence across retry, restart and double-tap | 7F-4 | — |
+| 7F-8 | Reconciliation metrics and alerts | 7F-6 | — |
+| 7F-9 | Canary enablement, then unconditional (§J) | all above | §J |
+
+**M. This revision is documentation-only.** No Functions runtime, Rules, index, Flutter or configuration file was created or edited to produce it; M3 and M5 remain disabled; no reservation, order or payment was created; no provider was contacted; no production document was read or written.
+
+---
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.
