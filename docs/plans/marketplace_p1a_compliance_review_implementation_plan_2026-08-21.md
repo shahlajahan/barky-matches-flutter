@@ -2033,6 +2033,116 @@ Enforcing §0.37 D therefore requires restructuring order creation so that eligi
 
 ---
 
+### 0.39 Revision 41 change log — Pilot product taxonomy expansion, frozen (contract-only, 2026-09-05)
+
+**Status and motivation.** Revision 35 (§0.33, Slice 7A) gave `pilotProductClass` its first writer and froze its value set at the four consumable classes Revision 31 §C names. That was correct for the consumables it governed, but it silently narrowed the pilot: §21.12 — the owner's own frozen "LOW-RISK PETSHOP ESSENTIALS PILOT" allowlist — **already includes** "collars/leads; bowls; beds; ordinary toys; clothing; carriers; brushes/combs and simple grooming tools; waste-collection accessories". No class identifier was ever minted for any of them, so every one of those products is unclassifiable and therefore unpublishable, and the Seller Add Product screen offers five categories that can never reach publication. This revision mints the missing identifiers. **It restores §21.12's frozen scope; it does not widen it.** It amends by addition and by the one explicit supersession recorded in §C below — no other prior revision text is altered, weakened, reopened or contradicted. It is **contract-only**: it performs no implementation, deployment, Function invocation, Rules change, migration, backfill, seller activation, product classification, approval or publication.
+
+**A. The contradiction this revision resolves, stated exactly.** Two independent closed vocabularies exist and must not be confused:
+
+| Constant | File | Values | Governs |
+|---|---|---|---|
+| `PILOT_PRODUCT_CLASS` | `complianceConstants.js` | 4 | the authoritative `pilotProductClass` product field |
+| `ALLOWED_PILOT_CATEGORIES` | `pilotProductApproval.js` | 8 | the `allowedPilotCategory` **approval-call argument** |
+
+Revision 31 §D states that `ALLOWED_PILOT_CATEGORIES` "is five values wider than §21.12's scope; narrowing that constant remains an obligation of slice 7." **That statement is factually incorrect and is corrected here.** §21.12's allowlist text explicitly includes collars/leads, bowls, beds, ordinary toys, clothing, carriers and grooming tools. `ALLOWED_PILOT_CATEGORIES`'s eight values are therefore *inside* §21.12's scope, not five values beyond it. The narrowing obligation Revision 31 §D imposed on slice 7 is **retired**; the constant is correct as deployed. The two vocabularies nonetheless remain non-interchangeable: no `ALLOWED_PILOT_CATEGORIES` value is ever a valid `pilotProductClass`, and the existing assertion that `"food"`, `"treats"`, `"litter"`, `"toys"`, `"collars_leads"`, `"beds"`, `"bowls"` and `"grooming_tools"` are rejected by `isValidPilotProductClass` stands unchanged.
+
+**B. Exact superseded assertions.** Each is superseded only to the stated extent; every other clause of each source sentence survives intact.
+
+1. **Revision 31 §C**, "its value set is exactly and only:" followed by the four-row table — **superseded**. The value set is the ten-row table in §C below. The original four rows are preserved verbatim within it, with unchanged identifiers and unchanged meaning.
+2. **Revision 31 §C**, "A **non-authoritative** seller hint … constrained to the same four values" — **superseded** as to cardinality only: `sellerSuggestedPilotProductClass`, if ever built, is constrained to the ten values. Its status as routing metadata that is never evidence is unchanged.
+3. **Revision 31 §D**, the sentence "Accessories — toys, collars and leads, beds, bowls, grooming tools — likewise remain outside the pilot, as Revision 30 §E already recorded when noting that the deployed `ALLOWED_PILOT_CATEGORIES` constant is five values wider than §21.12's scope; narrowing that constant remains an obligation of slice 7." — **superseded in full**, as §A explains. **The rest of §D — every regulated exclusion in it — is untouched and remains frozen and fail-closed.**
+4. **Revision 31 §B**, the phrases "one of the four pilot classes" and "inside one of the four classes" — **superseded** as to cardinality only ("one of the pilot classes"). The rule they carry is strengthened, not weakened: *if an admin cannot confidently establish that a product is inside one of the classes, the product remains unapproved. There is no inference toward eligibility, no default class, and no benefit of the doubt.*
+5. **Revision 31 §A**, "is this product inside one of the four permitted low-risk classes?" — **superseded** as to cardinality only.
+6. **Revision 35 §0.33**, its description of `PILOT_PRODUCT_CLASS` as the closed four-value set — **superseded** as to cardinality only. Revision 35's *architecture* — server-authoritative sole writer, no alias table, no case folding, no default, no inference, fail-closed on anything outside the set — is reaffirmed without change and governs all ten values identically.
+7. **§15 items 1068, 1071, 1072** — **superseded** as to the enumerated cardinality only; restated in §H below.
+
+**C. The canonical taxonomy, frozen — ten values.**
+
+| Value | Class | Group |
+|---|---|---|
+| `sealed_dry_food` | sealed packaged dry food | A — consumable |
+| `sealed_wet_food` | sealed packaged wet food | A — consumable |
+| `non_medicinal_treats` | non-medicinal treats | A — consumable |
+| `non_biocidal_litter` | non-biocidal litter | A — consumable |
+| `pet_apparel` | pet clothing and wearable apparel | B — ordinary accessory |
+| `collars_harnesses_leashes` | collars, harnesses, leads and leashes | B — ordinary accessory |
+| `feeding_accessories` | bowls, feeders, non-electronic water containers | B — ordinary accessory |
+| `beds_carriers` | beds, cushions, baskets, carriers and transport boxes | B — ordinary accessory |
+| `non_electronic_toys` | ordinary non-electronic toys | B — ordinary accessory |
+| `grooming_accessories_non_chemical` | brushes, combs, nail clippers and simple non-chemical grooming tools | B — ordinary accessory |
+
+The six Group B identifiers are new. The four Group A identifiers are **byte-identical to Revision 31 §C's originals**: no existing record changes meaning, and every already-valid classification remains valid.
+
+**Identified but deliberately NOT minted.** §21.12 also lists "waste-collection accessories" (bags, scoops). No Seller category can currently express such a product — the Add Product allowlist has no matching entry — so an enum value for it would be unreachable by any submission path. Minting an unreachable authoritative value adds surface without enabling anything, so it is recorded here as **pre-authorized by §21.12 but not activated**. It may be added by a later revision at the same time as its Seller category, with no re-litigation of scope. **No other class is required by the current UI or data:** the ten values above cover every one of the nine Seller categories that is not permanently excluded.
+
+**Harnesses, explicitly.** `pilotProductApproval.js`'s own §10.1 comment records that "Harnesses have no enum value at all" in `ALLOWED_PILOT_CATEGORIES`. That gap is closed on the class side: harnesses are inside `collars_harnesses_leashes`.
+
+**D. Excluded from the pilot, frozen and fail-closed — unchanged and reaffirmed.** Medicines; vitamins; supplements; medicated food; prescription or therapeutic veterinary diets; flea, tick and other antiparasitic products; biocides; pesticides; any product carrying a therapeutic, medicinal, diagnostic, disease-prevention or veterinary-diet claim; unpackaged or loose food; cold-chain products; and any product whose classification is uncertain or ambiguous. **Electrical and electronic products are excluded** unless a later revision approves them separately and by name: a battery-powered, motorised, heated, or mains-powered item is outside `non_electronic_toys` and outside every other Group B class. None of these may be classified into any of the ten values, regardless of relationship-evidence quality. **Uncertainty means exclusion, never provisional inclusion.**
+
+**E. Evidence requirements, frozen per group.** The intake evidence matrix (`COMPLIANCE_INTAKE_EVIDENCE_MATRIX`) keys on the six-value `SELLER_RELATIONSHIP` enum and **not** on product class, so no food, chemical or pharmaceutical document is reachable from a class identifier today. This revision changes nothing about that and introduces no new document type.
+
+**Required for BOTH groups, without exception:**
+
+1. Seller relationship evidence, through the existing relationship-keyed matrix, unweakened;
+2. an Admin classification written solely by `setPilotProductClassification`;
+3. an explicit Admin approval through `approvePilotProduct`;
+4. a valid, current `marketplaceBusinessGenerationId` binding;
+5. the product content fingerprint, approval fingerprint and `decisionHash` invalidation chain, unweakened;
+6. `evaluateLiveProductEligibility` satisfied at every read and at every purchase.
+
+**Group A additionally** remains subject, unchanged, to §21.12's claim-driven escalation on label, packaging and listing copy, and to §21.3's claims-versus-composition rule.
+
+**Group B is not required to supply food, chemical, veterinary or pharmaceutical compliance documents**, because none applies to a collar or a bed. This is not a relaxation: no such document was ever demanded of any class by the intake matrix. Group B remains fully subject to items 1-6.
+
+**`category_compliance_evidence` stays fail-closed.** It appears in no row of Revision 30 §D's table, is accepted for no relationship, and is rejected at intake with its own stable reason code. **This revision does not activate it for either group.** Activating it remains an owner/counsel decision and must not be invented in code.
+
+**F. Transition rules, frozen.**
+
+1. **Seller category is descriptive only and can never determine `pilotProductClass`.** The `"Food > Dry Food"` display string remains presentation metadata, exactly as Revision 31 §C freezes. No automatic mapping, inference, default or fallback from category to class may ever be implemented.
+2. **Admin alone assigns or changes the class**, through `setPilotProductClassification` and no other path — never a seller, never a client SDK actor including an admin, never an automatic classifier.
+3. **Reclassifying an active product unpublishes it**, atomically, through the single canonical revocation path. *(Already implemented and tested at `pilotProductClassification.js`; restated here as contract.)*
+4. **A class change invalidates both the Decision and the Approval fingerprints** by construction: `pilotProductClass` is bound input #2 of the eleven-input `computeApprovalFingerprint`, and `pilotProductClassSnapshot` is a bound field of `decisionHash`. No new mechanism is required.
+5. **Unknown, legacy, aliased, mis-cased, whitespace-padded and hyphenated values fail closed.** Strict membership only: no trimming, no case folding, no display-label tolerance, no alias table, no default.
+6. **Existing four-class records remain valid**, unchanged, with no re-classification and no re-approval.
+7. **No migration is required.** §0.29 §F-bis records a read-only aggregate COUNT inventory at **2026-09-05T04:53:22Z** showing `products` collection-group 0, root 0, `productComplianceDecisions` 0, `productEvidenceLinks` 0, `complianceDocuments` 0 and every related collection 0, with a positive control proving the zeros real. **This revision relies solely on that already-recorded evidence and performed no production access of any kind.** As §F-bis itself states, the greenfield conclusion holds only for the instant measured and **must be re-verified immediately before any enforcement deployment**.
+8. **Worked example, frozen.** A product listed as *"handmade markalı göğüs tasması"* (a handmade branded chest harness) maps to **`collars_harnesses_leashes`**. It becomes **eligible for admin review** — never automatically published. It still requires seller relationship evidence appropriate to a handmade own-brand item (`brand_owner` or `manufacturer`), an explicit admin classification, an explicit admin approval, a valid generation binding, and live eligibility at every read. **"Eligible for review" is not "approved", and no product of any class publishes without an Admin approval.**
+
+**G. Implementation order — no runtime code is changed by this revision.** Each slice is separately reviewable and independently testable; later slices must not be pulled forward.
+
+| Slice | Layer | Change |
+|---|---|---|
+| **7C-1** | Functions | Add the six Group B identifiers to `PILOT_PRODUCT_CLASS`. **This is the only runtime constant that must change.** All six other modules that decide validity — `pilotProductClassification`, `pilotProductApproval`, `pilotProductApprovalReadiness`, `complianceEligibilityEvaluator`, `complianceProductRecompute` and `marketplaceProductVisibility` — route through `isValidPilotProductClass` and inherit the change with no edit. `marketplacePublicVisibility` and `submitMarketplaceProduct` reference only the field *name* (as a forbidden public field and a server-owned field respectively) and are likewise unaffected. |
+| **7C-2** | Functions tests | Update the two closed-set assertions in `complianceConstants.test.js` and the classification allowlist assertions in `pilotProductClassification.test.js`; add per-class acceptance and cross-vocabulary rejection cases. |
+| **7C-3** | **Rules — none** | `firestore.rules` **never enumerates class values**; it treats `pilotProductClass` only as a server-owned field a seller may not write or alter. **No Rules change is required by the taxonomy itself.** |
+| **7C-4** | Flutter — Admin | Extend `_kPilotProductClasses` and `_pilotClassLabel` in `pilot_product_approval_detail_page.dart`, plus the ten l10n keys across the four ARB files and the five generated files. |
+| **7C-5** | Flutter + Rules — Seller | **Required for the new classes to be reachable at all.** Six of the ten classes have no Seller category: bowls, beds, carriers, grooming tools and litter cannot be expressed by the nine-value Add Product allowlist. Extending it requires `add_product_page.dart`'s `categories` map, the mirrored `isKnownSafeProductCategory` in `firestore.rules`, and matching l10n. This is the one slice that does change Rules, and it changes only the descriptive category allowlist — never the class enum. |
+| **7C-6** | Tests | Plan-contract tests (§H) plus Rules regression for 7C-5. |
+
+**Nothing in 7C-1 alone publishes anything.** Adding an identifier makes a product *classifiable*; approval remains a separate, explicit, admin-only mutation.
+
+**H. §15 test items, sequential range 1077-1090 (14 items).**
+
+1077. `PILOT_PRODUCT_CLASS` contains exactly the ten frozen identifiers of §C, frozen and byte-exact;
+1078. the four Revision 31 §C identifiers are byte-identical to their originals and no existing classification is invalidated;
+1079. each of the six new identifiers is individually accepted by `setPilotProductClassification` and stored verbatim;
+1080. every `ALLOWED_PILOT_CATEGORIES` value (`food`, `treats`, `litter`, `toys`, `collars_leads`, `beds`, `bowls`, `grooming_tools`) is still rejected by `isValidPilotProductClass` — the two vocabularies remain non-interchangeable;
+1081. casing, spacing, separator and pluralization variants of every new identifier are rejected;
+1082. a Group B classification alone, with no accepted relationship-evidence decision, denies approval;
+1083. an accepted relationship-evidence decision alone, with no `pilotProductClass`, denies approval;
+1084. reclassifying an active product from Group A to Group B, or within Group B, unpublishes it atomically;
+1085. a class change invalidates a previously valid approval fingerprint and a previously valid `decisionHash`;
+1086. no Group B product publishes without an explicit `approvePilotProduct` call;
+1087. `category_compliance_evidence` remains rejected at intake for both groups;
+1088. an electrical or electronic toy is not classifiable into `non_electronic_toys` or any other value;
+1089. vitamins, supplements, medicines, medicated or prescription food, flea/tick products, biocides, pesticides, therapeutic-claim products and unpackaged foods remain denied classification into **any** of the ten values;
+1090. a product whose display category and `pilotProductClass` disagree is governed solely by `pilotProductClass`.
+
+**I. Exact pending disposition string, unchanged from Revision 30 and reaffirmed:** `SELLER/PRODUCT EVIDENCE ENFORCEMENT REQUIRED — IMPLEMENTATION, DEPLOYMENT AND COUNSEL PENDING`.
+
+**This revision is contract-only.** No Rules, Functions runtime, Flutter runtime, index, feature flag, configuration or localization file has been created or edited to produce it; no product has been classified, approved or published; no seller has been activated; no feature flag or canary has been enabled; and no production document or Storage object has been read or changed by it.
+
+---
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.
