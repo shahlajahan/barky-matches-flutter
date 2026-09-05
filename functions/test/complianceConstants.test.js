@@ -649,16 +649,31 @@ test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS contains sellerRelationshipSnap
 // Marketplace Revision 31 §C / Revision 35 §0.33 (Slice 7A) — the frozen
 // pilot classification vocabulary.
 
-test("PILOT_PRODUCT_CLASS is exactly the four frozen identifiers, frozen and byte-exact", () => {
+// Marketplace Revision 41 §0.39 (Slice 7C) supersedes the original
+// four-value cardinality — and only the cardinality. The four Group A
+// identifiers below are byte-identical to Revision 31 §C's originals.
+test("PILOT_PRODUCT_CLASS is exactly the ten frozen identifiers, frozen and byte-exact", () => {
   assert.deepEqual(Object.keys(PILOT_PRODUCT_CLASS).sort(), [
+    "BEDS_CARRIERS",
+    "COLLARS_HARNESSES_LEASHES",
+    "FEEDING_ACCESSORIES",
+    "GROOMING_ACCESSORIES_NON_CHEMICAL",
     "NON_BIOCIDAL_LITTER",
+    "NON_ELECTRONIC_TOYS",
     "NON_MEDICINAL_TREATS",
+    "PET_APPAREL",
     "SEALED_DRY_FOOD",
     "SEALED_WET_FOOD",
   ]);
   assert.deepEqual([...PILOT_PRODUCT_CLASS_VALUES].sort(), [
+    "beds_carriers",
+    "collars_harnesses_leashes",
+    "feeding_accessories",
+    "grooming_accessories_non_chemical",
     "non_biocidal_litter",
+    "non_electronic_toys",
     "non_medicinal_treats",
+    "pet_apparel",
     "sealed_dry_food",
     "sealed_wet_food",
   ]);
@@ -666,7 +681,38 @@ test("PILOT_PRODUCT_CLASS is exactly the four frozen identifiers, frozen and byt
   assert.equal(Object.isFrozen(PILOT_PRODUCT_CLASS_VALUES), true);
 });
 
-test("isValidPilotProductClass accepts exactly the four values and coerces nothing into validity", () => {
+test("the four Revision 31 §C identifiers survive byte-identically — no existing record is invalidated", () => {
+  assert.equal(PILOT_PRODUCT_CLASS.SEALED_DRY_FOOD, "sealed_dry_food");
+  assert.equal(PILOT_PRODUCT_CLASS.SEALED_WET_FOOD, "sealed_wet_food");
+  assert.equal(PILOT_PRODUCT_CLASS.NON_MEDICINAL_TREATS, "non_medicinal_treats");
+  assert.equal(PILOT_PRODUCT_CLASS.NON_BIOCIDAL_LITTER, "non_biocidal_litter");
+});
+
+test("the two Revision 41 §C groups partition the allowlist exactly", () => {
+  const {
+    PILOT_PRODUCT_CLASS_GROUP_A,
+    PILOT_PRODUCT_CLASS_GROUP_B,
+  } = require("../src/marketplace/compliance/complianceConstants");
+  assert.equal(PILOT_PRODUCT_CLASS_GROUP_A.length, 4);
+  assert.equal(PILOT_PRODUCT_CLASS_GROUP_B.length, 6);
+  assert.equal(Object.isFrozen(PILOT_PRODUCT_CLASS_GROUP_A), true);
+  assert.equal(Object.isFrozen(PILOT_PRODUCT_CLASS_GROUP_B), true);
+  // Disjoint, and together exactly the allowlist — no value belongs to both
+  // groups and none is missing from either.
+  for (const value of PILOT_PRODUCT_CLASS_GROUP_A) {
+    assert.equal(PILOT_PRODUCT_CLASS_GROUP_B.includes(value), false, value);
+  }
+  assert.deepEqual(
+    [...PILOT_PRODUCT_CLASS_GROUP_A, ...PILOT_PRODUCT_CLASS_GROUP_B].sort(),
+    [...PILOT_PRODUCT_CLASS_VALUES].sort()
+  );
+  // Group membership is descriptive only: every value is equally valid.
+  for (const value of [...PILOT_PRODUCT_CLASS_GROUP_A, ...PILOT_PRODUCT_CLASS_GROUP_B]) {
+    assert.equal(isValidPilotProductClass(value), true, value);
+  }
+});
+
+test("isValidPilotProductClass accepts exactly the ten values and coerces nothing into validity", () => {
   for (const value of PILOT_PRODUCT_CLASS_VALUES) {
     assert.equal(isValidPilotProductClass(value), true, value);
   }
@@ -684,6 +730,21 @@ test("isValidPilotProductClass accepts exactly the four values and coerces nothi
     // The families the pilot deliberately excludes.
     "medicinal_treats", "biocidal_litter", "vitamins", "supplements",
     "prescription_food", "flea_and_tick", "pesticide",
+    // Revision 41 §D — the families the accessory classes must never admit.
+    "medicine", "medicated_food", "shampoo", "cosmetics", "grooming_chemicals",
+    "electronic_toys", "electrical_device", "battery", "charger",
+    "health_monitor", "human_apparel", "unknown", "ambiguous",
+    // Casing/separator/pluralization variants of the six NEW identifiers.
+    "PET_APPAREL", "Pet_Apparel", "pet-apparel", "petapparel", "pet_apparels",
+    " pet_apparel", "pet_apparel ", "apparel",
+    "COLLARS_HARNESSES_LEASHES", "collars-harnesses-leashes", "collars_harness_leash",
+    "collar", "harness", "leash", "collars_leashes",
+    "FEEDING_ACCESSORIES", "feeding-accessories", "feeding_accessory", "bowl",
+    "BEDS_CARRIERS", "beds-carriers", "bed_carrier", "beds", "carriers",
+    "NON_ELECTRONIC_TOYS", "non-electronic-toys", "non_electronic_toy",
+    "electronic_toy", "toys",
+    "GROOMING_ACCESSORIES_NON_CHEMICAL", "grooming-accessories-non-chemical",
+    "grooming_accessories", "grooming_accessories_chemical",
   ];
   for (const value of rejected) {
     assert.equal(isValidPilotProductClass(value), false, String(value));

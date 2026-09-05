@@ -10857,4 +10857,46 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get pilotAdminApproveSucceeded => 'محصول تایید شد.';
+
+  @override
+  String get pilotAdminClassPetApparel => 'پوشاک حیوان خانگی';
+
+  @override
+  String get pilotAdminClassCollarsHarnessesLeashes => 'قلاده، هارنس و بند';
+
+  @override
+  String get pilotAdminClassFeedingAccessories => 'لوازم غذاخوری';
+
+  @override
+  String get pilotAdminClassBedsCarriers => 'تشک و باکس حمل';
+
+  @override
+  String get pilotAdminClassNonElectronicToys => 'اسباب‌بازی غیرالکترونیکی';
+
+  @override
+  String get pilotAdminClassGroomingAccessoriesNonChemical => 'لوازم آرایشی غیرشیمیایی';
+
+  @override
+  String get categoryLitter => 'خاک بستر';
+
+  @override
+  String get subCategoryCatLitter => 'خاک گربه';
+
+  @override
+  String get subCategoryHarness => 'هارنس';
+
+  @override
+  String get subCategoryBowl => 'ظرف غذا';
+
+  @override
+  String get subCategoryBed => 'تشک';
+
+  @override
+  String get subCategoryCarrier => 'باکس حمل';
+
+  @override
+  String get subCategoryGroomingTool => 'ابزار آرایش';
+
+  @override
+  String get healthProductsNotSupported => 'ویتامین‌ها، مکمل‌ها و داروهای دامپزشکی در مارکت‌پلیس پشتیبانی نمی‌شوند و قابل ثبت نیستند.';
 }

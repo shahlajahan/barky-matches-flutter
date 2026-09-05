@@ -10859,4 +10859,46 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get pilotAdminApproveSucceeded => 'Товар одобрен.';
+
+  @override
+  String get pilotAdminClassPetApparel => 'Одежда для питомцев';
+
+  @override
+  String get pilotAdminClassCollarsHarnessesLeashes => 'Ошейники, шлейки и поводки';
+
+  @override
+  String get pilotAdminClassFeedingAccessories => 'Аксессуары для кормления';
+
+  @override
+  String get pilotAdminClassBedsCarriers => 'Лежаки и переноски';
+
+  @override
+  String get pilotAdminClassNonElectronicToys => 'Неэлектронные игрушки';
+
+  @override
+  String get pilotAdminClassGroomingAccessoriesNonChemical => 'Нехимические аксессуары для ухода';
+
+  @override
+  String get categoryLitter => 'Наполнитель';
+
+  @override
+  String get subCategoryCatLitter => 'Кошачий наполнитель';
+
+  @override
+  String get subCategoryHarness => 'Шлейка';
+
+  @override
+  String get subCategoryBowl => 'Миска';
+
+  @override
+  String get subCategoryBed => 'Лежак';
+
+  @override
+  String get subCategoryCarrier => 'Переноска';
+
+  @override
+  String get subCategoryGroomingTool => 'Инструмент для ухода';
+
+  @override
+  String get healthProductsNotSupported => 'Витамины, добавки и ветеринарные препараты не поддерживаются на Маркетплейсе и не могут быть размещены.';
 }

@@ -10857,4 +10857,46 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get pilotAdminApproveSucceeded => 'Ürün onaylandı.';
+
+  @override
+  String get pilotAdminClassPetApparel => 'Evcil hayvan kıyafeti';
+
+  @override
+  String get pilotAdminClassCollarsHarnessesLeashes => 'Tasma, göğüs tasması ve kayış';
+
+  @override
+  String get pilotAdminClassFeedingAccessories => 'Mama ve su aksesuarları';
+
+  @override
+  String get pilotAdminClassBedsCarriers => 'Yatak ve taşıma çantası';
+
+  @override
+  String get pilotAdminClassNonElectronicToys => 'Elektronik olmayan oyuncaklar';
+
+  @override
+  String get pilotAdminClassGroomingAccessoriesNonChemical => 'Kimyasal içermeyen bakım aksesuarları';
+
+  @override
+  String get categoryLitter => 'Kum';
+
+  @override
+  String get subCategoryCatLitter => 'Kedi Kumu';
+
+  @override
+  String get subCategoryHarness => 'Göğüs Tasması';
+
+  @override
+  String get subCategoryBowl => 'Mama Kabı';
+
+  @override
+  String get subCategoryBed => 'Yatak';
+
+  @override
+  String get subCategoryCarrier => 'Taşıma Çantası';
+
+  @override
+  String get subCategoryGroomingTool => 'Bakım Aleti';
+
+  @override
+  String get healthProductsNotSupported => 'Vitaminler, takviyeler ve veteriner ilaçları Marketplace\'te desteklenmez ve listelenemez.';
 }

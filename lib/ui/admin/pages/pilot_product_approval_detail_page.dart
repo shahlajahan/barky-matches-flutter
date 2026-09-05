@@ -49,16 +49,30 @@ const List<String> _kAllowedPilotCategories = [
 const String _kReasonAdminManual = 'pilot_revoked_admin_manual';
 const String _kReasonContentChanged = 'pilot_revoked_content_changed';
 
-// Marketplace Revision 35 (Slice 7A) — the closed four-value pilot class
-// set, kept byte-identical to `complianceConstants.js`'s
-// `PILOT_PRODUCT_CLASS_VALUES`. This list only decides what the admin is
-// OFFERED; the authoritative allowlist is the server's, which rejects
-// anything outside it regardless of what this client sends.
+// Marketplace Revision 35 (Slice 7A) / Revision 41 §0.39 (Slice 7C) — the
+// closed TEN-value pilot class set, kept byte-identical to
+// `complianceConstants.js`'s `PILOT_PRODUCT_CLASS_VALUES`, in the same
+// order: the four Group A consumable classes first, then the six Group B
+// ordinary-accessory classes.
+//
+// This list only decides what the admin is OFFERED. It carries no authority
+// whatsoever: `setPilotProductClassification` re-validates the requested
+// value against the server's own allowlist and rejects anything outside it,
+// regardless of what this client sends. Adding a value here can never make
+// an unapproved class publishable.
 const List<String> _kPilotProductClasses = [
+  // Group A — consumable / compliance-sensitive.
   'sealed_dry_food',
   'sealed_wet_food',
   'non_medicinal_treats',
   'non_biocidal_litter',
+  // Group B — ordinary low-risk accessories.
+  'pet_apparel',
+  'collars_harnesses_leashes',
+  'feeding_accessories',
+  'beds_carriers',
+  'non_electronic_toys',
+  'grooming_accessories_non_chemical',
 ];
 
 class PilotProductApprovalDetailPage extends StatefulWidget {
@@ -451,6 +465,18 @@ class _PilotProductApprovalDetailPageState
         return l10n.pilotAdminClassNonMedicinalTreats;
       case 'non_biocidal_litter':
         return l10n.pilotAdminClassNonBiocidalLitter;
+      case 'pet_apparel':
+        return l10n.pilotAdminClassPetApparel;
+      case 'collars_harnesses_leashes':
+        return l10n.pilotAdminClassCollarsHarnessesLeashes;
+      case 'feeding_accessories':
+        return l10n.pilotAdminClassFeedingAccessories;
+      case 'beds_carriers':
+        return l10n.pilotAdminClassBedsCarriers;
+      case 'non_electronic_toys':
+        return l10n.pilotAdminClassNonElectronicToys;
+      case 'grooming_accessories_non_chemical':
+        return l10n.pilotAdminClassGroomingAccessoriesNonChemical;
       default:
         return value;
     }

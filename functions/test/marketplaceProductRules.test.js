@@ -201,7 +201,12 @@ function safeProduct(overrides = {}) {
     name: "Test Product",
     price: 10,
     stock: 5,
-    category: "Health > Vitamins",
+    // Marketplace Revision 41 §0.39 (Slice 7C): the base fixture previously
+    // used "Health > Vitamins", which is no longer a writable category —
+    // vitamins are permanently outside the pilot, so the whole Health
+    // category was removed from the allowlist. Test 9c below asserts that
+    // removal directly; every other test here only needs SOME valid category.
+    category: "Food > Dry Food",
     isActive: false,
     moderationStatus: "pending_review",
     // Marketplace P1-A media-cap prerequisite (docs/plans/marketplace_p1a_
@@ -693,6 +698,83 @@ rulesTest(
         doc(db, "businesses/biz-1/products/p1"),
         safeProduct({ category: "health>medicine" })
       )
+    );
+  }
+);
+
+// Marketplace Revision 41 §0.39 (Slice 7C) — the merchandising category
+// allowlist. Direct client CREATE is denied outright by Revision 34, so the
+// allowlist is exercised on the UPDATE path, where it still governs what a
+// seller may write. Asserting it on create would pass vacuously.
+async function seedProductWithCategory(category) {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), "businesses/biz-1/products/p1"),
+      safeProduct({ category })
+    );
+  });
+}
+
+rulesTest(
+  "9c. Revision 41 §0.39 — the removed Health/Vitamins categories are no longer writable",
+  async () => {
+    await resetSeed();
+    await seedProductWithCategory("Food > Dry Food");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // "Health > Vitamins" WAS an accepted category before this slice. It is
+    // removed because vitamins and supplements can never be classified,
+    // approved or published, so the write only produced doomed listings.
+    for (const category of [
+      "Health > Vitamins",
+      "Health > Supplements",
+      "Health > Medicine",
+    ]) {
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/p1"), { category })
+      );
+    }
+  }
+);
+
+rulesTest(
+  "9d. Revision 41 §0.39 — the six new accessory/litter categories are writable",
+  async () => {
+    // These exist so the Group B classes and the litter class are
+    // describable at all. Being writable confers NO classification and no
+    // publication — it is merchandising text only.
+    const categories = [
+      "Litter > Cat Litter",
+      "Accessories > Harness",
+      "Accessories > Bowl",
+      "Accessories > Bed",
+      "Accessories > Carrier",
+      "Accessories > Grooming Tool",
+    ];
+    for (const category of categories) {
+      await resetSeed();
+      await seedProductWithCategory("Food > Dry Food");
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        updateDoc(doc(db, "businesses/biz-1/products/p1"), { category })
+      );
+    }
+  }
+);
+
+rulesTest(
+  "9e. Revision 41 §0.39 — a writable category still confers no classification",
+  async () => {
+    await resetSeed();
+    await seedProductWithCategory("Food > Dry Food");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // Describing the product as a harness must not let the seller also
+    // claim the class that describes one.
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/p1"), {
+        category: "Accessories > Harness",
+        pilotProductClass: "collars_harnesses_leashes",
+      })
     );
   }
 );

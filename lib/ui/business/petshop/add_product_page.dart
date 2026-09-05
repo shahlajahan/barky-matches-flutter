@@ -335,10 +335,39 @@ class _AddProductPageState extends State<AddProductPage> {
   // known-safe allowlist (mirrored server-side in firestore.rules'
   // isKnownSafeProductCategory) rather than a blacklist, so a renamed
   // or re-added "medicine"-style value cannot slip back in silently.
+  //
+  // Marketplace Revision 41 §0.39 (Slice 7C): the whole "Health" category
+  // is removed. "Vitamins" was its only remaining subcategory, and
+  // Revision 41 §D keeps vitamins and supplements permanently outside the
+  // pilot — offering a category that can never be classified, approved or
+  // published only invites rejected listings. `_healthProductsNotice`
+  // below explains the removal, exactly as the F-07 notice already
+  // explains Medicine's.
+  //
+  // The six new subcategories exist so the six Group B accessory classes
+  // and `non_biocidal_litter` are reachable at all: before this slice a
+  // seller could not describe a bowl, bed, carrier, harness, grooming
+  // tool or litter product in the first place.
+  //
+  // THIS IS MERCHANDISING METADATA ONLY. Revision 41 §F1: the seller's
+  // category is descriptive, is never authoritative for anything, and can
+  // never assign, imply or authorize `pilotProductClass`. There is
+  // deliberately no mapping from any entry below to any class identifier
+  // — a bowl listed here is still unclassified until an admin classifies
+  // it, and still unpublished until an admin approves it.
   final Map<String, List<String>> categories = {
     "Food": ["Dry Food", "Wet Food", "Treats"],
-    "Accessories": ["Collar", "Leash", "Clothing"],
-    "Health": ["Vitamins"],
+    "Litter": ["Cat Litter"],
+    "Accessories": [
+      "Collar",
+      "Harness",
+      "Leash",
+      "Clothing",
+      "Bowl",
+      "Bed",
+      "Carrier",
+      "Grooming Tool",
+    ],
     "Toys": ["Chew Toy", "Interactive"],
   };
 
@@ -462,8 +491,8 @@ class _AddProductPageState extends State<AddProductPage> {
         return l10n.categoryFood;
       case 'Accessories':
         return l10n.categoryAccessories;
-      case 'Health':
-        return l10n.categoryHealth;
+      case 'Litter':
+        return l10n.categoryLitter;
       case 'Toys':
         return l10n.categoryToys;
       default:
@@ -493,6 +522,18 @@ class _AddProductPageState extends State<AddProductPage> {
         return l10n.subCategoryChewToy;
       case 'Interactive':
         return l10n.subCategoryInteractive;
+      case 'Cat Litter':
+        return l10n.subCategoryCatLitter;
+      case 'Harness':
+        return l10n.subCategoryHarness;
+      case 'Bowl':
+        return l10n.subCategoryBowl;
+      case 'Bed':
+        return l10n.subCategoryBed;
+      case 'Carrier':
+        return l10n.subCategoryCarrier;
+      case 'Grooming Tool':
+        return l10n.subCategoryGroomingTool;
       default:
         return value;
     }
@@ -500,11 +541,18 @@ class _AddProductPageState extends State<AddProductPage> {
 
   /// Marketplace product compliance audit, P0 remediation (finding F-07):
   /// veterinary medicinal products are not a supported category (see the
-  /// `categories` map above). Shown under the Health category so a seller
-  /// understands why "Medicine" is no longer selectable, rather than
-  /// silently disappearing.
+  /// `categories` map above). Originally shown only under the Health
+  /// category so a seller understood why "Medicine" was no longer
+  /// selectable, rather than it silently disappearing.
+  ///
+  /// Marketplace Revision 41 §0.39 (Slice 7C): the Health category itself is
+  /// now gone, because vitamins and supplements are permanently outside the
+  /// pilot (§D) exactly as veterinary medicines already were. The category
+  /// gate is therefore removed and the notice is shown unconditionally — the
+  /// same "explain, do not silently disappear" principle F-07 established,
+  /// applied to a category that no longer exists to hang it on. The message
+  /// now names vitamins, supplements and veterinary medicines together.
   Widget _veterinaryMedicineNotice(AppLocalizations l10n) {
-    if (_mainCategory != 'Health') return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Container(
@@ -521,7 +569,7 @@ class _AddProductPageState extends State<AddProductPage> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                l10n.veterinaryProductsNotSupported,
+                l10n.healthProductsNotSupported,
                 style: const TextStyle(
                   color: Color(0xFFE65100),
                   fontSize: 12.5,

@@ -2143,6 +2143,43 @@ The six Group B identifiers are new. The four Group A identifiers are **byte-ide
 
 ---
 
+### 0.40 Revision 42 change log — Pilot taxonomy runtime implementation (Slice 7C, 2026-09-05)
+
+**Status.** Revision 41 §0.39 froze the ten-class taxonomy as contract only. This revision records that the runtime now implements it. It amends by addition; no prior revision text is altered, and **nothing is deployed** — Functions, Rules, indexes, Hosting and client builds are all unchanged in production. The new classes are **not live in Production**.
+
+**A. Implemented, and proven.**
+
+| Component | State |
+|---|---|
+| `PILOT_PRODUCT_CLASS` (`complianceConstants.js`) | ten values; the four Revision 31 §C identifiers byte-identical |
+| `PILOT_PRODUCT_CLASS_GROUP_A` / `_GROUP_B` | added, frozen, disjoint, partitioning the allowlist |
+| `setPilotProductClassification` | accepts all ten, rejects everything else — unchanged code, inherited through `isValidPilotProductClass` |
+| `evaluateLiveProductEligibility`, `assessProductVisibility`, `approvePilotProduct`, `pilotProductApprovalReadiness`, `complianceProductRecompute` | inherit the expansion with **no edit** |
+| Admin classification UI | offers all ten, each through its own localized label; the client list carries no authority |
+| Seller category allowlist (Flutter + Rules mirror) | Health/Vitamins removed; `Litter > Cat Litter`, `Accessories > Harness/Bowl/Bed/Carrier/Grooming Tool` added |
+| Localization | 14 keys × en/tr/fa/ru, regenerated via `flutter gen-l10n` |
+
+**B. Proven assertions (Revision 41 §H items 1077-1090).** All ten values accepted by the trusted server path and stored verbatim; every unknown, legacy, mis-cased, hyphenated, pluralized, wrong-typed and excluded value rejected; the eight `ALLOWED_PILOT_CATEGORIES` values still rejected as classes; a seller can neither submit nor imply a class; the seller category assigns nothing; Group A retains its exact prior evidence behaviour; every Group B class still requires relationship evidence and a positive decision; Group B needs no food, chemical or pharmaceutical document; `category_compliance_evidence` remains accepted for no relationship; classification alone neither approves nor publishes; reclassification invalidates the approval fingerprint and unpublishes atomically; unknown and legacy values fail closed in the canonical predicate; discovery serves only currently eligible products.
+
+**C. The Pharos rehearsal product.** *"handmade markalı göğüs tasması"* classifies as `collars_harnesses_leashes`, is **not** published by that act, is refused approval while no decision exists, and becomes discoverable only after relationship evidence, a positive decision and an explicit `approvePilotProduct`. Reclassifying it afterwards unpublishes it and invalidates the binding.
+
+**D. Rules and indexes.** `firestore.rules` still **never enumerates any class value** — the taxonomy itself required no Rules change. The one Rules edit is to `isKnownSafeProductCategory`, the seller's merchandising allowlist, which is authorization for nothing. Storage Rules are untouched. **No index was added:** no query filters or orders by `pilotProductClass`.
+
+**E. Not implemented, unchanged, and still open.**
+
+1. **The checkout architecture blocker (§0.37 E) stands.** No purchase path consults `assessProductVisibility` or `evaluateLiveProductEligibility`; Slice 7C neither closed nor widened it, and a regression test now pins it so it cannot be forgotten. A product that loses eligibility after discovery is refused by the canonical predicate but is **not** refused by order creation.
+2. **The Flutter Discovery migration is not done.** Ten customer surfaces still read products directly rather than through the callables.
+3. **Direct client `orders` creation remains open**, as previously reported.
+4. **No semantic product inspection exists or is contracted.** A therapeutic collar, an electronic toy, a chemical grooming product, or food bundled with a bowl cannot be detected by the runtime. These are admin determinations under Revision 41 §D; the deterministically representable boundary — the mandatory no-prohibited-claim attestation — is enforced and tested for every class.
+5. **Nothing is deployed and no flag is enabled.** Marketplace listing, batch hydration and product submission all remain behind their own disabled-by-default flags.
+
+**F. Greenfield re-verification is still required before any enforcement deployment**, exactly as §0.29 §F-bis states. No production data was read to produce this revision.
+
+**G. Exact pending disposition string, unchanged and reaffirmed:** `SELLER/PRODUCT EVIDENCE ENFORCEMENT REQUIRED — IMPLEMENTATION, DEPLOYMENT AND COUNSEL PENDING`.
+
+---
+
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.

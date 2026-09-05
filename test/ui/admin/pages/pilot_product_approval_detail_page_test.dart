@@ -508,7 +508,7 @@ void main() {
     },
   );
 
-  testWidgets('REV35-UI-3. exactly the four frozen classes are offered, and an '
+  testWidgets('REV35-UI-3. exactly the ten frozen classes are offered, and an '
       'unrecognized stored value renders as "not classified"', (tester) async {
     _useTallViewport(tester);
     final db = await firestoreWithProduct({
@@ -541,13 +541,34 @@ void main() {
 
     await tester.tap(find.byKey(const Key('pilotClassificationDropdown')));
     await tester.pumpAndSettle();
+    // Marketplace Revision 41 §0.39 (Slice 7C) — all TEN classes are offered,
+    // each through its own localized label. The four Group A labels are
+    // unchanged; the six Group B labels are new.
     for (final label in [
       l10n.pilotAdminClassSealedDryFood,
       l10n.pilotAdminClassSealedWetFood,
       l10n.pilotAdminClassNonMedicinalTreats,
       l10n.pilotAdminClassNonBiocidalLitter,
+      l10n.pilotAdminClassPetApparel,
+      l10n.pilotAdminClassCollarsHarnessesLeashes,
+      l10n.pilotAdminClassFeedingAccessories,
+      l10n.pilotAdminClassBedsCarriers,
+      l10n.pilotAdminClassNonElectronicToys,
+      l10n.pilotAdminClassGroomingAccessoriesNonChemical,
     ]) {
       expect(find.text(label), findsWidgets, reason: 'missing $label');
+    }
+    // Every label is a real localization, never a raw canonical identifier
+    // leaking into the admin's menu.
+    for (final raw in [
+      'pet_apparel',
+      'collars_harnesses_leashes',
+      'feeding_accessories',
+      'beds_carriers',
+      'non_electronic_toys',
+      'grooming_accessories_non_chemical',
+    ]) {
+      expect(find.text(raw), findsNothing, reason: 'raw identifier shown: \$raw');
     }
     // No approval category ever leaks into the classification menu.
     expect(find.text(l10n.pilotAdminCategoryToys), findsNothing);

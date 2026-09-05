@@ -1632,11 +1632,30 @@ match /dogs/{dogId}/visits/{visitId} {
     ];
   }
 
+  // Marketplace Revision 41 §0.39 (Slice 7C) — the seller's MERCHANDISING
+  // category allowlist, mirrored from add_product_page.dart's `categories`
+  // map. It is a known-safe allowlist rather than a blacklist, so a renamed
+  // or re-added "medicine"-style value cannot slip back in silently.
+  //
+  // The Health category and its Vitamins subcategory are REMOVED:
+  // vitamins and supplements are permanently
+  // outside the pilot (Revision 41 §D) and could never be classified,
+  // approved or published, so accepting the write only produced listings
+  // destined for rejection. Six subcategories are added so the six Group B
+  // accessory classes and the non-biocidal litter class are describable at
+  // all.
+  //
+  // This decides only what a seller may WRITE as descriptive text. It is
+  // never authorization, and it never assigns or implies `pilotProductClass`
+  // — that field stays server-owned and admin-written, enforced separately
+  // below and unchanged by this list.
   function isKnownSafeProductCategory(category) {
     return category in [
       'Food > Dry Food', 'Food > Wet Food', 'Food > Treats',
-      'Accessories > Collar', 'Accessories > Leash', 'Accessories > Clothing',
-      'Health > Vitamins',
+      'Litter > Cat Litter',
+      'Accessories > Collar', 'Accessories > Harness', 'Accessories > Leash',
+      'Accessories > Clothing', 'Accessories > Bowl', 'Accessories > Bed',
+      'Accessories > Carrier', 'Accessories > Grooming Tool',
       'Toys > Chew Toy', 'Toys > Interactive'
     ];
   }

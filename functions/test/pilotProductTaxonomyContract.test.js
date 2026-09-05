@@ -372,12 +372,18 @@ test("firestore.rules never enumerates class VALUES, so the taxonomy needs no Ru
   assert.match(REV41, /`firestore\.rules` \*\*never enumerates class values\*\*/);
 });
 
-test("the Seller category allowlist is mirrored between Flutter and Rules, and is the real reachability gate", () => {
+test("the Seller category allowlist is mirrored between Flutter and Rules", () => {
+  // Slice 7C extended the merchandising allowlist so every non-excluded
+  // class is describable. The Flutter map and the Rules mirror must agree
+  // exactly, or a seller could compose a category the server then rejects.
   const addProduct = src("lib/ui/business/petshop/add_product_page.dart");
   const sellerCategories = [
     "Food > Dry Food", "Food > Wet Food", "Food > Treats",
-    "Accessories > Collar", "Accessories > Leash", "Accessories > Clothing",
-    "Health > Vitamins", "Toys > Chew Toy", "Toys > Interactive",
+    "Litter > Cat Litter",
+    "Accessories > Collar", "Accessories > Harness", "Accessories > Leash",
+    "Accessories > Clothing", "Accessories > Bowl", "Accessories > Bed",
+    "Accessories > Carrier", "Accessories > Grooming Tool",
+    "Toys > Chew Toy", "Toys > Interactive",
   ];
   for (const category of sellerCategories) {
     assert.ok(
@@ -385,38 +391,95 @@ test("the Seller category allowlist is mirrored between Flutter and Rules, and i
       `Rules must mirror the seller category ${category}`
     );
   }
-  // The Flutter side stores them split into main/sub.
-  assert.match(addProduct, /"Food": \["Dry Food", "Wet Food", "Treats"\]/);
-  assert.match(addProduct, /"Accessories": \["Collar", "Leash", "Clothing"\]/);
-  // Which is exactly why slice 7C-5 exists.
-  assert.match(REV41, /Required for the new classes to be reachable at all/);
+  // Derive the Flutter map mechanically and compare it to the Rules list,
+  // rather than asserting a hand-copied literal that could drift.
+  const mapBody = addProduct.slice(
+    addProduct.indexOf("final Map<String, List<String>> categories = {"),
+    addProduct.indexOf("// Delegates to the top-level sellerRelationshipValues")
+  );
+  const flutterPairs = [];
+  for (const m of mapBody.matchAll(/"([^"]+)":\s*\[([^\]]*)\]/g)) {
+    for (const sub of m[2].matchAll(/"([^"]+)"/g)) {
+      flutterPairs.push(`${m[1]} > ${sub[1]}`);
+    }
+  }
+  assert.deepEqual(
+    flutterPairs.sort(),
+    [...sellerCategories].sort(),
+    "the Flutter category map and the Rules mirror must be identical"
+  );
+});
+
+test("Vitamins is removed from the seller submission path entirely", () => {
+  const addProduct = src("lib/ui/business/petshop/add_product_page.dart");
+  // Rules must no longer accept the category at all, so there is no write
+  // path for a product that could never be classified or published.
+  assert.ok(
+    !rulesSource.includes("'Health > Vitamins'"),
+    "Rules must not accept the Vitamins category"
+  );
+  assert.ok(
+    !rulesSource.includes("Health >"),
+    "no Health subcategory may remain writable"
+  );
+  // And it must not be selectable in the UI.
+  const mapBody = addProduct.slice(
+    addProduct.indexOf("final Map<String, List<String>> categories = {"),
+    addProduct.indexOf("// Delegates to the top-level sellerRelationshipValues")
+  );
+  assert.ok(!mapBody.includes("Vitamins"), "Vitamins must not be offered");
+  assert.ok(!mapBody.includes("Health"), "the Health category must not be offered");
+  // The seller is told why, rather than the category silently vanishing.
+  assert.match(addProduct, /l10n\.healthProductsNotSupported/);
+  // Revision 41 §D keeps vitamins permanently excluded.
+  assert.ok(REV41.includes("vitamins"));
 });
 
 // =====================================================================
 // PRE-IMPLEMENTATION state — the exact target for slice 7C-1
 // =====================================================================
 
-test("PRE-IMPLEMENTATION: the runtime still carries only the four Revision 31 §C values", () => {
-  // Revision 41 changes no runtime code. This assertion records the gap the
-  // implementation slice must close; it is expected to be updated by 7C-1,
-  // together with §15 item 1077.
-  assert.deepEqual([...PILOT_PRODUCT_CLASS_VALUES].sort(), [...GROUP_A].sort());
+// Slice 7C implemented the contract above. These two assertions replace the
+// PRE-IMPLEMENTATION pair Revision 41 §H item 1077 said 7C-1 must update:
+// the runtime now carries all ten values, and the contract and the code are
+// checked against each other rather than against a recorded gap.
+test("IMPLEMENTED: the runtime allowlist is exactly the ten values the contract freezes", () => {
+  assert.deepEqual([...PILOT_PRODUCT_CLASS_VALUES].sort(), [...ALL_CLASSES].sort());
   assert.equal(Object.isFrozen(PILOT_PRODUCT_CLASS), true);
-  for (const value of GROUP_A) {
+  for (const value of ALL_CLASSES) {
     assert.equal(isValidPilotProductClass(value), true, value);
   }
 });
 
-test("PRE-IMPLEMENTATION: the six new identifiers are contract-only and not yet accepted", () => {
-  for (const value of GROUP_B) {
+test("IMPLEMENTED: the four original identifiers are unchanged, so no recorded classification is invalidated", () => {
+  for (const value of GROUP_A) {
     assert.equal(
-      isValidPilotProductClass(value),
-      false,
-      `${value} is frozen in the contract but must NOT yet be accepted by the runtime`
+      PILOT_PRODUCT_CLASS_VALUES.includes(value),
+      true,
+      `${value} must survive the expansion byte-identically`
     );
   }
-  // Meaning no Group B product can be classified, approved or published today.
-  assert.match(REV41, /\*\*7C-1\*\*/);
+  assert.match(REV41, /byte-identical to Revision 31 §C's originals/);
+});
+
+test("IMPLEMENTED: the six accessory identifiers are accepted, and no near-miss variant is", () => {
+  for (const value of GROUP_B) {
+    assert.equal(isValidPilotProductClass(value), true, value);
+    // A class becoming valid must not drag its variants in with it.
+    for (const variant of [
+      value.toUpperCase(),
+      value.replace(/_/g, "-"),
+      ` ${value}`,
+      `${value} `,
+      `${value}s`,
+    ]) {
+      assert.equal(
+        isValidPilotProductClass(variant),
+        false,
+        `${variant} must remain invalid`
+      );
+    }
+  }
 });
 
 // =====================================================================

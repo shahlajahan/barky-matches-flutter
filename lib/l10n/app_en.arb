@@ -4753,4 +4753,18 @@
 ,"pilotAdminReadinessDecisionValidUntil": "Compliance valid until {date}"
 ,"@pilotAdminReadinessDecisionValidUntil": {"placeholders": {"date": {"type": "String"}}}
 ,"pilotAdminApproveSucceeded": "Product approved."
+,"pilotAdminClassPetApparel": "Pet apparel"
+,"pilotAdminClassCollarsHarnessesLeashes": "Collars, harnesses and leashes"
+,"pilotAdminClassFeedingAccessories": "Feeding accessories"
+,"pilotAdminClassBedsCarriers": "Beds and carriers"
+,"pilotAdminClassNonElectronicToys": "Non-electronic toys"
+,"pilotAdminClassGroomingAccessoriesNonChemical": "Non-chemical grooming accessories"
+,"categoryLitter": "Litter"
+,"subCategoryCatLitter": "Cat Litter"
+,"subCategoryHarness": "Harness"
+,"subCategoryBowl": "Bowl"
+,"subCategoryBed": "Bed"
+,"subCategoryCarrier": "Carrier"
+,"subCategoryGroomingTool": "Grooming Tool"
+,"healthProductsNotSupported": "Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed."
 }

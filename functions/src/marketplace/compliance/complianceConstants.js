@@ -409,23 +409,69 @@ const COMPLIANCE_DOCUMENT_TYPE = Object.freeze({
   CATEGORY_COMPLIANCE_EVIDENCE: "category_compliance_evidence",
 });
 
-// Marketplace Revision 31 §C / Revision 35 (Slice 7A) — the authoritative
-// pilot classification, frozen.
+// Marketplace Revision 31 §C / Revision 35 (Slice 7A) / Revision 41 §0.39
+// (Slice 7C) — the authoritative pilot classification, frozen.
 //
-// Exactly these four identifiers and no others. There is no alias table, no
-// case folding, no default and no inference: a value outside this set —
-// missing, null, wrong-typed, legacy, or any excluded category such as a
-// medicine, vitamin, supplement, medicated or prescription food, flea/tick
-// product, biocide or pesticide — fails closed and denies approval and
-// publication. Written ONLY by `setPilotProductClassification` (Revision 35
-// §C); never by a seller, never by a client SDK actor including an admin,
-// and never by an automatic classifier.
+// Exactly these TEN identifiers and no others. Revision 41 §C supersedes the
+// original four-value cardinality — and ONLY the cardinality. The four
+// Group A identifiers below are byte-identical to Revision 31 §C's
+// originals, so every classification already recorded stays valid and no
+// migration is required. The six Group B identifiers restore the ordinary
+// low-risk accessories that §21.12's own frozen pilot allowlist already
+// admitted ("collars/leads; bowls; beds; ordinary toys; clothing; carriers;
+// brushes/combs and simple grooming tools") but for which no identifier had
+// ever been minted, leaving them unclassifiable and therefore unpublishable.
+//
+// The architecture is unchanged and governs all ten values identically:
+// there is no alias table, no case folding, no default and no inference. A
+// value outside this set — missing, null, wrong-typed, legacy, or any
+// excluded category such as a medicine, vitamin, supplement, medicated or
+// prescription food, flea/tick product, biocide, pesticide, chemical
+// grooming product, or electrical/electronic device — fails closed and
+// denies approval and publication. Written ONLY by
+// `setPilotProductClassification` (Revision 35 §C); never by a seller, never
+// by a client SDK actor including an admin, and never by an automatic
+// classifier, and never derived from the seller's merchandising category.
+//
+// This constant is the ONE canonical allowlist. Every module that decides
+// class validity does so through `isValidPilotProductClass` below; the Admin
+// picker's own list is usability only and carries no authority.
 const PILOT_PRODUCT_CLASS = Object.freeze({
+  // Group A — consumable / compliance-sensitive (Revision 31 §C originals).
   SEALED_DRY_FOOD: "sealed_dry_food",
   SEALED_WET_FOOD: "sealed_wet_food",
   NON_MEDICINAL_TREATS: "non_medicinal_treats",
   NON_BIOCIDAL_LITTER: "non_biocidal_litter",
+  // Group B — ordinary low-risk accessories (Revision 41 §C).
+  PET_APPAREL: "pet_apparel",
+  COLLARS_HARNESSES_LEASHES: "collars_harnesses_leashes",
+  FEEDING_ACCESSORIES: "feeding_accessories",
+  BEDS_CARRIERS: "beds_carriers",
+  NON_ELECTRONIC_TOYS: "non_electronic_toys",
+  GROOMING_ACCESSORIES_NON_CHEMICAL: "grooming_accessories_non_chemical",
 });
+
+// Revision 41 §C — the two groups, exposed so evidence and policy code can
+// distinguish them without re-deriving the split from string prefixes.
+// Group membership carries NO authority of its own: it never relaxes any
+// control, and a Group B product is subject to exactly the same relationship
+// evidence, admin classification, admin approval, generation binding,
+// fingerprint invalidation and live-eligibility gates as a Group A product.
+const PILOT_PRODUCT_CLASS_GROUP_A = Object.freeze([
+  PILOT_PRODUCT_CLASS.SEALED_DRY_FOOD,
+  PILOT_PRODUCT_CLASS.SEALED_WET_FOOD,
+  PILOT_PRODUCT_CLASS.NON_MEDICINAL_TREATS,
+  PILOT_PRODUCT_CLASS.NON_BIOCIDAL_LITTER,
+]);
+
+const PILOT_PRODUCT_CLASS_GROUP_B = Object.freeze([
+  PILOT_PRODUCT_CLASS.PET_APPAREL,
+  PILOT_PRODUCT_CLASS.COLLARS_HARNESSES_LEASHES,
+  PILOT_PRODUCT_CLASS.FEEDING_ACCESSORIES,
+  PILOT_PRODUCT_CLASS.BEDS_CARRIERS,
+  PILOT_PRODUCT_CLASS.NON_ELECTRONIC_TOYS,
+  PILOT_PRODUCT_CLASS.GROOMING_ACCESSORIES_NON_CHEMICAL,
+]);
 
 const PILOT_PRODUCT_CLASS_VALUES = Object.freeze(Object.values(PILOT_PRODUCT_CLASS));
 
@@ -1025,6 +1071,8 @@ module.exports = {
   SELLER_RELATIONSHIP,
   PILOT_PRODUCT_CLASS,
   PILOT_PRODUCT_CLASS_VALUES,
+  PILOT_PRODUCT_CLASS_GROUP_A,
+  PILOT_PRODUCT_CLASS_GROUP_B,
   isValidPilotProductClass,
   PILOT_CLASSIFICATION_MAX_REASON_LENGTH,
   COMPLIANCE_INTAKE_EVIDENCE_MATRIX,

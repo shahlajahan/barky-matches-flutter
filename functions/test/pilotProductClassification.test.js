@@ -284,16 +284,22 @@ itest("B3. missing/blank/non-string identifiers and reasons are refused", async 
 // C. The class allowlist — exact, closed, and never coerced.
 // =====================================================================
 
-itest("C1. the allowlist is exactly the four frozen pilot classes", () => {
+itest("C1. the allowlist is exactly the ten frozen pilot classes (Revision 41 §0.39)", () => {
   assert.deepEqual([...PILOT_PRODUCT_CLASS_VALUES].sort(), [
+    "beds_carriers",
+    "collars_harnesses_leashes",
+    "feeding_accessories",
+    "grooming_accessories_non_chemical",
     "non_biocidal_litter",
+    "non_electronic_toys",
     "non_medicinal_treats",
+    "pet_apparel",
     "sealed_dry_food",
     "sealed_wet_food",
   ]);
 });
 
-itest("C2. every one of the four classes is individually accepted and stored verbatim", async () => {
+itest("C2. every one of the ten classes is individually accepted and stored verbatim", async () => {
   const adminUid = await seedAdmin();
   for (const pilotProductClass of PILOT_PRODUCT_CLASS_VALUES) {
     const businessId = await seedBusiness();

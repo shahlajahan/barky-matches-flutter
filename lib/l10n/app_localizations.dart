@@ -20450,6 +20450,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Product approved.'**
   String get pilotAdminApproveSucceeded;
+
+  /// No description provided for @pilotAdminClassPetApparel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet apparel'**
+  String get pilotAdminClassPetApparel;
+
+  /// No description provided for @pilotAdminClassCollarsHarnessesLeashes.
+  ///
+  /// In en, this message translates to:
+  /// **'Collars, harnesses and leashes'**
+  String get pilotAdminClassCollarsHarnessesLeashes;
+
+  /// No description provided for @pilotAdminClassFeedingAccessories.
+  ///
+  /// In en, this message translates to:
+  /// **'Feeding accessories'**
+  String get pilotAdminClassFeedingAccessories;
+
+  /// No description provided for @pilotAdminClassBedsCarriers.
+  ///
+  /// In en, this message translates to:
+  /// **'Beds and carriers'**
+  String get pilotAdminClassBedsCarriers;
+
+  /// No description provided for @pilotAdminClassNonElectronicToys.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-electronic toys'**
+  String get pilotAdminClassNonElectronicToys;
+
+  /// No description provided for @pilotAdminClassGroomingAccessoriesNonChemical.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-chemical grooming accessories'**
+  String get pilotAdminClassGroomingAccessoriesNonChemical;
+
+  /// No description provided for @categoryLitter.
+  ///
+  /// In en, this message translates to:
+  /// **'Litter'**
+  String get categoryLitter;
+
+  /// No description provided for @subCategoryCatLitter.
+  ///
+  /// In en, this message translates to:
+  /// **'Cat Litter'**
+  String get subCategoryCatLitter;
+
+  /// No description provided for @subCategoryHarness.
+  ///
+  /// In en, this message translates to:
+  /// **'Harness'**
+  String get subCategoryHarness;
+
+  /// No description provided for @subCategoryBowl.
+  ///
+  /// In en, this message translates to:
+  /// **'Bowl'**
+  String get subCategoryBowl;
+
+  /// No description provided for @subCategoryBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed'**
+  String get subCategoryBed;
+
+  /// No description provided for @subCategoryCarrier.
+  ///
+  /// In en, this message translates to:
+  /// **'Carrier'**
+  String get subCategoryCarrier;
+
+  /// No description provided for @subCategoryGroomingTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Grooming Tool'**
+  String get subCategoryGroomingTool;
+
+  /// No description provided for @healthProductsNotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed.'**
+  String get healthProductsNotSupported;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -10857,4 +10857,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pilotAdminApproveSucceeded => 'Product approved.';
+
+  @override
+  String get pilotAdminClassPetApparel => 'Pet apparel';
+
+  @override
+  String get pilotAdminClassCollarsHarnessesLeashes => 'Collars, harnesses and leashes';
+
+  @override
+  String get pilotAdminClassFeedingAccessories => 'Feeding accessories';
+
+  @override
+  String get pilotAdminClassBedsCarriers => 'Beds and carriers';
+
+  @override
+  String get pilotAdminClassNonElectronicToys => 'Non-electronic toys';
+
+  @override
+  String get pilotAdminClassGroomingAccessoriesNonChemical => 'Non-chemical grooming accessories';
+
+  @override
+  String get categoryLitter => 'Litter';
+
+  @override
+  String get subCategoryCatLitter => 'Cat Litter';
+
+  @override
+  String get subCategoryHarness => 'Harness';
+
+  @override
+  String get subCategoryBowl => 'Bowl';
+
+  @override
+  String get subCategoryBed => 'Bed';
+
+  @override
+  String get subCategoryCarrier => 'Carrier';
+
+  @override
+  String get subCategoryGroomingTool => 'Grooming Tool';
+
+  @override
+  String get healthProductsNotSupported => 'Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed.';
 }
