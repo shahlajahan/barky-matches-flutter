@@ -34,8 +34,9 @@ const {
   evaluateLiveProductEligibility,
 } = require("../compliance/complianceEligibilityEvaluator");
 const {
-  isValidPilotProductClass,
-} = require("../compliance/complianceConstants");
+  assessProductVisibility,
+  VISIBILITY_REASON,
+} = require("./marketplaceProductVisibility");
 
 const PRODUCTS_COLLECTION = "businesses";
 
@@ -51,80 +52,16 @@ const MAX_FETCHES = 2;
 const CURSOR_MAX_ENCODED_LENGTH = 256;
 const CURSOR_VERSION = 1;
 
-// Marketplace Revision 38 §0.36 A — the four public-visibility conditions
-// `evaluateLiveProductEligibility` does NOT subsume, and which this module
-// must therefore assert itself:
-//
-//   3. the business is approved and Marketplace-eligible
-//   4. the business's seller activation is currently valid
-//   6. the product's generation equals the LIVE business generation
-//   9. `pilotProductClass` is one of the four Revision 31 §C values
-//
-// Condition 9 matters most and is the least obvious: the evaluator compares
-// the class only for snapshot EQUALITY, so an UNCLASSIFIED product — a null
-// live class matching a null recorded snapshot — passes it, and would be
-// publicly listed if this module did not assert validity separately.
-const BUSINESS_PUBLISHABLE_STATUSES = Object.freeze(["approved"]);
-
-/// Reads the owning business ONCE per request per business (bounded by page
-/// size) and answers conditions 3, 4, 6 and 9 for one product.
-///
-/// Returns true only on an affirmative answer: a missing business, a
-/// malformed activation object, an uninitialized generation and an
-/// unrecognised status all fail closed, exactly like every other unknown in
-/// this path.
-async function isPubliclyVisibleBeyondEligibility({ db, product, businessCache }) {
-  // 9. class validity — no alias, no case folding, no inference.
-  if (!isValidPilotProductClass(product.pilotProductClass)) return false;
-
-  const businessId = product.businessId;
-  if (typeof businessId !== "string" || businessId.length === 0) return false;
-
-  // A prefixed plain-object cache, deliberately neither a Map nor
-  // `Object.create(null)`: `cache.set(...)` and `Object.create(...)` both trip
-  // this module's own frozen "no write call of any kind" static guard, and
-  // weakening a security guard to accommodate a cache is the wrong trade. The
-  // `b:` prefix additionally means a business id of `__proto__` or
-  // `constructor` can never collide with an object-prototype key.
-  const cacheKey = `b:${businessId}`;
-  if (!Object.prototype.hasOwnProperty.call(businessCache, cacheKey)) {
-    let snap = null;
-    try {
-      snap = await db.collection(PRODUCTS_COLLECTION).doc(businessId).get();
-    } catch (err) {
-      snap = null;
-    }
-    businessCache[cacheKey] = snap && snap.exists ? snap.data() || {} : null;
-  }
-  const business = businessCache[cacheKey];
-  // 2. the business must exist.
-  if (business === null) return false;
-
-  // 3. approved and Marketplace-eligible.
-  if (!BUSINESS_PUBLISHABLE_STATUSES.includes(business.status)) return false;
-
-  // 4. seller activation currently valid.
-  const activation = business.marketplaceSellerActivation;
-  const sellerActive = Boolean(
-    activation &&
-      typeof activation === "object" &&
-      !Array.isArray(activation) &&
-      activation.active === true
-  );
-  if (!sellerActive) return false;
-
-  // 6. the product's generation must equal the LIVE business generation. A
-  // product left behind by a previous generation of a same-id business is
-  // never publicly visible, however approved its own fields look.
-  const liveGeneration = business.marketplaceBusinessGenerationId;
-  if (typeof liveGeneration !== "string" || liveGeneration.length === 0) return false;
-  if (product.marketplaceBusinessGenerationId !== liveGeneration) return false;
-
-  return true;
-}
-
 const LIST_REQUEST_ALLOWED_FIELDS = Object.freeze(["pageSize", "cursor"]);
 const DETAIL_REQUEST_ALLOWED_FIELDS = Object.freeze(["businessId", "productId"]);
+
+// Marketplace Revision 39 §0.37 (Slice 7B-C1) — bounded batch hydration for
+// Favorites and Cart. Revision 38 §0.36 E specified the request field name
+// `products` carrying `{businessId, productId}` pairs; that is followed here
+// verbatim rather than reinvented.
+const BATCH_REQUEST_ALLOWED_FIELDS = Object.freeze(["products"]);
+const BATCH_ITEM_ALLOWED_FIELDS = Object.freeze(["businessId", "productId"]);
+const BATCH_MAX_ITEMS = 20;
 
 const STR_MAX = Object.freeze({
   businessId: 256,
@@ -542,35 +479,27 @@ async function getMarketplaceProductList({
       }
       if (projected === null) continue;
 
-      // Revision 38 §0.36 A — conditions 3/4/6/9, which the evaluator does
-      // not subsume. Evaluated against the RAW document (the projection
-      // deliberately drops class, generation and status), and before the
-      // evaluator so an unclassified or orphaned candidate costs no
-      // decision/policy/epoch reads at all.
-      let visible;
+      // Revision 39 §0.37 — the ONE canonical visibility predicate, shared
+      // with detail, batch and checkout. It answers all twelve Revision 38
+      // §0.36 A conditions, evaluating the four the compliance evaluator does
+      // not subsume against the RAW document (the projection deliberately
+      // drops class, generation and status) before it spends any
+      // decision/policy/epoch read.
+      let assessment;
       try {
-        visible = await isPubliclyVisibleBeyondEligibility({
-          db,
-          product: doc.data(),
-          businessCache,
-        });
-      } catch (err) {
-        visible = false;
-      }
-      if (!visible) continue;
-
-      let result;
-      try {
-        result = await evaluator({
+        assessment = await assessProductVisibility({
           db,
           businessId: projected.businessId,
           productId: projected.productId,
           now,
+          businessCache,
+          productData: doc.data(),
+          evaluator,
         });
       } catch (err) {
         continue;
       }
-      if (!result || result.eligible !== true) continue;
+      if (!assessment || assessment.visible !== true) continue;
 
       items.push(projected);
     }
@@ -637,46 +566,157 @@ async function getMarketplaceProductDetail({
     throw new HttpsError("not-found", "Product not found");
   }
 
-  // Revision 38 §0.36 A — conditions 3/4/6/9, identical to the list path and
-  // sharing the same helper rather than a second copy. Every failure here
-  // collapses into the same indistinguishable not-found as every other
-  // absence, so the response never reveals WHY a product is hidden — whether
-  // it was evidence, moderation, generation or enforcement.
-  let visibleBeyondEligibility;
-  try {
-    visibleBeyondEligibility = await isPubliclyVisibleBeyondEligibility({
-      db,
-      product: rawData,
-      businessCache: {},
-    });
-  } catch (err) {
-    visibleBeyondEligibility = false;
-  }
-  if (!visibleBeyondEligibility) {
-    throw new HttpsError("not-found", "Product not found");
-  }
 
   const projected = projectPublicProduct(rawData, snap.ref.path, DETAIL_MEDIA_CAP);
   if (projected === null) {
     throw new HttpsError("not-found", "Product not found");
   }
 
-  let result;
+  // Revision 39 §0.37 — the same canonical predicate the list and batch
+  // paths use. Every failure collapses into the identical not-found as every
+  // other absence, so the response never reveals WHY a product is hidden —
+  // evidence, moderation, generation or enforcement alike.
+  let assessment;
   try {
-    result = await evaluator({ db, businessId, productId, now });
+    assessment = await assessProductVisibility({
+      db,
+      businessId,
+      productId,
+      now,
+      productData: rawData,
+      evaluator,
+    });
   } catch (err) {
     throw new HttpsError("internal", "Unable to load product");
   }
-  if (!result || result.eligible !== true) {
+  if (!assessment || assessment.visible !== true) {
+    // An evaluator that threw is an infrastructure failure, not an absent
+    // product: the frozen detail contract reports those differently, and
+    // neither response reveals anything about the product itself.
+    if (assessment && assessment.reason === VISIBILITY_REASON.EVALUATOR_FAILED) {
+      throw new HttpsError("internal", "Unable to load product");
+    }
     throw new HttpsError("not-found", "Product not found");
   }
 
   return { item: projected };
 }
 
+// =====================================================================
+// Batch hydration — Marketplace Revision 39 §0.37 (Slice 7B-C1)
+// =====================================================================
+
+/// Hydrates up to 20 canonical products for Favorites and Cart.
+///
+/// WHY THIS EXISTS. Once direct customer Firestore product reads are removed,
+/// Favorites and Cart must rehydrate through the server. Calling
+/// `getMarketplaceProductDetail` once per saved item would be unbounded
+/// client-driven fan-out; this bounds it to one request with a hard cap.
+///
+/// WHAT IT IS NOT. It is hydration, never purchase authority. A caller cannot
+/// carry an `available: true` from here into checkout — checkout re-derives
+/// the entire predicate inside its own transaction (§0.37 C). A result is a
+/// statement about a moment that has already passed by the time it is read.
+///
+/// RESPONSE SHAPE. One explicit result per REQUESTED key, in request order,
+/// so the client can map results positionally without inferring anything from
+/// omission:
+///   { results: [ { businessId, productId, available, product } ] }
+/// `product` is the same 29-field public projection list and detail emit, and
+/// is `null` whenever `available` is false. No reason is ever returned: which
+/// gate a product failed is exactly the enumeration oracle §0.36 forbids.
+async function getMarketplaceProductBatch({
+  db,
+  data,
+  featureEnabled,
+  now = new Date(),
+  evaluator = evaluateLiveProductEligibility,
+}) {
+  if (featureEnabled !== true) {
+    throw featureDisabled();
+  }
+
+  const payload = assertPlainRequestObject(data);
+  assertAllowedKeys(payload, BATCH_REQUEST_ALLOWED_FIELDS);
+
+  const requested = payload.products;
+  if (!Array.isArray(requested)) throw invalidRequest();
+  if (requested.length > BATCH_MAX_ITEMS) throw invalidRequest();
+
+  // Validate every entry BEFORE any read: a malformed entry is a malformed
+  // request, not a per-item "unavailable". That keeps a client bug loud
+  // rather than silently degrading a Favorites screen.
+  const keys = [];
+  for (const entry of requested) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw invalidRequest();
+    assertAllowedKeys(entry, BATCH_ITEM_ALLOWED_FIELDS);
+    const businessId = assertNonEmptyIdentifier(entry.businessId, STR_MAX.businessId);
+    const productId = assertNonEmptyIdentifier(entry.productId, STR_MAX.productId);
+    // No identity is ever inferred by splitting an ambiguous document id:
+    // both halves are supplied explicitly and the pair is re-verified against
+    // the canonical document by the shared visibility predicate.
+    keys.push({ businessId, productId });
+  }
+
+  // Deduplicate identical canonical pairs so a client that saved the same
+  // product twice costs one read, while STILL returning one result per
+  // requested position.
+  const uniqueByKey = {};
+  for (const key of keys) {
+    const dedupeKey = `p:${key.businessId}/${key.productId}`;
+    if (!Object.prototype.hasOwnProperty.call(uniqueByKey, dedupeKey)) {
+      uniqueByKey[dedupeKey] = null;
+    }
+  }
+
+  // One business read per distinct business across the whole request.
+  const businessCache = {};
+  for (const dedupeKey of Object.keys(uniqueByKey)) {
+    const separator = dedupeKey.indexOf("/");
+    const businessId = dedupeKey.slice(2, separator);
+    const productId = dedupeKey.slice(separator + 1);
+
+    let projected = null;
+    try {
+      const assessment = await assessProductVisibility({
+        db,
+        businessId,
+        productId,
+        now,
+        businessCache,
+        evaluator,
+      });
+      if (assessment && assessment.visible === true) {
+        projected = projectPublicProduct(
+          assessment.product,
+          `${PRODUCTS_COLLECTION}/${businessId}/products/${productId}`,
+          DETAIL_MEDIA_CAP
+        );
+      }
+    } catch (err) {
+      // One failing entry never fails, hides or starves its siblings.
+      projected = null;
+    }
+    uniqueByKey[dedupeKey] = projected;
+  }
+
+  const results = keys.map((key) => {
+    const projected = uniqueByKey[`p:${key.businessId}/${key.productId}`] || null;
+    return {
+      businessId: key.businessId,
+      productId: key.productId,
+      available: projected !== null,
+      product: projected,
+    };
+  });
+
+  return { results };
+}
+
 module.exports = {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
+  getMarketplaceProductBatch,
   // Test-only exports for direct, deterministic unit testing of pure
   // mechanical helpers — never database references, mutable state, or
   // evaluator internals.

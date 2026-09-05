@@ -379,6 +379,7 @@ const {
 const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
+  getMarketplaceProductBatch,
 } = require("./src/marketplace/publicCatalog/marketplaceListing");
 const {
   COMPLIANCE_UPLOAD_SESSION_STATUS,
@@ -20560,6 +20561,19 @@ exports.getMarketplaceProductDetail = onCall(
   { region: "europe-west3", enforceAppCheck: false },
   async (request) =>
     getMarketplaceProductDetail({
+      db: admin.firestore(),
+      data: request.data,
+      featureEnabled: MARKETPLACE_LISTING_ENABLED.value() === "true",
+    })
+);
+
+// Marketplace Revision 39 §0.37 (Slice 7B-C1) — bounded batch hydration for
+// Favorites and Cart. Same flag, same guest posture and same App Check
+// posture as list/detail; it is hydration only and never purchase authority.
+exports.getMarketplaceProductBatch = onCall(
+  { region: "europe-west3", enforceAppCheck: false },
+  async (request) =>
+    getMarketplaceProductBatch({
       db: admin.firestore(),
       data: request.data,
       featureEnabled: MARKETPLACE_LISTING_ENABLED.value() === "true",

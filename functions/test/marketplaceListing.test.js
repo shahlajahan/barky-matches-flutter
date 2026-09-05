@@ -321,6 +321,9 @@ test("marketplaceListing.js module exports are exactly the expected set — no d
     [
       "decodeCursor",
       "encodeCursor",
+      // Revision 39 §0.37 (Slice 7B-C1) — bounded batch hydration, wired
+      // exactly once and sharing this module's flag, posture and projection.
+      "getMarketplaceProductBatch",
       "getMarketplaceProductDetail",
       "getMarketplaceProductList",
       "projectPublicProduct",
@@ -2124,6 +2127,10 @@ test("scope: only the announced implementation files exist in publicCatalog/ (Sl
   const entries = fs.readdirSync(publicCatalogDir);
   assert.deepEqual(entries.sort(), [
     "marketplaceListing.js",
+    // Revision 39 §0.37 (Slice 7B-C1) — the ONE canonical live-visibility
+    // predicate, extracted so batch hydration and checkout share it with
+    // list/detail instead of copying it.
+    "marketplaceProductVisibility.js",
     "marketplacePublicVisibility.js",
   ]);
 });
