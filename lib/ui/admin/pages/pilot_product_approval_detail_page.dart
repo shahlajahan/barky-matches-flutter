@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/marketplace_catalog_service.dart'
     show MarketplaceFunctionCaller, marketplaceFunctionsRegion;
-import '../pilot_product_fingerprint.dart';
 
 MarketplaceFunctionCaller _defaultCallableInvoker() {
   final functions = FirebaseFunctions.instanceFor(
@@ -95,6 +94,29 @@ class _PilotProductApprovalDetailPageState
   bool _attested = false;
   bool _isSubmitting = false;
 
+  // Marketplace Revision 36 — server-authoritative approval readiness.
+  //
+  // The Approve button is driven ENTIRELY by what the server last said. The
+  // client never computes an approval fingerprint and never reads
+  // `productComplianceDecisions`; `_readinessFingerprint` only ever holds a
+  // value this page received from `getPilotProductApprovalReadiness`.
+  bool _readinessLoading = false;
+  bool _readinessReady = false;
+  String? _readinessReasonCode;
+  String? _readinessFingerprint;
+  int? _readinessValidUntilMillis;
+  Object? _readinessError;
+  // Monotonic request id: a response from a superseded load is discarded
+  // rather than allowed to re-enable Approve against stale state.
+  int _readinessSeq = 0;
+  // Signature of the canonical product fields readiness depends on. When the
+  // product stream reports a change to any of them the snapshot is stale by
+  // construction, so readiness is reloaded without waiting for an approval to
+  // fail. Evidence- and decision-side changes never touch the product
+  // document, and are covered by the explicit re-check control, by the
+  // stale-approval path, and by the server's own transactional revalidation.
+  String? _readinessProductSignature;
+
   // Revision 35 (Slice 7A) classification form state. `_selectedClass` is
   // seeded from canonical server state on first build and thereafter follows
   // the admin's own selection, so a live update never silently discards an
@@ -106,9 +128,86 @@ class _PilotProductApprovalDetailPageState
   bool _isClassifying = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadReadiness();
+  }
+
+  @override
   void dispose() {
     _classificationReason.dispose();
     super.dispose();
+  }
+
+  /// Asks the server whether this product can be approved right now, and — if
+  /// it can — for the exact fingerprint `approvePilotProduct` will expect.
+  ///
+  /// This is the ONLY source of an approval fingerprint in the client. It is
+  /// a preview, not authority: the value it returns is an
+  /// optimistic-concurrency token that the approval transaction revalidates.
+  Future<void> _loadReadiness() async {
+    final seq = ++_readinessSeq;
+    setState(() {
+      _readinessLoading = true;
+      _readinessError = null;
+      // Approve stays disabled for the whole in-flight window: a readiness
+      // answer that is being refetched is not an answer.
+      _readinessReady = false;
+      _readinessFingerprint = null;
+    });
+    try {
+      final result = await _invoke('getPilotProductApprovalReadiness', {
+        'businessId': widget.businessId,
+        'productId': widget.productId,
+      });
+      if (!mounted || seq != _readinessSeq) return;
+      final map = result is Map ? result : const {};
+      setState(() {
+        _readinessLoading = false;
+        _readinessReady = map['ready'] == true;
+        _readinessReasonCode = map['reasonCode'] as String?;
+        _readinessFingerprint = map['ready'] == true
+            ? map['approvalFingerprint'] as String?
+            : null;
+        _readinessValidUntilMillis = map['decisionValidUntilMillis'] is int
+            ? map['decisionValidUntilMillis'] as int
+            : null;
+      });
+    } catch (e) {
+      if (!mounted || seq != _readinessSeq) return;
+      setState(() {
+        _readinessLoading = false;
+        _readinessReady = false;
+        _readinessReasonCode = null;
+        _readinessFingerprint = null;
+        _readinessError = e;
+      });
+    }
+  }
+
+  /// The canonical product fields the readiness snapshot is computed over.
+  /// Only used to detect that a reload is required — never to compute
+  /// anything the server is authoritative for.
+  String _productSignature(Map<String, dynamic> data) {
+    return [
+      data['name'],
+      data['description'],
+      data['price'],
+      data['currency'],
+      data['category'],
+      data['brand'],
+      data['barcode'],
+      data['salePrice'],
+      data['kdvRate'],
+      data['sellerRelationship'],
+      data['media'],
+      data['pilotProductClass'],
+      data['pilotProductClassificationRevision'],
+      data['marketplaceBusinessGenerationId'],
+      data['moderationStatus'],
+      data['isActive'],
+      data['productInputRevision'],
+    ].map((v) => '$v').join('\u0000');
   }
 
   MarketplaceFunctionCaller get _invoke =>
@@ -153,6 +252,23 @@ class _PilotProductApprovalDetailPageState
     AppLocalizations l10n,
     Map<String, dynamic> data,
   ) {
+    // A canonical change to any readiness-bound field invalidates the
+    // snapshot immediately, so Approve can never sit enabled against a
+    // product that has moved on. Scheduled off the build frame because it
+    // calls setState. Evidence- and decision-side changes never touch the
+    // product document; those are covered by the explicit re-check control,
+    // by the stale-approval path, and by the server's own transactional
+    // revalidation inside `approvePilotProduct`.
+    final signature = _productSignature(data);
+    if (_readinessProductSignature == null) {
+      _readinessProductSignature = signature;
+    } else if (_readinessProductSignature != signature && !_readinessLoading) {
+      _readinessProductSignature = signature;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadReadiness();
+      });
+    }
+
     final approval = data['pilotProductApproval'];
     final isActive = approval is Map && approval['active'] == true;
     final wasRevoked = approval is Map && approval['revokedAt'] != null;
@@ -473,13 +589,25 @@ class _PilotProductApprovalDetailPageState
               title: Text(l10n.pilotAdminAttestationLabel),
             ),
             const SizedBox(height: 8),
+            _buildReadinessPanel(context, l10n),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                key: const Key('pilotApproveButton'),
+                // Approve is enabled only while the SERVER's most recent
+                // answer is `ready` and a fingerprint from that same answer is
+                // in hand. Loading, blocked and errored readiness all keep it
+                // disabled.
                 onPressed:
-                    (_isSubmitting || _selectedCategory == null || !_attested)
+                    (_isSubmitting ||
+                        _readinessLoading ||
+                        !_readinessReady ||
+                        _readinessFingerprint == null ||
+                        _selectedCategory == null ||
+                        !_attested)
                     ? null
-                    : () => _handleApprove(context, l10n, data),
+                    : () => _handleApprove(context, l10n),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: _isSubmitting
                     ? const SizedBox(
@@ -494,6 +622,153 @@ class _PilotProductApprovalDetailPageState
         ),
       ),
     );
+  }
+
+  /// Renders the server's own readiness verdict — loading, ready, or blocked
+  /// with a stable localized reason. Nothing here is derived locally; the
+  /// screen never claims a product is approvable on its own initiative.
+  Widget _buildReadinessPanel(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+
+    if (_readinessLoading) {
+      return Row(
+        key: const Key('pilotReadinessLoading'),
+        children: [
+          const SizedBox(
+            height: 14,
+            width: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l10n.pilotAdminReadinessLoading,
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final Widget body;
+    if (_readinessError != null) {
+      body = Text(
+        _readinessErrorMessage(l10n, _readinessError!),
+        key: const Key('pilotReadinessBlocked'),
+        style: theme.textTheme.bodySmall?.copyWith(color: Colors.red.shade900),
+      );
+    } else if (_readinessReady) {
+      final validUntil = _readinessValidUntilMillis;
+      body = Column(
+        key: const Key('pilotReadinessReady'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.pilotAdminReadinessReady,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.green.shade900,
+            ),
+          ),
+          if (validUntil != null)
+            Text(
+              l10n.pilotAdminReadinessDecisionValidUntil(
+                DateTime.fromMillisecondsSinceEpoch(
+                  validUntil,
+                ).toLocal().toString().split('.').first,
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
+        ],
+      );
+    } else {
+      body = Column(
+        key: const Key('pilotReadinessBlocked'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.pilotAdminReadinessBlockedTitle,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: Colors.orange.shade900,
+            ),
+          ),
+          Text(
+            _readinessReasonMessage(l10n, _readinessReasonCode),
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        body,
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            key: const Key('pilotReadinessRefreshButton'),
+            onPressed: (_isSubmitting || _readinessLoading)
+                ? null
+                : _loadReadiness,
+            child: Text(l10n.pilotAdminReadinessRefresh),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Maps the server's stable readiness reason codes onto localized copy.
+  /// An unrecognised code degrades to the generic message rather than being
+  /// shown raw.
+  String _readinessReasonMessage(AppLocalizations l10n, String? reasonCode) {
+    switch (reasonCode) {
+      case 'readiness-class-missing':
+        return l10n.pilotAdminErrorClassMissing;
+      case 'readiness-class-unsupported':
+        return l10n.pilotAdminErrorClassUnsupported;
+      case 'readiness-decision-missing':
+        return l10n.pilotAdminReadinessDecisionMissing;
+      case 'readiness-decision-not-eligible':
+        return l10n.pilotAdminReadinessDecisionNotEligible;
+      case 'readiness-decision-expired':
+        return l10n.pilotAdminReadinessDecisionExpired;
+      case 'readiness-decision-product-mismatch':
+        return l10n.pilotAdminReadinessDecisionMismatch;
+      case 'readiness-evidence-stale':
+        return l10n.pilotAdminReadinessEvidenceStale;
+      case 'readiness-policy-mismatch':
+        return l10n.pilotAdminReadinessPolicyMismatch;
+      case 'readiness-generation-mismatch':
+      case 'readiness-generation-not-initialized':
+        return l10n.pilotAdminErrorStaleGeneration;
+      case 'readiness-product-not-found':
+      case 'readiness-business-not-found':
+      case 'readiness-product-business-mismatch':
+        return l10n.pilotAdminErrorNotFound;
+      case 'readiness-seller-not-active':
+        return l10n.pilotAdminErrorSellerNotActive;
+      case 'readiness-invalid-transition':
+        return l10n.pilotAdminReadinessInvalidTransition;
+      case 'readiness-already-approved':
+        return l10n.pilotAdminReadinessAlreadyApproved;
+      case 'readiness-limit-exceeded':
+        return l10n.pilotAdminErrorLimitExceeded;
+      case 'readiness-malformed-state':
+        return l10n.pilotAdminReadinessMalformedState;
+      default:
+        return l10n.pilotAdminErrorGeneric;
+    }
+  }
+
+  String _readinessErrorMessage(AppLocalizations l10n, Object error) {
+    if (error is FirebaseFunctionsException) {
+      final details = error.details;
+      final reasonCode = details is Map ? details['reasonCode'] : null;
+      if (reasonCode is String) {
+        return _readinessReasonMessage(l10n, reasonCode);
+      }
+    }
+    return l10n.pilotAdminErrorGeneric;
   }
 
   Widget _buildRevokeSection(BuildContext context, AppLocalizations l10n) {
@@ -516,11 +791,32 @@ class _PilotProductApprovalDetailPageState
     );
   }
 
+  /// Approves the product using the exact fingerprint the server returned
+  /// from `getPilotProductApprovalReadiness`.
+  ///
+  /// Nothing is computed here. The fingerprint is an optimistic-concurrency
+  /// token: `approvePilotProduct` re-reads and recomputes the whole
+  /// authoritative state inside its own transaction and rejects a stale one,
+  /// so a `stale-content` failure is an expected outcome, not an error to
+  /// paper over. When it happens the screen reloads readiness and stops —
+  /// it never re-submits on the admin's behalf.
   Future<void> _handleApprove(
     BuildContext context,
     AppLocalizations l10n,
-    Map<String, dynamic> data,
   ) async {
+    // Captured before the first await: after it, this State's `context` is
+    // no longer safe to read even though `mounted` may still be true.
+    final messenger = ScaffoldMessenger.of(context);
+
+    final fingerprint = _readinessFingerprint;
+    // A readiness answer that is missing, blocked or superseded never reaches
+    // the server. `_isSubmitting` is checked here and latched immediately
+    // below, BEFORE the confirmation dialog rather than after it: taps
+    // delivered in the same frame all run this method before any rebuild
+    // disables the button, so the latch — not the button's own disabled
+    // state — is what makes a second one a no-op.
+    if (!_readinessReady || fingerprint == null || _isSubmitting) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -540,9 +836,12 @@ class _PilotProductApprovalDetailPageState
     );
     if (confirmed != true || !mounted) return;
 
+    // The in-flight flag is what disables the Approve button for the whole
+    // round trip, so a second tap has nothing to hit. That button-level guard
+    // is the load-bearing one; the `_isSubmitting` clause in the early return
+    // above is its belt-and-braces companion.
     setState(() => _isSubmitting = true);
     try {
-      final fingerprint = computePilotProductContentFingerprint(data);
       await _invoke('approvePilotProduct', {
         'businessId': widget.businessId,
         'productId': widget.productId,
@@ -551,11 +850,30 @@ class _PilotProductApprovalDetailPageState
         'attestNoProhibitedClaim': true,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.pilotAdminApproveButton)));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.pilotAdminApproveSucceeded)),
+      );
+      // Re-read authoritative state. The product stream refreshes the
+      // document itself; this refreshes the server's verdict about it.
+      await _loadReadiness();
+    } on FirebaseFunctionsException catch (e) {
+      final details = e.details;
+      final reasonCode = details is Map ? details['reasonCode'] : null;
+      if (reasonCode == 'stale-content') {
+        // The authoritative state moved between readiness and approval.
+        // Reload the snapshot and require a fresh, explicit admin tap — never
+        // an automatic retry with a newly-fetched fingerprint, which would
+        // approve state the admin never saw.
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.pilotAdminReadinessStale)),
+        );
+        await _loadReadiness();
+      } else {
+        _showError(messenger, l10n, e);
+      }
     } catch (e) {
-      _showError(context, l10n, e);
+      _showError(messenger, l10n, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -571,6 +889,10 @@ class _PilotProductApprovalDetailPageState
     required bool isActive,
     required String? currentClass,
   }) async {
+    // Captured before the first await, for the same reason as in
+    // `_handleApprove`.
+    final messenger = ScaffoldMessenger.of(context);
+
     final selected = _selectedClass;
     final reason = _classificationReason.text.trim();
     if (selected == null || reason.isEmpty) return;
@@ -621,11 +943,12 @@ class _PilotProductApprovalDetailPageState
         _classificationReasonTouched = false;
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+      // A classification change moves a readiness-bound input, so the
+      // server's previous verdict — and any fingerprint in it — is void.
+      await _loadReadiness();
     } catch (e) {
-      _showError(context, l10n, e);
+      _showError(messenger, l10n, e);
     } finally {
       if (mounted) setState(() => _isClassifying = false);
     }
@@ -635,6 +958,8 @@ class _PilotProductApprovalDetailPageState
     BuildContext context,
     AppLocalizations l10n,
   ) async {
+    // Captured before the first await, for the same reason as above.
+    final messenger = ScaffoldMessenger.of(context);
     final reasonCode = await showDialog<String>(
       context: context,
       builder: (dialogContext) => _RevokeReasonDialog(l10n: l10n),
@@ -649,17 +974,29 @@ class _PilotProductApprovalDetailPageState
         'reasonCode': reasonCode,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.pilotAdminRevokeButton)));
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.pilotAdminRevokeButton)),
+      );
+      // Revocation returns the product to an unapproved state; the previous
+      // readiness verdict no longer describes it.
+      await _loadReadiness();
     } catch (e) {
-      _showError(context, l10n, e);
+      _showError(messenger, l10n, e);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  void _showError(BuildContext context, AppLocalizations l10n, Object e) {
+  /// Takes an already-captured [ScaffoldMessengerState] rather than a
+  /// [BuildContext]: every caller reaches this after an `await`, where the
+  /// State's own `context` is no longer safe to read even while `mounted` is
+  /// still true. Capturing the messenger before the first await is what makes
+  /// the whole error path context-safe.
+  void _showError(
+    ScaffoldMessengerState messenger,
+    AppLocalizations l10n,
+    Object e,
+  ) {
     if (!mounted) return;
     String message = l10n.pilotAdminErrorGeneric;
     if (e is FirebaseFunctionsException) {
@@ -702,9 +1039,7 @@ class _PilotProductApprovalDetailPageState
           message = e.message ?? l10n.pilotAdminErrorGeneric;
       }
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

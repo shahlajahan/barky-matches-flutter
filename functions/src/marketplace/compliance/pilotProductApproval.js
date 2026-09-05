@@ -752,8 +752,14 @@ module.exports = {
   assertNonEmptyString,
   businessRef,
   productRef,
+  decisionRef,
   isValidGenerationId,
   isCurrentlyActivePilotApproval,
+  // Shared with `pilotProductApprovalReadiness.js` so the readiness preview
+  // asks the SAME questions, in the same order, that the approval
+  // transaction itself asks — never a second, weaker copy of them.
+  assertUsableComplianceDecision,
+  readCounter,
   computeContentFingerprint,
   computeApprovalFingerprint,
   canonicalEvidenceDigest,

@@ -374,6 +374,9 @@ const {
   setPilotProductClassification,
 } = require("./src/marketplace/compliance/pilotProductClassification");
 const {
+  getPilotProductApprovalReadiness,
+} = require("./src/marketplace/compliance/pilotProductApprovalReadiness");
+const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
 } = require("./src/marketplace/publicCatalog/marketplaceListing");
@@ -20490,6 +20493,23 @@ exports.unpublishPilotProductForRevision = onCall({ region: "europe-west3" }, as
 // functions/src/marketplace/compliance/pilotProductClassification.js.
 exports.setPilotProductClassification = onCall({ region: "europe-west3" }, async (request) =>
   setPilotProductClassification({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
+// Marketplace Revision 36 (docs/plans/marketplace_p1a_compliance_review_
+// implementation_plan_2026-08-21.md §0.34) — the admin-only, read-only
+// approval readiness preview. It is the ONLY way a client obtains the
+// authoritative approval fingerprint: the Flutter client neither computes it
+// nor reads `productComplianceDecisions` to reconstruct it. Read-only by
+// construction — no audit event, no product/business/evidence/counter write —
+// and approving nothing on its own. Thin exports.* wiring only; all logic
+// lives in
+// functions/src/marketplace/compliance/pilotProductApprovalReadiness.js.
+exports.getPilotProductApprovalReadiness = onCall({ region: "europe-west3" }, async (request) =>
+  getPilotProductApprovalReadiness({
     db: admin.firestore(),
     auth: request.auth,
     data: request.data,

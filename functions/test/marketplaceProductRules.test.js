@@ -8226,3 +8226,173 @@ rulesTest(
     assert.equal(refs.length - defs.length, 1);
   }
 );
+
+// =======================================================================
+// Marketplace Revision 36 (§0.34) — the approval-handshake privacy boundary.
+//
+// The repair moved fingerprint computation to the server. These cases pin the
+// two Rules-side facts that repair depends on, and state the third accurately
+// rather than overclaiming it.
+// =======================================================================
+
+rulesTest(
+  "REV36-RULES-1. productComplianceDecisions stays client-immutable, and unreadable to everyone except an admin and the owning business",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "productComplianceDecisions", "rev36-p1"), {
+        businessId: "biz-1",
+        effectiveStatus: "verified_valid",
+        decisionHash: "a".repeat(64),
+        activeEvidenceRefs: [],
+      });
+    });
+
+    // Denied: unauthenticated, an unrelated customer, and — importantly — a
+    // seller who owns a DIFFERENT business.
+    await assertFails(
+      getDoc(doc(rulesEnv.unauthenticatedContext().firestore(), "productComplianceDecisions/rev36-p1"))
+    );
+    await assertFails(
+      getDoc(
+        doc(
+          rulesEnv.authenticatedContext("customer-1").firestore(),
+          "productComplianceDecisions/rev36-p1"
+        )
+      )
+    );
+    await assertFails(
+      getDoc(
+        doc(
+          rulesEnv.authenticatedContext("seller-2").firestore(),
+          "productComplianceDecisions/rev36-p1"
+        )
+      )
+    );
+
+    // Writes are denied to EVERY client, admin included — which is what makes
+    // a decision unforgeable from the client side no matter who is asking.
+    for (const uid of ["seller-1", "seller-2", "admin-1", "customer-1"]) {
+      const db = rulesEnv.authenticatedContext(uid).firestore();
+      await assertFails(
+        setDoc(doc(db, "productComplianceDecisions/rev36-p2"), { businessId: "biz-1" })
+      );
+      await assertFails(
+        updateDoc(doc(db, "productComplianceDecisions/rev36-p1"), {
+          effectiveStatus: "verified_valid",
+        })
+      );
+      await assertFails(deleteDoc(doc(db, "productComplianceDecisions/rev36-p1")));
+    }
+    await assertFails(
+      setDoc(
+        doc(rulesEnv.unauthenticatedContext().firestore(), "productComplianceDecisions/rev36-p3"),
+        { businessId: "biz-1" }
+      )
+    );
+  }
+);
+
+rulesTest(
+  "REV36-RULES-2. (stated accurately) an admin client-SDK READ of a decision is permitted by the frozen Rules — the client-side prohibition is architectural, not a Rules narrowing",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "productComplianceDecisions", "rev36-p4"), {
+        businessId: "biz-1",
+        effectiveStatus: "verified_valid",
+        activeEvidenceRefs: [],
+      });
+    });
+
+    // This is the frozen posture, unchanged by Revision 36 and deliberately
+    // NOT narrowed here: narrowing it would silently revoke the owning
+    // business's own visibility, which an earlier revision froze on purpose.
+    // Revision 36's guarantee is that the Petsupo client does not USE this
+    // read — proven by the Admin page's own static contract test, not here.
+    await assertSucceeds(
+      getDoc(
+        doc(
+          rulesEnv.authenticatedContext("admin-1").firestore(),
+          "productComplianceDecisions/rev36-p4"
+        )
+      )
+    );
+    await assertSucceeds(
+      getDoc(
+        doc(
+          rulesEnv.authenticatedContext("seller-1").firestore(),
+          "productComplianceDecisions/rev36-p4"
+        )
+      )
+    );
+  }
+);
+
+rulesTest(
+  "REV36-RULES-3. holding a valid approval fingerprint grants no write power whatsoever through the client SDK",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev36-prod",
+      safeProduct({
+        pilotProductClass: "sealed_dry_food",
+        pilotProductClassifiedAt: new Date("2026-09-01T00:00:00Z"),
+        pilotProductClassifiedByUid: "admin-1",
+        pilotProductClassificationRevision: 1,
+      })
+    );
+    // A structurally perfect fingerprint — the exact thing readiness returns.
+    const fingerprint = "f".repeat(64);
+
+    for (const uid of ["seller-1", "admin-1"]) {
+      const db = (await env()).authenticatedContext(uid).firestore();
+      // It cannot publish.
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/rev36-prod"), {
+          isActive: true,
+          moderationStatus: "approved",
+        })
+      );
+      // It cannot author an approval, even when carried as the reviewed
+      // fingerprint the server itself would have accepted.
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/rev36-prod"), {
+          pilotProductApproval: {
+            active: true,
+            reviewedContentFingerprint: fingerprint,
+            allowedPilotCategory: "food",
+          },
+        })
+      );
+      // It cannot MOVE the counter that gates publication volume. The guard
+      // is diff-based, so the value must actually change for this to be a
+      // real attempt — rewriting the identical value is a no-op by
+      // construction and proves nothing.
+      await assertFails(
+        updateDoc(doc(db, "businesses", "biz-1"), { pilotActiveProductCount: 5 })
+      );
+      await assertFails(
+        updateDoc(doc(db, "businesses", "biz-1"), {
+          marketplaceBusinessGenerationId: "forged-generation",
+        })
+      );
+      // And it cannot create a product that arrives pre-approved.
+      await assertFails(
+        setDoc(
+          doc(db, "businesses/biz-1/products/rev36-prod-new"),
+          safeProduct({
+            isActive: true,
+            moderationStatus: "approved",
+            pilotProductApproval: {
+              active: true,
+              reviewedContentFingerprint: fingerprint,
+            },
+          })
+        )
+      );
+    }
+  }
+);

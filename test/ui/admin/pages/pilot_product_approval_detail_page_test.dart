@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/admin/pages/pilot_product_approval_detail_page.dart';
-import 'package:barky_matches_fixed/ui/admin/pilot_product_fingerprint.dart';
+import 'package:barky_matches_fixed/services/marketplace_catalog_service.dart'
+    show MarketplaceFunctionCaller;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +42,42 @@ Future<FakeFirebaseFirestore> firestoreWithProduct(
   return db;
 }
 
+// Marketplace Revision 36 — the page asks the server for approval readiness as
+// soon as it mounts, so every test must answer
+// `getPilotProductApprovalReadiness`. This wrapper answers it with a canned
+// response and forwards only the calls a test actually cares about, so no test
+// has to special-case a call it never asked about.
+const Map<String, dynamic> _readyReadiness = {
+  'ready': true,
+  'reasonCode': null,
+  'approvalFingerprint': 'server-computed-fingerprint-abc123',
+  'pilotProductClass': 'sealed_dry_food',
+  'decisionStatus': 'verified_valid',
+  'decisionValidUntilMillis': null,
+  'activeEvidenceCount': 1,
+};
+
+const Map<String, dynamic> _blockedReadiness = {
+  'ready': false,
+  'reasonCode': 'readiness-decision-missing',
+  'approvalFingerprint': null,
+  'pilotProductClass': 'sealed_dry_food',
+  'decisionStatus': null,
+  'decisionValidUntilMillis': null,
+  'activeEvidenceCount': 0,
+};
+
+MarketplaceFunctionCaller _withReadiness(
+  Map<String, dynamic> readiness, [
+  Future<Object?> Function(String name, Map<String, dynamic> data)? onOther,
+]) {
+  return (name, data) async {
+    if (name == 'getPilotProductApprovalReadiness') return readiness;
+    if (onOther != null) return onOther(name, data);
+    return const <String, dynamic>{};
+  };
+}
+
 const _pendingProduct = {
   'businessId': 'business-1',
   'name': 'Premium dog food',
@@ -74,6 +112,7 @@ void main() {
           businessId: 'business-1',
           productId: 'missing-product',
           firestoreOverride: db,
+          callableInvoker: _withReadiness(_blockedReadiness),
         ),
       ),
     );
@@ -96,6 +135,9 @@ void main() {
           businessId: 'business-1',
           productId: 'product-1',
           firestoreOverride: db,
+          // Readiness is `ready`, so this test isolates the category and
+          // attestation gates rather than the readiness gate.
+          callableInvoker: _withReadiness(_readyReadiness),
         ),
       ),
     );
@@ -126,8 +168,8 @@ void main() {
 
   testWidgets(
     'confirming approval invokes approvePilotProduct with the correct '
-    'businessId/productId/category/attestation and a fingerprint matching '
-    'computePilotProductContentFingerprint',
+    'businessId/productId/category/attestation and the exact fingerprint the '
+    'server returned from readiness',
     (tester) async {
       _useTallViewport(tester);
       final db = await firestoreWithProduct(_pendingProduct);
@@ -139,11 +181,14 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_readyReadiness, (
+              name,
+              data,
+            ) async {
               capturedName = name;
               capturedData = data;
               return {'businessId': 'business-1', 'productId': 'product-1'};
-            },
+            }),
           ),
         ),
       );
@@ -174,9 +219,11 @@ void main() {
       expect(capturedData!['productId'], 'product-1');
       expect(capturedData!['allowedPilotCategory'], 'food');
       expect(capturedData!['attestNoProhibitedClaim'], true);
+      // Revision 36: the value forwarded is the server's own, verbatim. The
+      // client no longer computes an approval fingerprint at all.
       expect(
         capturedData!['reviewedContentFingerprint'],
-        computePilotProductContentFingerprint(_pendingProduct),
+        _readyReadiness['approvalFingerprint'],
       );
     },
   );
@@ -192,10 +239,10 @@ void main() {
           businessId: 'business-1',
           productId: 'product-1',
           firestoreOverride: db,
-          callableInvoker: (name, data) async {
+          callableInvoker: _withReadiness(_readyReadiness, (name, data) async {
             invoked = true;
             return null;
-          },
+          }),
         ),
       ),
     );
@@ -238,11 +285,14 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_blockedReadiness, (
+              name,
+              data,
+            ) async {
               capturedName = name;
               capturedData = data;
               return {'businessId': 'business-1', 'productId': 'product-1'};
-            },
+            }),
           ),
         ),
       );
@@ -282,13 +332,16 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_readyReadiness, (
+              name,
+              data,
+            ) async {
               throw FirebaseFunctionsException(
                 code: 'resource-exhausted',
                 message: 'Active pilot product limit reached',
                 details: {'reasonCode': 'limit-exceeded'},
               );
-            },
+            }),
           ),
         ),
       );
@@ -337,10 +390,13 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_blockedReadiness, (
+              name,
+              data,
+            ) async {
               invoked = true;
               return const {};
-            },
+            }),
           ),
         ),
       );
@@ -403,7 +459,10 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_blockedReadiness, (
+              name,
+              data,
+            ) async {
               calls.add([name, data]);
               return {
                 'changed': true,
@@ -411,7 +470,7 @@ void main() {
                 'unpublished': false,
                 'pilotProductClass': 'non_biocidal_litter',
               };
-            },
+            }),
           ),
         ),
       );
@@ -514,10 +573,13 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_blockedReadiness, (
+              name,
+              data,
+            ) async {
               invoked = true;
               return const {};
-            },
+            }),
           ),
         ),
       );
@@ -579,11 +641,14 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async => {
-              'changed': true,
-              'idempotent': false,
-              'unpublished': true,
-            },
+            callableInvoker: _withReadiness(
+              _blockedReadiness,
+              (name, data) async => {
+                'changed': true,
+                'idempotent': false,
+                'unpublished': true,
+              },
+            ),
           ),
         ),
       );
@@ -632,11 +697,14 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async => {
-              'changed': false,
-              'idempotent': true,
-              'unpublished': false,
-            },
+            callableInvoker: _withReadiness(
+              _blockedReadiness,
+              (name, data) async => {
+                'changed': false,
+                'idempotent': true,
+                'unpublished': false,
+              },
+            ),
           ),
         ),
       );
@@ -686,13 +754,16 @@ void main() {
             businessId: 'business-1',
             productId: 'product-1',
             firestoreOverride: db,
-            callableInvoker: (name, data) async {
+            callableInvoker: _withReadiness(_blockedReadiness, (
+              name,
+              data,
+            ) async {
               throw FirebaseFunctionsException(
                 code: 'failed-precondition',
                 message: 'rejected',
                 details: {'reasonCode': entry.key},
               );
-            },
+            }),
           ),
         ),
       );
@@ -736,13 +807,13 @@ void main() {
           businessId: 'business-1',
           productId: 'product-1',
           firestoreOverride: db,
-          callableInvoker: (name, data) async {
+          callableInvoker: _withReadiness(_readyReadiness, (name, data) async {
             throw FirebaseFunctionsException(
               code: 'failed-precondition',
               message: 'Product is not eligible for pilot approval',
               details: {'reasonCode': 'pilot-class-missing-or-invalid'},
             );
-          },
+          }),
         ),
       ),
     );
@@ -769,4 +840,459 @@ void main() {
     expect(find.text(l10n.pilotAdminErrorClassMissing), findsOneWidget);
     expect(find.text(l10n.pilotAdminErrorGeneric), findsNothing);
   });
+
+  // =====================================================================
+  // Marketplace Revision 36 — the server-authoritative approval handshake.
+  //
+  // The screen must never decide for itself that a product is approvable,
+  // never compute a fingerprint, and never re-submit on the admin's behalf.
+  // =====================================================================
+
+  testWidgets(
+    'REV36-UI-1. Approve stays disabled while readiness is loading, and the '
+    'loading state is shown',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      final gate = Completer<Object?>();
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                return gate.future;
+              }
+              return const <String, dynamic>{};
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PilotProductApprovalDetailPage)),
+      )!;
+
+      expect(find.byKey(const Key('pilotReadinessLoading')), findsOneWidget);
+      expect(find.text(l10n.pilotAdminReadinessLoading), findsOneWidget);
+
+      // The readiness spinner animates for as long as the call is unanswered,
+      // so `pumpAndSettle` would never return here — explicit frames are what
+      // let this test observe the in-flight state at all.
+      Future<void> pumpFrames() async {
+        for (var i = 0; i < 6; i += 1) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+
+      // Even with the category chosen and the attestation ticked, an
+      // unanswered readiness call keeps Approve disabled.
+      await tester.tap(find.byKey(const Key('pilotApprovalCategoryDropdown')));
+      await pumpFrames();
+      await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+      await pumpFrames();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      final ElevatedButton approve = tester.widget(
+        find.byKey(const Key('pilotApproveButton')),
+      );
+      expect(approve.onPressed, isNull);
+
+      gate.complete(_readyReadiness);
+      await tester.pumpAndSettle();
+      // Once the server answers `ready`, the same button becomes enabled —
+      // proving the disabled state above was the readiness gate and not some
+      // other unmet precondition.
+      final ElevatedButton afterReady = tester.widget(
+        find.byKey(const Key('pilotApproveButton')),
+      );
+      expect(afterReady.onPressed, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-2. a blocked readiness disables Approve and shows the reason '
+    'that matches the server code, never a generic failure',
+    (tester) async {
+      _useTallViewport(tester);
+      final cases = <String, String Function(AppLocalizations)>{
+        'readiness-decision-missing': (l) =>
+            l.pilotAdminReadinessDecisionMissing,
+        'readiness-decision-expired': (l) =>
+            l.pilotAdminReadinessDecisionExpired,
+        'readiness-evidence-stale': (l) => l.pilotAdminReadinessEvidenceStale,
+        'readiness-policy-mismatch': (l) => l.pilotAdminReadinessPolicyMismatch,
+        'readiness-class-missing': (l) => l.pilotAdminErrorClassMissing,
+        'readiness-generation-mismatch': (l) =>
+            l.pilotAdminErrorStaleGeneration,
+      };
+      for (final entry in cases.entries) {
+        final db = await firestoreWithProduct(_pendingProduct);
+        await tester.pumpWidget(
+          _testApp(
+            PilotProductApprovalDetailPage(
+              key: ValueKey(entry.key),
+              businessId: 'business-1',
+              productId: 'product-1',
+              firestoreOverride: db,
+              callableInvoker: _withReadiness({
+                ..._blockedReadiness,
+                'reasonCode': entry.key,
+              }),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(PilotProductApprovalDetailPage)),
+        )!;
+
+        expect(
+          find.text(entry.value(l10n)),
+          findsOneWidget,
+          reason: 'unmapped readiness reason ${entry.key}',
+        );
+        expect(find.text(l10n.pilotAdminErrorGeneric), findsNothing);
+
+        await tester.tap(
+          find.byKey(const Key('pilotApprovalCategoryDropdown')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(CheckboxListTile));
+        await tester.pump();
+        final ElevatedButton approve = tester.widget(
+          find.byKey(const Key('pilotApproveButton')),
+        );
+        expect(
+          approve.onPressed,
+          isNull,
+          reason: 'Approve must stay disabled for ${entry.key}',
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-3. a ready state submits the exact server fingerprint and '
+    'nothing the client derived',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      final approveCalls = <Map<String, dynamic>>[];
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                return _readyReadiness;
+              }
+              approveCalls.add(data);
+              return const <String, dynamic>{'active': true};
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PilotProductApprovalDetailPage)),
+      )!;
+      expect(find.byKey(const Key('pilotReadinessReady')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('pilotApprovalCategoryDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('pilotApproveButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(TextButton, l10n.pilotAdminApproveButton),
+      );
+      await tester.pumpAndSettle();
+
+      expect(approveCalls.length, 1);
+      expect(
+        approveCalls.single['reviewedContentFingerprint'],
+        _readyReadiness['approvalFingerprint'],
+      );
+      expect(find.text(l10n.pilotAdminApproveSucceeded), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-4. a stale approval reloads readiness and requires a new '
+    'explicit tap — never an automatic retry',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      var readinessCalls = 0;
+      var approveCalls = 0;
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                readinessCalls += 1;
+                return _readyReadiness;
+              }
+              approveCalls += 1;
+              throw FirebaseFunctionsException(
+                code: 'failed-precondition',
+                message: 'Reviewed content is stale',
+                details: {'reasonCode': 'stale-content'},
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PilotProductApprovalDetailPage)),
+      )!;
+      expect(readinessCalls, 1);
+
+      await tester.tap(find.byKey(const Key('pilotApprovalCategoryDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('pilotApproveButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(TextButton, l10n.pilotAdminApproveButton),
+      );
+      await tester.pumpAndSettle();
+
+      // Exactly one approval attempt, and readiness was reloaded once.
+      expect(approveCalls, 1, reason: 'the client must never auto-retry');
+      expect(readinessCalls, 2, reason: 'readiness must be reloaded');
+      expect(find.text(l10n.pilotAdminReadinessStale), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-5. a double tap on Approve produces exactly one invocation',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      var approveCalls = 0;
+      final gate = Completer<Object?>();
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                return _readyReadiness;
+              }
+              approveCalls += 1;
+              return gate.future;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PilotProductApprovalDetailPage)),
+      )!;
+
+      await tester.tap(find.byKey(const Key('pilotApprovalCategoryDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('pilotApproveButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(TextButton, l10n.pilotAdminApproveButton),
+      );
+      await tester.pump();
+
+      // A FULL second attempt while the first call is still in flight: tap
+      // Approve again AND try to confirm it. Only completing the second cycle
+      // proves the in-flight guard rather than the confirmation dialog — a
+      // second Approve tap alone merely opens a dialog and would never invoke
+      // anything even with the guard removed.
+      await tester.tap(
+        find.byKey(const Key('pilotApproveButton')),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      await tester.tap(
+        find.widgetWithText(TextButton, l10n.pilotAdminApproveButton),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      expect(
+        approveCalls,
+        1,
+        reason: 'the in-flight guard must refuse a second submission',
+      );
+
+      gate.complete(const <String, dynamic>{'active': true});
+      await tester.pumpAndSettle();
+      expect(approveCalls, 1);
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-6. a successful approval re-reads authoritative state, and a '
+    'classification change invalidates readiness',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      var readinessCalls = 0;
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                readinessCalls += 1;
+                return _readyReadiness;
+              }
+              if (name == 'setPilotProductClassification') {
+                return const <String, dynamic>{
+                  'changed': true,
+                  'idempotent': false,
+                  'unpublished': false,
+                };
+              }
+              return const <String, dynamic>{'active': true};
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PilotProductApprovalDetailPage)),
+      )!;
+      expect(readinessCalls, 1);
+
+      // A classification change moves a readiness-bound input.
+      await tester.tap(find.byKey(const Key('pilotClassificationDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.pilotAdminClassSealedWetFood).last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('pilotClassificationReasonField')),
+        'Reclassified.',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('pilotClassificationSaveButton')));
+      await tester.pumpAndSettle();
+      expect(
+        readinessCalls,
+        greaterThan(1),
+        reason: 'a classification change must invalidate readiness',
+      );
+
+      final afterClassify = readinessCalls;
+      await tester.tap(find.byKey(const Key('pilotApprovalCategoryDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('pilotApproveButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(TextButton, l10n.pilotAdminApproveButton),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        readinessCalls,
+        greaterThan(afterClassify),
+        reason: 'a successful approval must refresh authoritative state',
+      );
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-7. the explicit re-check control reloads readiness on demand',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      var readinessCalls = 0;
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                readinessCalls += 1;
+                return _blockedReadiness;
+              }
+              return const <String, dynamic>{};
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(readinessCalls, 1);
+      await tester.tap(find.byKey(const Key('pilotReadinessRefreshButton')));
+      await tester.pumpAndSettle();
+      expect(readinessCalls, 2);
+    },
+  );
+
+  testWidgets(
+    'REV36-UI-8. a readiness call that itself fails leaves Approve disabled',
+    (tester) async {
+      _useTallViewport(tester);
+      final db = await firestoreWithProduct(_pendingProduct);
+      await tester.pumpWidget(
+        _testApp(
+          PilotProductApprovalDetailPage(
+            businessId: 'business-1',
+            productId: 'product-1',
+            firestoreOverride: db,
+            callableInvoker: (name, data) async {
+              if (name == 'getPilotProductApprovalReadiness') {
+                throw FirebaseFunctionsException(
+                  code: 'permission-denied',
+                  message: 'Admin only',
+                );
+              }
+              return const <String, dynamic>{};
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(PilotProductApprovalDetailPage)),
+      )!;
+      await tester.tap(find.byKey(const Key('pilotApprovalCategoryDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.pilotAdminCategoryFood).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      final ElevatedButton approve = tester.widget(
+        find.byKey(const Key('pilotApproveButton')),
+      );
+      expect(approve.onPressed, isNull);
+    },
+  );
 }

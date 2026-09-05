@@ -20354,6 +20354,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This product can no longer be classified.'**
   String get pilotAdminErrorClassNotClassifiable;
+
+  /// No description provided for @pilotAdminReadinessLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking approval readiness…'**
+  String get pilotAdminReadinessLoading;
+
+  /// No description provided for @pilotAdminReadinessReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to approve. Compliance and classification were verified by the server just now.'**
+  String get pilotAdminReadinessReady;
+
+  /// No description provided for @pilotAdminReadinessBlockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not ready to approve'**
+  String get pilotAdminReadinessBlockedTitle;
+
+  /// No description provided for @pilotAdminReadinessRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-check readiness'**
+  String get pilotAdminReadinessRefresh;
+
+  /// No description provided for @pilotAdminReadinessStale.
+  ///
+  /// In en, this message translates to:
+  /// **'This product changed while you were reviewing it. Readiness was reloaded — review it and approve again.'**
+  String get pilotAdminReadinessStale;
+
+  /// No description provided for @pilotAdminReadinessDecisionMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No compliance decision has been computed for this product yet.'**
+  String get pilotAdminReadinessDecisionMissing;
+
+  /// No description provided for @pilotAdminReadinessDecisionNotEligible.
+  ///
+  /// In en, this message translates to:
+  /// **'The current compliance decision is not a positive one.'**
+  String get pilotAdminReadinessDecisionNotEligible;
+
+  /// No description provided for @pilotAdminReadinessDecisionExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The compliance decision has expired.'**
+  String get pilotAdminReadinessDecisionExpired;
+
+  /// No description provided for @pilotAdminReadinessDecisionMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The compliance decision does not belong to this product.'**
+  String get pilotAdminReadinessDecisionMismatch;
+
+  /// No description provided for @pilotAdminReadinessEvidenceStale.
+  ///
+  /// In en, this message translates to:
+  /// **'The compliance evidence has changed since the decision was computed. It must be re-evaluated.'**
+  String get pilotAdminReadinessEvidenceStale;
+
+  /// No description provided for @pilotAdminReadinessPolicyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The compliance decision was computed under a different policy version.'**
+  String get pilotAdminReadinessPolicyMismatch;
+
+  /// No description provided for @pilotAdminReadinessInvalidTransition.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is not in a state that can be approved.'**
+  String get pilotAdminReadinessInvalidTransition;
+
+  /// No description provided for @pilotAdminReadinessAlreadyApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is already approved.'**
+  String get pilotAdminReadinessAlreadyApproved;
+
+  /// No description provided for @pilotAdminReadinessMalformedState.
+  ///
+  /// In en, this message translates to:
+  /// **'The stored compliance state is incomplete. Approval is blocked until it is corrected.'**
+  String get pilotAdminReadinessMalformedState;
+
+  /// No description provided for @pilotAdminReadinessDecisionValidUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Compliance valid until {date}'**
+  String pilotAdminReadinessDecisionValidUntil(String date);
+
+  /// No description provided for @pilotAdminApproveSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Product approved.'**
+  String get pilotAdminApproveSucceeded;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

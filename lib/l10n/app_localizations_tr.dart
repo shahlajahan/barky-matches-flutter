@@ -10807,4 +10807,54 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get pilotAdminErrorClassNotClassifiable => 'Bu ürün artık sınıflandırılamaz.';
+
+  @override
+  String get pilotAdminReadinessLoading => 'Onay hazırlığı denetleniyor…';
+
+  @override
+  String get pilotAdminReadinessReady => 'Onaya hazır. Uyumluluk ve sınıflandırma az önce sunucu tarafından doğrulandı.';
+
+  @override
+  String get pilotAdminReadinessBlockedTitle => 'Onaya hazır değil';
+
+  @override
+  String get pilotAdminReadinessRefresh => 'Hazırlığı yeniden denetle';
+
+  @override
+  String get pilotAdminReadinessStale => 'Siz incelerken bu ürün değişti. Hazırlık yeniden yüklendi — gözden geçirip yeniden onaylayın.';
+
+  @override
+  String get pilotAdminReadinessDecisionMissing => 'Bu ürün için henüz bir uyumluluk kararı hesaplanmadı.';
+
+  @override
+  String get pilotAdminReadinessDecisionNotEligible => 'Mevcut uyumluluk kararı olumlu değil.';
+
+  @override
+  String get pilotAdminReadinessDecisionExpired => 'Uyumluluk kararının süresi doldu.';
+
+  @override
+  String get pilotAdminReadinessDecisionMismatch => 'Uyumluluk kararı bu ürüne ait değil.';
+
+  @override
+  String get pilotAdminReadinessEvidenceStale => 'Karar hesaplandığından beri uyumluluk kanıtları değişti. Yeniden değerlendirilmeli.';
+
+  @override
+  String get pilotAdminReadinessPolicyMismatch => 'Uyumluluk kararı farklı bir politika sürümüyle hesaplanmış.';
+
+  @override
+  String get pilotAdminReadinessInvalidTransition => 'Bu ürün onaylanabilecek bir durumda değil.';
+
+  @override
+  String get pilotAdminReadinessAlreadyApproved => 'Bu ürün zaten onaylı.';
+
+  @override
+  String get pilotAdminReadinessMalformedState => 'Kayıtlı uyumluluk durumu eksik. Düzeltilene kadar onay engellendi.';
+
+  @override
+  String pilotAdminReadinessDecisionValidUntil(String date) {
+    return 'Uyumluluk geçerlilik sonu: $date';
+  }
+
+  @override
+  String get pilotAdminApproveSucceeded => 'Ürün onaylandı.';
 }

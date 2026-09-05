@@ -10807,4 +10807,54 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get pilotAdminErrorClassNotClassifiable => 'این محصول دیگر قابل طبقه‌بندی نیست.';
+
+  @override
+  String get pilotAdminReadinessLoading => 'در حال بررسی آمادگی برای تایید…';
+
+  @override
+  String get pilotAdminReadinessReady => 'آماده تایید است. انطباق و طبقه‌بندی هم‌اکنون توسط سرور راستی‌آزمایی شد.';
+
+  @override
+  String get pilotAdminReadinessBlockedTitle => 'آماده تایید نیست';
+
+  @override
+  String get pilotAdminReadinessRefresh => 'بررسی دوباره آمادگی';
+
+  @override
+  String get pilotAdminReadinessStale => 'این محصول در حین بررسی شما تغییر کرد. آمادگی دوباره بارگذاری شد — بازبینی و دوباره تایید کنید.';
+
+  @override
+  String get pilotAdminReadinessDecisionMissing => 'هنوز هیچ تصمیم انطباقی برای این محصول محاسبه نشده است.';
+
+  @override
+  String get pilotAdminReadinessDecisionNotEligible => 'تصمیم انطباق فعلی مثبت نیست.';
+
+  @override
+  String get pilotAdminReadinessDecisionExpired => 'اعتبار تصمیم انطباق منقضی شده است.';
+
+  @override
+  String get pilotAdminReadinessDecisionMismatch => 'تصمیم انطباق متعلق به این محصول نیست.';
+
+  @override
+  String get pilotAdminReadinessEvidenceStale => 'مدارک انطباق پس از محاسبه تصمیم تغییر کرده‌اند و باید دوباره ارزیابی شوند.';
+
+  @override
+  String get pilotAdminReadinessPolicyMismatch => 'تصمیم انطباق با نسخه دیگری از سیاست محاسبه شده است.';
+
+  @override
+  String get pilotAdminReadinessInvalidTransition => 'این محصول در وضعیتی نیست که بتوان آن را تایید کرد.';
+
+  @override
+  String get pilotAdminReadinessAlreadyApproved => 'این محصول از قبل تایید شده است.';
+
+  @override
+  String get pilotAdminReadinessMalformedState => 'وضعیت انطباق ذخیره‌شده ناقص است. تا اصلاح آن، تایید مسدود است.';
+
+  @override
+  String pilotAdminReadinessDecisionValidUntil(String date) {
+    return 'اعتبار انطباق تا $date';
+  }
+
+  @override
+  String get pilotAdminApproveSucceeded => 'محصول تایید شد.';
 }

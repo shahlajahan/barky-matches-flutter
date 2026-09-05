@@ -10809,4 +10809,54 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get pilotAdminErrorClassNotClassifiable => 'Этот товар больше нельзя классифицировать.';
+
+  @override
+  String get pilotAdminReadinessLoading => 'Проверка готовности к одобрению…';
+
+  @override
+  String get pilotAdminReadinessReady => 'Готово к одобрению. Соответствие и классификация только что проверены сервером.';
+
+  @override
+  String get pilotAdminReadinessBlockedTitle => 'Не готово к одобрению';
+
+  @override
+  String get pilotAdminReadinessRefresh => 'Проверить готовность заново';
+
+  @override
+  String get pilotAdminReadinessStale => 'Товар изменился, пока вы его проверяли. Готовность перезагружена — проверьте и одобрите заново.';
+
+  @override
+  String get pilotAdminReadinessDecisionMissing => 'Решение о соответствии для этого товара ещё не вычислено.';
+
+  @override
+  String get pilotAdminReadinessDecisionNotEligible => 'Текущее решение о соответствии не является положительным.';
+
+  @override
+  String get pilotAdminReadinessDecisionExpired => 'Срок действия решения о соответствии истёк.';
+
+  @override
+  String get pilotAdminReadinessDecisionMismatch => 'Решение о соответствии относится не к этому товару.';
+
+  @override
+  String get pilotAdminReadinessEvidenceStale => 'Подтверждающие документы изменились после вычисления решения. Требуется повторная оценка.';
+
+  @override
+  String get pilotAdminReadinessPolicyMismatch => 'Решение о соответствии вычислено по другой версии политики.';
+
+  @override
+  String get pilotAdminReadinessInvalidTransition => 'Товар находится в состоянии, которое нельзя одобрить.';
+
+  @override
+  String get pilotAdminReadinessAlreadyApproved => 'Этот товар уже одобрен.';
+
+  @override
+  String get pilotAdminReadinessMalformedState => 'Сохранённое состояние соответствия неполное. Одобрение заблокировано до исправления.';
+
+  @override
+  String pilotAdminReadinessDecisionValidUntil(String date) {
+    return 'Соответствие действительно до $date';
+  }
+
+  @override
+  String get pilotAdminApproveSucceeded => 'Товар одобрен.';
 }

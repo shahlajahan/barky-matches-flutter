@@ -10807,4 +10807,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pilotAdminErrorClassNotClassifiable => 'This product can no longer be classified.';
+
+  @override
+  String get pilotAdminReadinessLoading => 'Checking approval readiness…';
+
+  @override
+  String get pilotAdminReadinessReady => 'Ready to approve. Compliance and classification were verified by the server just now.';
+
+  @override
+  String get pilotAdminReadinessBlockedTitle => 'Not ready to approve';
+
+  @override
+  String get pilotAdminReadinessRefresh => 'Re-check readiness';
+
+  @override
+  String get pilotAdminReadinessStale => 'This product changed while you were reviewing it. Readiness was reloaded — review it and approve again.';
+
+  @override
+  String get pilotAdminReadinessDecisionMissing => 'No compliance decision has been computed for this product yet.';
+
+  @override
+  String get pilotAdminReadinessDecisionNotEligible => 'The current compliance decision is not a positive one.';
+
+  @override
+  String get pilotAdminReadinessDecisionExpired => 'The compliance decision has expired.';
+
+  @override
+  String get pilotAdminReadinessDecisionMismatch => 'The compliance decision does not belong to this product.';
+
+  @override
+  String get pilotAdminReadinessEvidenceStale => 'The compliance evidence has changed since the decision was computed. It must be re-evaluated.';
+
+  @override
+  String get pilotAdminReadinessPolicyMismatch => 'The compliance decision was computed under a different policy version.';
+
+  @override
+  String get pilotAdminReadinessInvalidTransition => 'This product is not in a state that can be approved.';
+
+  @override
+  String get pilotAdminReadinessAlreadyApproved => 'This product is already approved.';
+
+  @override
+  String get pilotAdminReadinessMalformedState => 'The stored compliance state is incomplete. Approval is blocked until it is corrected.';
+
+  @override
+  String pilotAdminReadinessDecisionValidUntil(String date) {
+    return 'Compliance valid until $date';
+  }
+
+  @override
+  String get pilotAdminApproveSucceeded => 'Product approved.';
 }
