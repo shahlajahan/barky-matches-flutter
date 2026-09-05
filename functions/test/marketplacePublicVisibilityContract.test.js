@@ -149,6 +149,26 @@ test("the frozen contract is recorded in the master plan as Revision 38 §0.36",
   assert.ok(plan.includes("MARKETPLACE_LISTING_ENABLED"));
 });
 
+test("Revision 39 §0.37 records the batch contract, the frozen purchase contract and the checkout blocker", () => {
+  const plan = fs.readFileSync(
+    path.join(
+      __dirname, "..", "..", "docs", "plans",
+      "marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md"
+    ),
+    "utf8"
+  );
+  assert.ok(plan.includes("### 0.37 Revision 39 change log"));
+  // The canonical helper and the batch contract.
+  assert.ok(plan.includes("assessProductVisibility"));
+  assert.ok(plan.includes("getMarketplaceProductBatch"));
+  assert.ok(plan.includes("Batch is hydration, never purchase authority"));
+  // The blocker must be recorded as a blocker, not glossed.
+  assert.ok(plan.includes("CHECKOUT ARCHITECTURE BLOCKER"));
+  assert.ok(plan.includes("cosmetic precheck"));
+  // And the flags must still be recorded as unset.
+  assert.ok(plan.includes("M3_INVENTORY_RESERVATION_ENABLED"));
+});
+
 test("the contract module is pure data — it performs no reads and holds no logic", () => {
   const source = fs.readFileSync(
     path.join(
