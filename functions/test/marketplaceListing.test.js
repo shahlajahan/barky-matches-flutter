@@ -2020,13 +2020,19 @@ test("scope: marketplaceListing.js does not implement the Rules prerequisite, re
   assert.doesNotMatch(MODULE_SOURCE, /runId|checkpoint/i);
 });
 
-test("scope: exactly three repository paths are touched by this implementation (index.js, marketplaceListing.js, marketplaceListing.test.js)", () => {
-  // A structural assertion: the module and wrapper files exist at their
-  // exact committed paths, and no sibling implementation file was
-  // introduced alongside them.
+test("scope: only the announced implementation files exist in publicCatalog/ (Slice 4.5's two, plus Revision 38's frozen contract)", () => {
+  // A structural assertion: no UNANNOUNCED sibling implementation file may
+  // appear beside the catalogue module. Slice 4.5 froze this directory at a
+  // single file; Marketplace Revision 38 §0.36 (Slice 7B) authorizes exactly
+  // one addition — `marketplacePublicVisibility.js`, the frozen public
+  // visibility contract, which is pure data and performs no reads. The guard
+  // is migrated rather than deleted: a third, unannounced file still fails.
   const publicCatalogDir = path.join(REPO_ROOT, "functions", "src", "marketplace", "publicCatalog");
   const entries = fs.readdirSync(publicCatalogDir);
-  assert.deepEqual(entries.sort(), ["marketplaceListing.js"]);
+  assert.deepEqual(entries.sort(), [
+    "marketplaceListing.js",
+    "marketplacePublicVisibility.js",
+  ]);
 });
 
 test("scope: no App Check enforcement is claimed anywhere in marketplaceListing.js or this test file's own source", () => {
