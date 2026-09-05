@@ -15030,10 +15030,26 @@ exports.createCheckoutSession = onCall(
             );
           }
 
+          // Marketplace Revision 40 §0.38 G — NO CLIENT PRICE AUTHORITY.
+          //
+          // This previously fell back to `rawItem.price` when the product
+          // document had neither `salePrice` nor `price`, and that number then
+          // drove the subtotal, the grand total, the amount sent to the
+          // payment provider, the commission split and `payout.amount`. A
+          // product with no server price now REJECTS the line, matching what
+          // `createMarketplaceOrderV2` already does — the same cart must not
+          // be priced one way by the order creator and another by the session
+          // creator.
           const serverUnitPrice = asNumber(
-            productData.salePrice || productData.price || rawItem.price,
+            productData.salePrice || productData.price,
             0
           );
+          if (!(serverUnitPrice > 0)) {
+            throw new HttpsError(
+              "failed-precondition",
+              `Invalid product price: ${productId}`
+            );
+          }
 
           logger.info("🧪 PRICE TRACE", {
             businessId,
@@ -27342,9 +27358,12 @@ exports.calculatePricing = onCall(
 
           const product = productSnap.data() || {};
 
-          const price = Number(
-            product.salePrice || product.price || rawItem.price || 0
-          );
+          // Revision 40 §0.38 G — the quote is derived from canonical server
+          // data only. A product with no server price contributes nothing
+          // rather than echoing back whatever the caller asked for, so this
+          // endpoint can never be used to have the server confirm a price the
+          // client invented.
+          const price = Number(product.salePrice || product.price || 0);
 
           const kdvRate = Number(product.kdvRate || 0);
 

@@ -575,3 +575,37 @@ itest("31. a rejected prior return releases its balance again", async () => {
   await first.docs[0].ref.update({ status: "rejected" });
   assert.equal((await outcomeOf(callReturn("alice", body))).ok, true, "a rejected return frees balance");
 });
+
+// =====================================================================
+// F. No client price authority — Revision 40 §0.38 G
+// =====================================================================
+
+itest("17/18/19. neither pricing path accepts a client-supplied price as authority", async () => {
+  const checkout = bodyOf("createCheckoutSession", "exports.verifyPaymentByOrderId");
+  const executableCheckout = checkout
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//"))
+    .join("\n");
+  // The fallback expression must be gone from the executable source.
+  assert.equal(
+    /productData\.salePrice \|\| productData\.price \|\| rawItem\.price/.test(executableCheckout),
+    false,
+    "createCheckoutSession must not fall back to the client price"
+  );
+  // 20. and a missing canonical price must FAIL CLOSED, not default to zero.
+  assert.ok(
+    executableCheckout.includes("Invalid product price"),
+    "a product with no server price must reject the line"
+  );
+
+  const pricing = bodyOf("calculatePricing", "exports.updateGlobalStats");
+  const executablePricing = pricing
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//"))
+    .join("\n");
+  assert.equal(
+    /product\.salePrice \|\| product\.price \|\| rawItem\.price/.test(executablePricing),
+    false,
+    "calculatePricing must not echo the client price back"
+  );
+});
