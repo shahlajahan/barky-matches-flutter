@@ -2903,5 +2903,87 @@ match /stories/{storyId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
     }
+
+    // =================================================================
+    // Marketplace Revision 46 §0.44 (Slice 7F-1) — server-internal
+    // inventory, idempotency and recovery collections, explicitly closed.
+    //
+    // Revision 45 §0.43 §I recorded that these eight collections had no
+    // `match` block at all. They were already unreachable — this file has no
+    // root `match /{document=**}` catch-all, and Firestore default-denies an
+    // unmatched path — but that is an implicit property of what is ABSENT
+    // from this file. A future broad match added elsewhere would silently
+    // grant access to reservation state, idempotency claims and recovery
+    // cursors. This is the same reasoning, and the same posture, already
+    // applied to the compliance sweep checkpoints above.
+    //
+    // `if false` denies every client-SDK actor without exception —
+    // unauthenticated, customer, seller, business owner and admin alike. An
+    // admin has no more reason to read a reservation lease or forge a
+    // callback claim than a stranger does, so there is deliberately NO
+    // admin-client exception. Admin SDK access from the trusted Functions
+    // that own these documents is unaffected, because Rules never apply to
+    // it; this slice therefore requires no runtime change and activates
+    // nothing (M3 and M5 remain disabled).
+    //
+    // Each block also denies every nested path, so a future subcollection
+    // cannot become readable merely by being added.
+    // =================================================================
+
+    // Inventory ledger (inventoryConstants.js `INVENTORY_COLLECTIONS`) — the
+    // reservation records themselves, and the append-only movement and event
+    // trails that make every stock effect auditable and idempotent.
+    match /inventoryReservations/{reservationId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    match /inventoryMovements/{movementId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    match /inventoryEvents/{eventId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    // Checkout idempotency (inventoryCheckoutCoordinator.js
+    // `CHECKOUT_ATTEMPT_COLLECTION`). The document id embeds the buyer, and
+    // the record carries the intent fingerprint that decides whether a retry
+    // is the same purchase or a conflicting one. A client able to write here
+    // could replay, fork or hijack another customer's checkout.
+    match /marketplaceCheckoutAttempts/{attemptId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    // Payment callback claims (paymentCallbackClaims.js). The claim is what
+    // makes a provider callback idempotent; a forged or deleted claim could
+    // double-commit inventory or re-finalize a payment.
+    match /paymentCallbackClaims/{claimId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    match /paymentIdentityConflicts/{conflictId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    // Recovery state (inventoryReleaseCoordinator.js,
+    // inventoryExpiryScheduler.js). Late-payment recoveries hold
+    // manual-review evidence that must not be erased, and the checkpoint is
+    // the expiry sweep's continuation cursor — deleting it would silently
+    // stall the release of expired reservations.
+    match /inventoryLatePaymentRecoveries/{recoveryId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
+
+    match /inventoryRecoveryCheckpoints/{checkpointId} {
+      allow read, create, update, delete: if false;
+      match /{document=**} { allow read, write: if false; }
+    }
   }
 }

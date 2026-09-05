@@ -2330,6 +2330,42 @@ Invariants, enforced in-transaction and already implemented: both values are non
 
 ---
 
+### 0.44 Revision 46 change log — Server-internal inventory collections, explicitly denied (Slice 7F-1, 2026-09-05)
+
+**Status.** Revision 45 §0.43 §I recorded that the server-internal inventory, idempotency and recovery collections had **no `match` block at all** — correct by Firestore's default-deny, but implicit. This slice states the denial explicitly and tests it mechanically. **It is Rules hardening and regression protection, not a new authorization system**: the effective access outcome for every client actor is unchanged. M3 and M5 remain disabled, no runtime file changed, and nothing is deployed.
+
+**A. The eight collections, with the runtime origin that names each.**
+
+| Collection | Origin | Purpose |
+|---|---|---|
+| `inventoryReservations` | `INVENTORY_COLLECTIONS.RESERVATIONS` | the reservation records |
+| `inventoryMovements` | `INVENTORY_COLLECTIONS.MOVEMENTS` | append-only stock movement trail |
+| `inventoryEvents` | `INVENTORY_COLLECTIONS.EVENTS` | append-only event trail |
+| `marketplaceCheckoutAttempts` | `CHECKOUT_ATTEMPT_COLLECTION` | checkout idempotency claims |
+| `paymentCallbackClaims` | `paymentCallbackClaims.COLLECTION` | provider-callback idempotency |
+| `paymentIdentityConflicts` | `paymentCallbackClaims.CONFLICT_COLLECTION` | callback identity conflicts |
+| `inventoryLatePaymentRecoveries` | `inventoryReleaseCoordinator` literal | late-payment manual-review evidence |
+| `inventoryRecoveryCheckpoints` | `inventoryExpiryScheduler` literal | expiry-sweep continuation cursor |
+
+Writers and readers are trusted Cloud Functions only, through the Admin SDK. No client journey reads or writes any of them.
+
+**B. Prior behaviour, stated precisely.** Every one of the eight was already denied to every client, because this file has no root `match /{document=**}` catch-all and Firestore default-denies an unmatched path. The change converts that from *implicit* (a property of what is absent) to *explicit* (a property of what is written), so a future broad match cannot silently re-open reservation state, an idempotency claim or a sweep cursor.
+
+**C. Precedence analysis.** Firestore Rules are OR-based, so an explicit deny does not override an allow elsewhere. All three recursive wildcards in this file are nested inside specific parents — `users/{userId}`, `businesses/{businessId}` and `sellerFinanceSummaries/{businessId}` — and none is at root level, so no existing allow can reach a root-level internal collection. A test now asserts that no root-level recursive or wildcard-collection match exists, and mutations that introduce one are caught.
+
+**D. No admin exception.** Each block is `allow read, create, update, delete: if false;` plus a nested `match /{document=**} { allow read, write: if false; }`. That denies unauthenticated callers, customers, sellers, business owners and admin-claim users alike. An admin has no more reason to read a reservation lease or forge a callback claim than a stranger does. **Admin SDK access is unaffected**, because Rules never apply to it — which is why this slice needed no runtime change.
+
+**E. Tests.** `marketplaceInventoryInternalRules.test.js` (24) derives the collection names from the runtime modules — both `collection("literal")` and constant-bound forms, plus the `INVENTORY_COLLECTIONS` object — and fails if any lacks a Rules block, loses nested coverage, gains an actor exception, or is dropped from the inventory. It then runs five actors × six operations × eight collections plus nested paths, all denied, and carries two vacuity checks proving the harness can still perform an allowed read and that the seeded documents genuinely exist. `marketplaceInventoryInternalTrustedWrite.test.js` (5) is the positive half: it drives the real `reserveInventory`, `releaseInventory` and `claimCheckoutAttempt` through the Admin SDK and observes the internal documents still being created, read and updated — and asserts that no M3/M5 flag was enabled to do so.
+
+**F. Non-vacuity.** Against an isolated `9e94fd6` worktree the three **structural** tests fail (no explicit matches existed) while the twenty **behavioural** tests pass (default-deny already denied everything) — exactly the distinction this slice is about. The trusted-write suite passes on both trees, confirming the server path was never affected. **Seventeen mutations, all killed**: match removed, authenticated read, admin-client read, create/update/delete allowed, nested coverage removed, broad overlapping allow, root recursive catch-all, and each of the eight inventory entries dropped in turn.
+
+**G. Unchanged.** No inventory runtime semantics, feature flag, canary list, reservation/consume/release logic, TTL cleanup, idempotency behaviour, checkout schema, Flutter code, taxonomy, payment/refund/return behaviour or index. Revision 45's UNRESOLVED-1/2/3 are untouched and remain fail-closed.
+
+**H. Next slice: 7F-2** — freeze and enforce the maximum basket size (Revision 45 UNRESOLVED-3), which is the next item in the frozen 7F sequence and the last one before the M5 workers are enabled in 7F-3.
+
+---
+
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.
