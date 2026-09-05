@@ -2686,6 +2686,30 @@ match /stories/{storyId} {
       allow read, create, update, delete: if false;
     }
 
+    // Pre-Slice-7 correction — scheduler checkpoints, explicitly closed.
+    //
+    // Both documents are server-owned sweep cursors: the approval
+    // invalidation sweep's continuation point (Slice 6) and the compliance
+    // recompute sweep's (Slice 4.7). They were already unreachable, because
+    // this file has no root `match /{document=**}` catch-all and Firestore
+    // therefore default-denies an unmatched path — but that is an implicit
+    // property of what is ABSENT from this file, and a future broad match
+    // added elsewhere could silently grant access to a cursor that controls
+    // which products get re-checked for revoked or expired evidence.
+    //
+    // Stated explicitly instead. `if false` denies every client actor
+    // without exception — unauthenticated, customer, seller, business owner
+    // and admin alike; an admin has no more reason to read a sweep cursor
+    // than a stranger does. Admin SDK access from the Functions that own
+    // these documents is unaffected, since Rules never apply to it.
+    match /complianceApprovalInvalidationCheckpoint/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /complianceRecomputeSweepCheckpoint/{documentId} {
+      allow read, write: if false;
+    }
+
     match /complianceDocumentScopes/{scopeId} {
       allow read: if isAdmin() ||
         (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
