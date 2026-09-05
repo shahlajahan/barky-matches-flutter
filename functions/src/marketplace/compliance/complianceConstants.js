@@ -409,6 +409,34 @@ const COMPLIANCE_DOCUMENT_TYPE = Object.freeze({
   CATEGORY_COMPLIANCE_EVIDENCE: "category_compliance_evidence",
 });
 
+// Marketplace Revision 31 §C / Revision 35 (Slice 7A) — the authoritative
+// pilot classification, frozen.
+//
+// Exactly these four identifiers and no others. There is no alias table, no
+// case folding, no default and no inference: a value outside this set —
+// missing, null, wrong-typed, legacy, or any excluded category such as a
+// medicine, vitamin, supplement, medicated or prescription food, flea/tick
+// product, biocide or pesticide — fails closed and denies approval and
+// publication. Written ONLY by `setPilotProductClassification` (Revision 35
+// §C); never by a seller, never by a client SDK actor including an admin,
+// and never by an automatic classifier.
+const PILOT_PRODUCT_CLASS = Object.freeze({
+  SEALED_DRY_FOOD: "sealed_dry_food",
+  SEALED_WET_FOOD: "sealed_wet_food",
+  NON_MEDICINAL_TREATS: "non_medicinal_treats",
+  NON_BIOCIDAL_LITTER: "non_biocidal_litter",
+});
+
+const PILOT_PRODUCT_CLASS_VALUES = Object.freeze(Object.values(PILOT_PRODUCT_CLASS));
+
+// Strict membership: no trimming, no case folding, no display-label
+// tolerance — the same discipline `isValidSellerRelationship` already uses.
+function isValidPilotProductClass(value) {
+  return typeof value === "string" && PILOT_PRODUCT_CLASS_VALUES.includes(value);
+}
+
+const PILOT_CLASSIFICATION_MAX_REASON_LENGTH = 2000;
+
 const SELLER_RELATIONSHIP = Object.freeze({
   BRAND_OWNER: "brand_owner",
   MANUFACTURER: "manufacturer",
@@ -987,6 +1015,10 @@ module.exports = {
 
   COMPLIANCE_DOCUMENT_TYPE,
   SELLER_RELATIONSHIP,
+  PILOT_PRODUCT_CLASS,
+  PILOT_PRODUCT_CLASS_VALUES,
+  isValidPilotProductClass,
+  PILOT_CLASSIFICATION_MAX_REASON_LENGTH,
   COMPLIANCE_INTAKE_EVIDENCE_MATRIX,
   COMPLIANCE_INTAKE_UNRESOLVED_DOCUMENT_TYPES,
   COMPLIANCE_DOCUMENT_STATUS,

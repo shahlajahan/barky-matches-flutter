@@ -20,6 +20,10 @@ const {
   COMPLIANCE_UPLOAD_SESSION_ALLOWED_MIME_TYPES,
   COMPLIANCE_DOCUMENT_TYPE,
   SELLER_RELATIONSHIP,
+  PILOT_PRODUCT_CLASS,
+  PILOT_PRODUCT_CLASS_VALUES,
+  isValidPilotProductClass,
+  PILOT_CLASSIFICATION_MAX_REASON_LENGTH,
   COMPLIANCE_DOCUMENT_STATUS,
   COMPLIANCE_DOCUMENT_SERVER_OWNED_FIELDS,
   COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS,
@@ -640,6 +644,55 @@ test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS contains sellerRelationshipSnap
   const revisionIndex = fields.indexOf("productInputRevisionSnapshot");
   const snapshotIndex = fields.indexOf("sellerRelationshipSnapshot");
   assert.equal(snapshotIndex, revisionIndex + 1);
+});
+
+// Marketplace Revision 31 §C / Revision 35 §0.33 (Slice 7A) — the frozen
+// pilot classification vocabulary.
+
+test("PILOT_PRODUCT_CLASS is exactly the four frozen identifiers, frozen and byte-exact", () => {
+  assert.deepEqual(Object.keys(PILOT_PRODUCT_CLASS).sort(), [
+    "NON_BIOCIDAL_LITTER",
+    "NON_MEDICINAL_TREATS",
+    "SEALED_DRY_FOOD",
+    "SEALED_WET_FOOD",
+  ]);
+  assert.deepEqual([...PILOT_PRODUCT_CLASS_VALUES].sort(), [
+    "non_biocidal_litter",
+    "non_medicinal_treats",
+    "sealed_dry_food",
+    "sealed_wet_food",
+  ]);
+  assert.equal(Object.isFrozen(PILOT_PRODUCT_CLASS), true);
+  assert.equal(Object.isFrozen(PILOT_PRODUCT_CLASS_VALUES), true);
+});
+
+test("isValidPilotProductClass accepts exactly the four values and coerces nothing into validity", () => {
+  for (const value of PILOT_PRODUCT_CLASS_VALUES) {
+    assert.equal(isValidPilotProductClass(value), true, value);
+  }
+  const rejected = [
+    undefined, null, "", "   ", 0, 1, true, false, [], {},
+    // Casing, spacing and separator variants of a real value.
+    "SEALED_DRY_FOOD", "Sealed_Dry_Food", " sealed_dry_food", "sealed_dry_food ",
+    "sealed-dry-food", "sealeddryfood", "sealed_dry_foods", "dry_food",
+    // The approval-category vocabulary, which is a different closed set and
+    // must never be interchangeable with this one.
+    "food", "treats", "litter", "toys", "collars_leads", "beds", "bowls",
+    "grooming_tools",
+    // A seller's own draft `category` string.
+    "Food > Dry Food", "Health > Vitamins",
+    // The families the pilot deliberately excludes.
+    "medicinal_treats", "biocidal_litter", "vitamins", "supplements",
+    "prescription_food", "flea_and_tick", "pesticide",
+  ];
+  for (const value of rejected) {
+    assert.equal(isValidPilotProductClass(value), false, String(value));
+  }
+});
+
+test("PILOT_CLASSIFICATION_MAX_REASON_LENGTH is a positive integer bound", () => {
+  assert.equal(Number.isInteger(PILOT_CLASSIFICATION_MAX_REASON_LENGTH), true);
+  assert.ok(PILOT_CLASSIFICATION_MAX_REASON_LENGTH > 0);
 });
 
 test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS is exactly the 12 Revision 9 fields, no alias, no extra field", () => {
