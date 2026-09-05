@@ -3895,6 +3895,11 @@ function freshnessFixtureDocs({ businessId, productId, activeVersionId, evidence
     evidenceRevision,
     productInputRevisionSnapshot: 0,
     sellerRelationshipSnapshot: "manufacturer",
+    // Marketplace Revision 35 (Slice 7A) — the eleventh bound decision-hash
+    // input. This fixture's product carries no admin-recorded class, so the
+    // decision records the explicit `null` sentinel, exactly as the real
+    // writer does.
+    pilotProductClassSnapshot: null,
     requiredEvidenceSlots: [],
     satisfiedEvidenceSlots: [],
     activeEvidenceRefs: [],
@@ -4103,19 +4108,26 @@ test("static: documentType/validUntil are written onto complianceDocumentScopes 
 // above.
 // =====================================================================
 
-test("epoch [G29] exactly five production call sites invoke bumpBusinessComplianceEpoch, plus exactly one definition", () => {
-  const calls = EXECUTABLE_TEXT.match(/bumpBusinessComplianceEpoch\(\{/g) || [];
-  // One of the six matches is the function's own definition site
-  // (`function bumpBusinessComplianceEpoch({ tx, db, businessId })`) —
-  // that line uses `({ tx, db, businessId })` as a parameter list, not
-  // a call, so match only literal call sites: `bumpBusinessComplianceEpoch({`
-  // immediately followed eventually by `tx,`/`db,`/`businessId:` as an
-  // argument object in a call context. Simplest precise count: total
-  // occurrences of the identifier minus the one function declaration.
+test("epoch [G29] exactly five production call sites invoke bumpBusinessComplianceEpoch, plus exactly one definition and exactly one export", () => {
+  // Occurrences of the identifier fall into exactly three kinds: the one
+  // `function bumpBusinessComplianceEpoch(...)` declaration, the one
+  // `module.exports` entry (Marketplace Revision 35 — the helper is now
+  // shared with `pilotProductClassification.js`, so reclassification
+  // schedules recomputation through this same existing mechanism rather
+  // than a second, drifting copy of it), and the real call sites. Counting
+  // the first two explicitly and subtracting keeps this a genuine call-site
+  // census rather than a bare occurrence count that a new export could
+  // silently satisfy.
   const totalOccurrences = (EXECUTABLE_TEXT.match(/bumpBusinessComplianceEpoch/g) || []).length;
   const definitionCount = (EXECUTABLE_TEXT.match(/function bumpBusinessComplianceEpoch/g) || []).length;
+  const exportCount = (EXECUTABLE_TEXT.match(/^\s{2}bumpBusinessComplianceEpoch,\s*$/gm) || []).length;
   assert.equal(definitionCount, 1, "expected exactly one helper definition");
-  assert.equal(totalOccurrences - definitionCount, 5, "expected exactly five call sites");
+  assert.equal(exportCount, 1, "expected exactly one module.exports entry");
+  assert.equal(
+    totalOccurrences - definitionCount - exportCount,
+    5,
+    "expected exactly five call sites"
+  );
 });
 
 test("epoch [G30/31/32/33] the helper's own write uses exactly the frozen collection/field/operation/merge shape", () => {

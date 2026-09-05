@@ -10743,4 +10743,70 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get networkErrorTryAgain => 'Ошибка сети. Попробуйте ещё раз.';
+
+  @override
+  String get pilotAdminClassificationSectionTitle => 'Классификация пилотного товара';
+
+  @override
+  String get pilotAdminClassificationExplanation => 'Товар должен быть классифицирован до одобрения. Классификация — административное решение, она никогда не берётся из категории, указанной продавцом.';
+
+  @override
+  String get pilotAdminClassificationCurrentLabel => 'Текущая классификация';
+
+  @override
+  String get pilotAdminClassificationNotClassified => 'Не классифицирован';
+
+  @override
+  String get pilotAdminClassificationFieldLabel => 'Классификация';
+
+  @override
+  String get pilotAdminClassificationReasonLabel => 'Обоснование классификации';
+
+  @override
+  String get pilotAdminClassificationReasonHint => 'Укажите, почему применяется эта классификация.';
+
+  @override
+  String get pilotAdminClassificationReasonRequired => 'Обоснование обязательно.';
+
+  @override
+  String get pilotAdminClassificationSaveButton => 'Сохранить классификацию';
+
+  @override
+  String get pilotAdminClassificationSaved => 'Классификация сохранена.';
+
+  @override
+  String get pilotAdminClassificationUnchanged => 'Эта классификация уже была записана. Ничего не изменилось.';
+
+  @override
+  String get pilotAdminClassificationUnpublishWarning => 'Этот товар сейчас опубликован. Изменение классификации снимет его с публикации и вернёт на проверку.';
+
+  @override
+  String get pilotAdminClassificationUnpublished => 'Классификация сохранена. Товар снят с публикации и возвращён на проверку.';
+
+  @override
+  String get pilotAdminClassificationConfirmTitle => 'Изменить классификацию?';
+
+  @override
+  String get pilotAdminClassificationConfirmMessage => 'Товар будет снят с публикации, и для возврата в Marketplace потребуется повторное одобрение.';
+
+  @override
+  String get pilotAdminClassSealedDryFood => 'Запечатанный сухой корм';
+
+  @override
+  String get pilotAdminClassSealedWetFood => 'Запечатанный влажный корм';
+
+  @override
+  String get pilotAdminClassNonMedicinalTreats => 'Немедицинские лакомства';
+
+  @override
+  String get pilotAdminClassNonBiocidalLitter => 'Небиоцидный наполнитель';
+
+  @override
+  String get pilotAdminErrorClassMissing => 'У этого товара ещё нет классификации. Классифицируйте его перед одобрением.';
+
+  @override
+  String get pilotAdminErrorClassUnsupported => 'Эта классификация не входит в число поддерживаемых пилотных классов.';
+
+  @override
+  String get pilotAdminErrorClassNotClassifiable => 'Этот товар больше нельзя классифицировать.';
 }

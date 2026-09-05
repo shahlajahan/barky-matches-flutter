@@ -27,6 +27,7 @@
 
 const {
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
+  isValidPilotProductClass,
 } = require("./complianceConstants");
 const {
   isValidSellerRelationship,
@@ -53,6 +54,7 @@ const REASON = Object.freeze({
   EVIDENCE_REVISION_MISMATCH: "eligibility_evidence_revision_mismatch",
   PRODUCT_INPUT_REVISION_MISMATCH: "eligibility_product_input_revision_mismatch",
   SELLER_RELATIONSHIP_SNAPSHOT_MISMATCH: "eligibility_seller_relationship_snapshot_mismatch",
+  PILOT_PRODUCT_CLASS_SNAPSHOT_MISMATCH: "eligibility_pilot_product_class_snapshot_mismatch",
   VALID_UNTIL_MISSING_OR_EXPIRED: "eligibility_valid_until_missing_or_expired",
   ACTIVE_EVIDENCE_REFS_OUT_OF_BOUND: "eligibility_active_evidence_refs_out_of_bound",
   DECISION_HASH_MISMATCH: "eligibility_decision_hash_mismatch",
@@ -209,6 +211,16 @@ async function evaluateLiveProductEligibility({
     // distinct, more lenient failure mode than any other required field.
     typeof decision.sellerRelationshipSnapshot !== "string" ||
     !isValidSellerRelationship(decision.sellerRelationshipSnapshot) ||
+    // Revision 35 (Slice 7A) — `pilotProductClassSnapshot` is structurally
+    // required on every decision. `null` is legitimate and means "no valid
+    // class was recorded when this decision was computed"; any other
+    // non-enum value, and `undefined` (a decision written before this field
+    // existed), is malformed and fails closed here rather than being
+    // silently normalized.
+    !(
+      decision.pilotProductClassSnapshot === null ||
+      isValidPilotProductClass(decision.pilotProductClassSnapshot)
+    ) ||
     !Array.isArray(decision.requiredEvidenceSlots) ||
     !isWithinRequiredEvidenceSlotsBound(decision.requiredEvidenceSlots) ||
     !Array.isArray(decision.satisfiedEvidenceSlots) ||
@@ -269,6 +281,26 @@ async function evaluateLiveProductEligibility({
     return ineligible(REASON.SELLER_RELATIONSHIP_SNAPSHOT_MISMATCH);
   }
 
+  // pilotProductClassSnapshot equality — Revision 35 (Slice 7A), the same
+  // independent-check reasoning as sellerRelationshipSnapshot immediately
+  // above. `setPilotProductClassification` does bump the business epoch, so
+  // the epoch check above already catches a class change; this comparison is
+  // deliberately not made to depend on that. It uses only the live product
+  // already read above, costs no extra read, and means a decision computed
+  // under one class can never be spent under another even if that epoch
+  // signal is ever lost, replayed, or bypassed by some future path.
+  //
+  // The live side is normalized through the same allowlist the writer uses,
+  // so an absent, legacy or unrecognised live value compares as `null` and
+  // matches only a decision that itself recorded no valid class — never a
+  // decision computed under a real one.
+  const liveClass = isValidPilotProductClass(product.pilotProductClass)
+    ? product.pilotProductClass
+    : null;
+  if (decision.pilotProductClassSnapshot !== liveClass) {
+    return ineligible(REASON.PILOT_PRODUCT_CLASS_SNAPSHOT_MISMATCH);
+  }
+
   // Strict validUntil > now.
   const validUntilMs = toMillis(decision.validUntil);
   if (!Number.isFinite(validUntilMs) || !(validUntilMs > nowMs)) {
@@ -283,6 +315,7 @@ async function evaluateLiveProductEligibility({
     evidenceRevision: decision.evidenceRevision,
     productInputRevisionSnapshot: decision.productInputRevisionSnapshot,
     sellerRelationshipSnapshot: decision.sellerRelationshipSnapshot,
+    pilotProductClassSnapshot: decision.pilotProductClassSnapshot,
     requiredEvidenceSlots: decision.requiredEvidenceSlots,
     satisfiedEvidenceSlots: decision.satisfiedEvidenceSlots,
     activeEvidenceRefs: decision.activeEvidenceRefs,

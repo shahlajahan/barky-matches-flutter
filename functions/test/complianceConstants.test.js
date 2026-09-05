@@ -695,7 +695,11 @@ test("PILOT_CLASSIFICATION_MAX_REASON_LENGTH is a positive integer bound", () =>
   assert.ok(PILOT_CLASSIFICATION_MAX_REASON_LENGTH > 0);
 });
 
-test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS is exactly the 12 Revision 9 fields, no alias, no extra field", () => {
+test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS is exactly the 13 fields (12 Revision 9 + Revision 35's pilotProductClassSnapshot), no alias, no extra field", () => {
+  // Marketplace Revision 35 §0.33 E1 — the class a decision was computed
+  // under joins the closed set immediately after sellerRelationshipSnapshot,
+  // for the same reason and by the same mechanism: it is a bound
+  // decisionHash input that the evaluator re-verifies against live state.
   assert.deepEqual(
     [...PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS],
     [
@@ -704,6 +708,7 @@ test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS is exactly the 12 Revision 9 fi
       "evidenceRevision",
       "productInputRevisionSnapshot",
       "sellerRelationshipSnapshot",
+      "pilotProductClassSnapshot",
       "requiredEvidenceSlots",
       "satisfiedEvidenceSlots",
       "activeEvidenceRefs",

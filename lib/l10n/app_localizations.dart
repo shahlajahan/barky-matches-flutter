@@ -20222,6 +20222,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Network error. Please try again.'**
   String get networkErrorTryAgain;
+
+  /// No description provided for @pilotAdminClassificationSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pilot product classification'**
+  String get pilotAdminClassificationSectionTitle;
+
+  /// No description provided for @pilotAdminClassificationExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'A product must be classified before it can be approved. Classification is an administrative determination — it is never taken from the seller\'s own category.'**
+  String get pilotAdminClassificationExplanation;
+
+  /// No description provided for @pilotAdminClassificationCurrentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current classification'**
+  String get pilotAdminClassificationCurrentLabel;
+
+  /// No description provided for @pilotAdminClassificationNotClassified.
+  ///
+  /// In en, this message translates to:
+  /// **'Not classified'**
+  String get pilotAdminClassificationNotClassified;
+
+  /// No description provided for @pilotAdminClassificationFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification'**
+  String get pilotAdminClassificationFieldLabel;
+
+  /// No description provided for @pilotAdminClassificationReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for this classification'**
+  String get pilotAdminClassificationReasonLabel;
+
+  /// No description provided for @pilotAdminClassificationReasonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Record why this classification applies.'**
+  String get pilotAdminClassificationReasonHint;
+
+  /// No description provided for @pilotAdminClassificationReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'A reason is required.'**
+  String get pilotAdminClassificationReasonRequired;
+
+  /// No description provided for @pilotAdminClassificationSaveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save classification'**
+  String get pilotAdminClassificationSaveButton;
+
+  /// No description provided for @pilotAdminClassificationSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification saved.'**
+  String get pilotAdminClassificationSaved;
+
+  /// No description provided for @pilotAdminClassificationUnchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'This classification was already recorded. Nothing changed.'**
+  String get pilotAdminClassificationUnchanged;
+
+  /// No description provided for @pilotAdminClassificationUnpublishWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is currently published. Changing its classification will unpublish it and return it to review.'**
+  String get pilotAdminClassificationUnpublishWarning;
+
+  /// No description provided for @pilotAdminClassificationUnpublished.
+  ///
+  /// In en, this message translates to:
+  /// **'Classification saved. The product was unpublished and returned to review.'**
+  String get pilotAdminClassificationUnpublished;
+
+  /// No description provided for @pilotAdminClassificationConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change classification?'**
+  String get pilotAdminClassificationConfirmTitle;
+
+  /// No description provided for @pilotAdminClassificationConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The product will be unpublished and must be approved again before it can return to the Marketplace.'**
+  String get pilotAdminClassificationConfirmMessage;
+
+  /// No description provided for @pilotAdminClassSealedDryFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealed dry food'**
+  String get pilotAdminClassSealedDryFood;
+
+  /// No description provided for @pilotAdminClassSealedWetFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealed wet food'**
+  String get pilotAdminClassSealedWetFood;
+
+  /// No description provided for @pilotAdminClassNonMedicinalTreats.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-medicinal treats'**
+  String get pilotAdminClassNonMedicinalTreats;
+
+  /// No description provided for @pilotAdminClassNonBiocidalLitter.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-biocidal litter'**
+  String get pilotAdminClassNonBiocidalLitter;
+
+  /// No description provided for @pilotAdminErrorClassMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This product has no classification yet. Classify it before approving.'**
+  String get pilotAdminErrorClassMissing;
+
+  /// No description provided for @pilotAdminErrorClassUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'That classification is not one of the supported pilot classes.'**
+  String get pilotAdminErrorClassUnsupported;
+
+  /// No description provided for @pilotAdminErrorClassNotClassifiable.
+  ///
+  /// In en, this message translates to:
+  /// **'This product can no longer be classified.'**
+  String get pilotAdminErrorClassNotClassifiable;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

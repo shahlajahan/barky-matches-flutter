@@ -371,6 +371,9 @@ const {
   REASON_CODE: PILOT_PRODUCT_APPROVAL_REASON_CODE,
 } = require("./src/marketplace/compliance/pilotProductApproval");
 const {
+  setPilotProductClassification,
+} = require("./src/marketplace/compliance/pilotProductClassification");
+const {
   getMarketplaceProductList,
   getMarketplaceProductDetail,
 } = require("./src/marketplace/publicCatalog/marketplaceListing");
@@ -20472,6 +20475,21 @@ exports.revokePilotProductApproval = onCall({ region: "europe-west3" }, async (r
 
 exports.unpublishPilotProductForRevision = onCall({ region: "europe-west3" }, async (request) =>
   unpublishPilotProductForRevision({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+  })
+);
+
+// Marketplace Revision 35 (docs/plans/marketplace_p1a_compliance_review_
+// implementation_plan_2026-08-21.md §0.33) — the admin-only, sole write
+// authority for `pilotProductClass`. A precondition step, never an approval
+// or a publication: it can only ever record a class and, when that class
+// changes on an already-active product, unpublish it. Thin exports.* wiring
+// only; all logic lives in
+// functions/src/marketplace/compliance/pilotProductClassification.js.
+exports.setPilotProductClassification = onCall({ region: "europe-west3" }, async (request) =>
+  setPilotProductClassification({
     db: admin.firestore(),
     auth: request.auth,
     data: request.data,

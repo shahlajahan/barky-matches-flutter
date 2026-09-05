@@ -35,6 +35,7 @@ const { HttpsError } = require("firebase-functions/v2/https");
 const { requireAdmin } = require("../../moderation/adminAuth");
 const {
   PRODUCT_COMPLIANCE_ELIGIBLE_STATUSES,
+  isValidPilotProductClass,
 } = require("./complianceConstants");
 const { assertCallerOwnsBusiness } = require("./complianceUploadSessions");
 
@@ -270,10 +271,17 @@ function canonicalEvidenceDigest(activeEvidenceRefs) {
 // produced the SAME fingerprint, and one product's approval record could
 // validate for another. Business id, business generation and product id are
 // three separate bindings; none substitutes for another.
+// Revision 35 §B — ELEVEN bound inputs. `pilotProductClass` joins the ten
+// Slice 6 froze, so a reclassification makes an earlier approval stale by
+// construction, exactly as an evidence or content change already did. The
+// ten-input form was correct under the definition frozen at the time; it is
+// superseded here because this revision gives the class a writer for the
+// first time.
 function computeApprovalFingerprint(product, decision, productId) {
   const content = computeContentFingerprint(product);
   const bound = {
     content,
+    pilotProductClass: product ? product.pilotProductClass : null,
     // Identity of the product/business the approval is for, so a fingerprint
     // can never be replayed against another product or a recreated business.
     productId: typeof productId === "string" && productId.length > 0 ? productId : null,
@@ -478,6 +486,18 @@ async function approvePilotProduct({ db, auth, data }) {
     // before any approval. Fail closed on missing, non-positive, unresolved,
     // malformed, stale or expired. This is the decision half of §H's gate;
     // the remaining §H conditions and the Rules half are Slice 7.
+    // Revision 35 §A4 — classification is a PRECONDITION. This operation
+    // neither selects nor infers a class; it requires one already recorded by
+    // `setPilotProductClassification`. Absent, null, wrong-typed, legacy,
+    // unknown and excluded values all fail closed here.
+    if (!isValidPilotProductClass(product.pilotProductClass)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Product is not eligible for pilot approval",
+        { reasonCode: "pilot-class-missing-or-invalid" }
+      );
+    }
+
     assertUsableComplianceDecision({ decision, businessId, product, now: Date.now() });
 
     if (product.moderationStatus !== "pending_review") {
@@ -554,6 +574,52 @@ async function approvePilotProduct({ db, auth, data }) {
 }
 
 const REVOKE_ALLOWED_FIELDS = Object.freeze(["businessId", "productId", "reasonCode"]);
+
+// Marketplace Revision 35 §A2 (Slice 7A) — the ONE canonical way an approval
+// ends. Extracted verbatim from the transition `revokePilotProductApproval`
+// and the Slice 6 invalidation sweep already performed, so classification
+// reuses it instead of duplicating revocation and counter logic.
+//
+// The caller must have already established, inside this same transaction,
+// that the product IS currently active — the already-inactive no-op check
+// stays with the caller because each caller reports it differently. That is
+// what keeps the counter decrement exactly-once under retry.
+function applyPilotApprovalRevocation({
+  tx,
+  db,
+  prodRef,
+  bizRef,
+  businessId,
+  productId,
+  reasonCode,
+  actorKind,
+  adminUid = null,
+  extraAuditFields = {},
+}) {
+  tx.update(prodRef, {
+    "pilotProductApproval.active": false,
+    "pilotProductApproval.revokedAt": admin.firestore.FieldValue.serverTimestamp(),
+    "pilotProductApproval.revokedBy": adminUid,
+    "pilotProductApproval.revokedByKind": actorKind,
+    "pilotProductApproval.reasonCode": reasonCode,
+    isActive: false,
+    moderationStatus: "pending_review",
+  });
+  tx.update(bizRef, {
+    pilotActiveProductCount: admin.firestore.FieldValue.increment(-1),
+  });
+  tx.create(db.collection(AUDIT_EVENTS_COLLECTION).doc(), {
+    businessId,
+    productId,
+    action: "revoke",
+    adminUid,
+    actorKind,
+    resultingActiveState: false,
+    reasonCode,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...extraAuditFields,
+  });
+}
 
 async function revokePilotProductApproval({ db, auth, data }) {
   const adminUid = await requireAdmin(db, { auth });
@@ -677,7 +743,17 @@ module.exports = {
   revokePilotProductApproval,
   unpublishPilotProductForRevision,
   deactivateAllPilotProducts,
+  applyPilotApprovalRevocation,
   pilotApprovalBoundFields,
+  // Shared with `pilotProductClassification.js` so the classification
+  // callable enforces byte-identical request-shape, reference and
+  // generation contracts rather than a second, drifting copy of them.
+  assertValidRequestShape,
+  assertNonEmptyString,
+  businessRef,
+  productRef,
+  isValidGenerationId,
+  isCurrentlyActivePilotApproval,
   computeContentFingerprint,
   computeApprovalFingerprint,
   canonicalEvidenceDigest,

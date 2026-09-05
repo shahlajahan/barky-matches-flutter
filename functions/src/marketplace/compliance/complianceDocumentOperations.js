@@ -1400,6 +1400,9 @@ module.exports = {
   addComplianceScopeMembers,
   reviewComplianceScopeMembers,
   reviewComplianceScope,
+  // Shared with `pilotProductClassification.js` — reclassification schedules
+  // recomputation through this same existing epoch mechanism.
+  bumpBusinessComplianceEpoch,
   // exported for tests only
   deriveScopeMemberId,
   deriveInfoRequestEventId,

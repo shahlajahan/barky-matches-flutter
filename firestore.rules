@@ -1318,12 +1318,17 @@ match /dogs/{dogId}/visits/{visitId} {
       'shippingMode', 'shippingPayer', 'shippingProfile', 'shippingSnapshot',
       'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
       'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm',
-      // Revision 31 §C / Revision 34: the authoritative pilot classification.
-      // Present here ONLY so its existence never fails this closed-schema
-      // `hasOnly()` check once an admin has written it — a seller may never
-      // add, change or remove it (preservesPilotProductClassOnUpdate, below),
-      // and no client may create a product at all.
-      'pilotProductClass'
+      // Revision 31 §C / Revision 34: the authoritative pilot classification,
+      // and Revision 35 (§0.33) its server-written provenance metadata.
+      // Present here ONLY so their existence never fails this closed-schema
+      // `hasOnly()` check once `setPilotProductClassification` has written
+      // them — a seller may never add, change or remove any of the four
+      // (preservesPilotProductClassOnUpdate, below), and no client may
+      // create a product at all.
+      'pilotProductClass',
+      'pilotProductClassifiedAt',
+      'pilotProductClassifiedByUid',
+      'pilotProductClassificationRevision'
     ].concat(serverOwnedProductFields());
   }
 
@@ -1419,17 +1424,36 @@ match /dogs/{dogId}/visits/{visitId} {
   // never by a Rules change; the remaining items have no explicit
   // admin-inclusive requirement anywhere in the plan and are left
   // untouched rather than guessed at.
-  // Revision 34 — `pilotProductClass` is server/admin-owned. A seller update
-  // must leave it exactly as it found it: absent stays absent, and a present
+  // Revision 34 — `pilotProductClass` is server-owned. A seller update must
+  // leave it exactly as it found it: absent stays absent, and a present
   // value must be preserved byte-identically. A diff-based check is used
-  // rather than a presence check so an admin-written value carried forward
+  // rather than a presence check so a server-written value carried forward
   // unchanged never fails, while adding, altering or removing it does.
   // Preservation is deliberately value-blind: it does not make an
   // unrecognised value valid, it only forbids the client from touching it.
-  // Publication never depends on this field yet — that is Revision 30
-  // slice 7.
+  //
+  // Revision 35 (§0.33) extends the same closure to the classification's
+  // provenance metadata, for the same reason and by the same mechanism:
+  // `pilotProductClassifiedAt`, `pilotProductClassifiedByUid` and
+  // `pilotProductClassificationRevision` are written solely by
+  // `setPilotProductClassification` (Admin SDK). Covering the revision
+  // counter here is what stops a client forging classification history —
+  // back-dating it, advancing it, or attributing a classification to
+  // another admin — even while leaving the class value itself alone.
+  //
+  // Because this predicate is AND-ed onto `allow update` outside the
+  // `(isAdmin() || isSafeProductResubmission())` authorization OR, it binds
+  // every client-SDK actor including an authenticated admin, exactly as the
+  // sibling `preservesPilotProductApprovalOnUpdate` does. Product create and
+  // delete are already `if false` for all clients, so update is the only
+  // client path these four fields are reachable from.
   function preservesPilotProductClassOnUpdate(incoming, existing) {
-    return !incoming.diff(existing).affectedKeys().hasAny(['pilotProductClass']);
+    return !incoming.diff(existing).affectedKeys().hasAny([
+      'pilotProductClass',
+      'pilotProductClassifiedAt',
+      'pilotProductClassifiedByUid',
+      'pilotProductClassificationRevision'
+    ]);
   }
 
   function preservesProductIdentityOnUpdate(incoming, existing) {
@@ -2807,6 +2831,16 @@ match /stories/{storyId} {
     }
 
     match /pilotProductApprovalAuditEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Marketplace Revision 35 (§0.33) — the immutable classification audit
+    // trail, written only by `setPilotProductClassification` inside the same
+    // transaction as the state change it records. Identical posture to the
+    // approval audit trail above: admins read it, no client-SDK actor may
+    // ever create, alter or erase an entry.
+    match /pilotProductClassificationAuditEvents/{eventId} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
     }

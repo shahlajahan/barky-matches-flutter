@@ -52,6 +52,13 @@ function baseProduct(overrides = {}) {
     stock: 5,
     isActive: false,
     moderationStatus: "pending_review",
+    // Marketplace Revision 35 (Slice 7A): a recorded, valid pilot class is a
+    // PRECONDITION of approval, written beforehand by the admin-only
+    // `setPilotProductClassification`. Production products that reach the
+    // approval queue have therefore already been classified, and these
+    // fixtures mirror that. Tests exercising the class gate itself override
+    // or delete this deliberately.
+    pilotProductClass: "sealed_dry_food",
     ...overrides,
   };
 }

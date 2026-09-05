@@ -1221,7 +1221,7 @@ test("K4. recompute writes exactly the six allowed link fields, no extras", asyn
 // L. Recompute.
 // =======================================================================
 
-test("L1. full decision document has exact allowed fields (Revision 9: incl. sellerRelationshipSnapshot) and a deterministic hash", async () => {
+test("L1. full decision document has exact allowed fields (Revision 9: incl. sellerRelationshipSnapshot; Revision 35: incl. pilotProductClassSnapshot) and a deterministic hash", async () => {
   const store = createStore();
   seedActivePolicy(store);
   const product = seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined });
@@ -1239,6 +1239,7 @@ test("L1. full decision document has exact allowed fields (Revision 9: incl. sel
       "decisionHash",
       "effectiveStatus",
       "evidenceRevision",
+      "pilotProductClassSnapshot",
       "policyVersion",
       "productInputRevisionSnapshot",
       "requiredEvidenceSlots",
@@ -1248,6 +1249,10 @@ test("L1. full decision document has exact allowed fields (Revision 9: incl. sel
     ]
   );
   assert.equal(decisionDoc.evidenceRevision, 2);
+  // This fixture's product carries no admin-recorded class, so the writer
+  // records the explicit `null` sentinel — never `undefined`, and never a
+  // guess derived from the seller's own `category` string.
+  assert.equal(decisionDoc.pilotProductClassSnapshot, null);
   assert.equal(decisionDoc.sellerRelationshipSnapshot, SELLER_RELATIONSHIP.RESELLER);
   assert.equal(decisionDoc.effectiveStatus, PRODUCT_COMPLIANCE_EFFECTIVE_STATUS.VERIFIED_VALID);
   const expectedHash = computeDecisionHash({
@@ -1256,6 +1261,7 @@ test("L1. full decision document has exact allowed fields (Revision 9: incl. sel
     evidenceRevision: decisionDoc.evidenceRevision,
     productInputRevisionSnapshot: decisionDoc.productInputRevisionSnapshot,
     sellerRelationshipSnapshot: decisionDoc.sellerRelationshipSnapshot,
+    pilotProductClassSnapshot: decisionDoc.pilotProductClassSnapshot,
     requiredEvidenceSlots: decisionDoc.requiredEvidenceSlots,
     satisfiedEvidenceSlots: decisionDoc.satisfiedEvidenceSlots,
     activeEvidenceRefs: decisionDoc.activeEvidenceRefs,
@@ -2879,6 +2885,124 @@ test("S5 (item 33). a malformed (non-enum) sellerRelationshipSnapshot value is r
 });
 
 // =======================================================================
+// SC. pilotProductClassSnapshot (Marketplace Revision 35 / Slice 7A).
+//
+// The authoritative pilot class is a bound decision input, so a decision
+// computed under one class must never be spendable under another. These
+// mirror the S-group above: the writer records live state exactly, and the
+// evaluator re-verifies it independently of every other freshness signal.
+// =======================================================================
+
+test("SC1. the writer records the live class exactly, and records null when no valid class is stored", async () => {
+  for (const [stored, expected] of [
+    ["sealed_dry_food", "sealed_dry_food"],
+    ["non_biocidal_litter", "non_biocidal_litter"],
+    [undefined, null],
+    [null, null],
+    // A seller's own draft `category` string, an approval category, and an
+    // unrecognised legacy value are all "no class" — never guessed into one.
+    ["Health > Vitamins", null],
+    ["food", null],
+    ["SEALED_DRY_FOOD", null],
+  ]) {
+    const store = createStore();
+    seedActivePolicy(store);
+    seedProduct(store, { pilotProductClass: stored, brand: undefined, sku: undefined, barcode: undefined });
+    seedEpoch(store, 0);
+    const db = createFakeDb(store);
+    const result = await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+    assert.equal(result.decision.pilotProductClassSnapshot, expected, `stored ${String(stored)}`);
+  }
+});
+
+test("SC2. evaluator equality: a snapshot equal to the live class passes this check", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { pilotProductClass: "sealed_dry_food", brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(result.eligible, true);
+});
+
+test("SC3. a class change alone invalidates the decision — proven with every other freshness signal held constant", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { pilotProductClass: "sealed_dry_food", brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal((await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW })).eligible, true);
+
+  // Only the class moves. The epoch, the policy, productInputRevision, the
+  // relationship and validUntil are all untouched, so no other check can
+  // account for the rejection below.
+  const current = getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID);
+  seedDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID, {
+    ...current,
+    pilotProductClass: "sealed_wet_food",
+  });
+
+  const after = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(after.eligible, false);
+  assert.equal(after.reason, "eligibility_pilot_product_class_snapshot_mismatch");
+});
+
+test("SC4. removing the class from a classified product also invalidates its decision", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { pilotProductClass: "non_medicinal_treats", brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  const current = getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID);
+  seedDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID, {
+    ...current,
+    pilotProductClass: undefined,
+  });
+  const after = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(after.eligible, false);
+  assert.equal(after.reason, "eligibility_pilot_product_class_snapshot_mismatch");
+});
+
+test("SC5. a legacy decision written before pilotProductClassSnapshot existed is malformed, never silently treated as matching", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  const legacy = getRawDoc(store, DECISIONS_COLLECTION, PRODUCT_ID);
+  delete legacy.pilotProductClassSnapshot;
+  seedDoc(store, DECISIONS_COLLECTION, PRODUCT_ID, legacy);
+  const after = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(after.eligible, false);
+  assert.equal(after.reason, "eligibility_decision_malformed");
+});
+
+test("SC6. a non-enum pilotProductClassSnapshot value is rejected as malformed", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  const decision = getRawDoc(store, DECISIONS_COLLECTION, PRODUCT_ID);
+  for (const bad of ["not_a_real_class", "SEALED_DRY_FOOD", "food", 7, true]) {
+    seedDoc(store, DECISIONS_COLLECTION, PRODUCT_ID, { ...decision, pilotProductClassSnapshot: bad });
+    const after = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+    assert.equal(after.eligible, false);
+    assert.equal(after.reason, "eligibility_decision_malformed", `value ${String(bad)}`);
+  }
+});
+
+// =======================================================================
 // T. decisionHash canonicalization (items 35-42).
 // =======================================================================
 
@@ -2888,6 +3012,8 @@ function baseHashInput() {
     policyVersion: "v1",
     evidenceRevision: 2,
     productInputRevisionSnapshot: 3,
+    // Marketplace Revision 35 (Slice 7A) — the eleventh bound input.
+    pilotProductClassSnapshot: "sealed_dry_food",
     sellerRelationshipSnapshot: "reseller",
     requiredEvidenceSlots: [{ acceptedDocumentTypes: ["purchase_invoice"] }],
     satisfiedEvidenceSlots: [{ acceptedDocumentTypes: ["purchase_invoice"] }],
@@ -2947,6 +3073,7 @@ test("T6 (item 40). independent known vector — a fixed, hand-computed canonica
     policyVersion: "v1",
     evidenceRevision: 1,
     productInputRevisionSnapshot: 0,
+    pilotProductClassSnapshot: "sealed_dry_food",
     sellerRelationshipSnapshot: "reseller",
     requiredEvidenceSlots: [{ acceptedDocumentTypes: ["purchase_invoice"] }],
     satisfiedEvidenceSlots: [],
@@ -2959,7 +3086,8 @@ test("T6 (item 40). independent known vector — a fixed, hand-computed canonica
   // production canonicalizeForHash implementation.
   const expectedCanonicalJson =
     '{"activeEvidenceRefs":[],"businessId":"biz-1","effectiveStatus":"evidence_missing",' +
-    '"evidenceRevision":1,"policyVersion":"v1","productInputRevisionSnapshot":0,' +
+    '"evidenceRevision":1,"pilotProductClassSnapshot":"sealed_dry_food",' +
+    '"policyVersion":"v1","productInputRevisionSnapshot":0,' +
     '"requiredEvidenceSlots":[{"acceptedDocumentTypes":["purchase_invoice"]}],' +
     '"satisfiedEvidenceSlots":[],"sellerRelationshipSnapshot":"reseller","validUntil":null}';
   const expectedHash = crypto.createHash("sha256").update(expectedCanonicalJson, "utf8").digest("hex");
@@ -3001,7 +3129,13 @@ test("T8 (item 42). independent freshness checks (epoch/revision/relationship/ex
   assert.equal(result.reason, "eligibility_evidence_revision_mismatch");
 });
 
-test("T9. DECISION_HASH_INCLUDED_FIELDS is exactly the ten frozen fields, no others", () => {
+test("T9. DECISION_HASH_INCLUDED_FIELDS is exactly the eleven frozen fields, no others", () => {
+  // Marketplace Revision 35 (Slice 7A) admits `pilotProductClassSnapshot` as
+  // the eleventh bound input: the authoritative pilot class now determines
+  // the compliance outcome, so a decision computed under one class must never
+  // be reusable under another. The prior ten-field set was correct under the
+  // definition frozen at the time and is superseded, not retrospectively a
+  // defect.
   assert.deepEqual(
     [...DECISION_HASH_INCLUDED_FIELDS].sort(),
     [
@@ -3009,6 +3143,7 @@ test("T9. DECISION_HASH_INCLUDED_FIELDS is exactly the ten frozen fields, no oth
       "businessId",
       "effectiveStatus",
       "evidenceRevision",
+      "pilotProductClassSnapshot",
       "policyVersion",
       "productInputRevisionSnapshot",
       "requiredEvidenceSlots",

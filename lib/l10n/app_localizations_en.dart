@@ -10741,4 +10741,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get networkErrorTryAgain => 'Network error. Please try again.';
+
+  @override
+  String get pilotAdminClassificationSectionTitle => 'Pilot product classification';
+
+  @override
+  String get pilotAdminClassificationExplanation => 'A product must be classified before it can be approved. Classification is an administrative determination — it is never taken from the seller\'s own category.';
+
+  @override
+  String get pilotAdminClassificationCurrentLabel => 'Current classification';
+
+  @override
+  String get pilotAdminClassificationNotClassified => 'Not classified';
+
+  @override
+  String get pilotAdminClassificationFieldLabel => 'Classification';
+
+  @override
+  String get pilotAdminClassificationReasonLabel => 'Reason for this classification';
+
+  @override
+  String get pilotAdminClassificationReasonHint => 'Record why this classification applies.';
+
+  @override
+  String get pilotAdminClassificationReasonRequired => 'A reason is required.';
+
+  @override
+  String get pilotAdminClassificationSaveButton => 'Save classification';
+
+  @override
+  String get pilotAdminClassificationSaved => 'Classification saved.';
+
+  @override
+  String get pilotAdminClassificationUnchanged => 'This classification was already recorded. Nothing changed.';
+
+  @override
+  String get pilotAdminClassificationUnpublishWarning => 'This product is currently published. Changing its classification will unpublish it and return it to review.';
+
+  @override
+  String get pilotAdminClassificationUnpublished => 'Classification saved. The product was unpublished and returned to review.';
+
+  @override
+  String get pilotAdminClassificationConfirmTitle => 'Change classification?';
+
+  @override
+  String get pilotAdminClassificationConfirmMessage => 'The product will be unpublished and must be approved again before it can return to the Marketplace.';
+
+  @override
+  String get pilotAdminClassSealedDryFood => 'Sealed dry food';
+
+  @override
+  String get pilotAdminClassSealedWetFood => 'Sealed wet food';
+
+  @override
+  String get pilotAdminClassNonMedicinalTreats => 'Non-medicinal treats';
+
+  @override
+  String get pilotAdminClassNonBiocidalLitter => 'Non-biocidal litter';
+
+  @override
+  String get pilotAdminErrorClassMissing => 'This product has no classification yet. Classify it before approving.';
+
+  @override
+  String get pilotAdminErrorClassUnsupported => 'That classification is not one of the supported pilot classes.';
+
+  @override
+  String get pilotAdminErrorClassNotClassifiable => 'This product can no longer be classified.';
 }

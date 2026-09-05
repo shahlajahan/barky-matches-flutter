@@ -680,6 +680,9 @@ itest("the decision records server-derived time, never a caller-supplied value",
     "decisionHash",
     "effectiveStatus",
     "evidenceRevision",
+    // Marketplace Revision 35 (Slice 7A) — the authoritative pilot class the
+    // decision was computed under, a bound decision-hash input.
+    "pilotProductClassSnapshot",
     "policyVersion",
     "productInputRevisionSnapshot",
     "requiredEvidenceSlots",

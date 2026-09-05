@@ -7977,3 +7977,252 @@ test(
     );
   }
 );
+
+// =======================================================================
+// Marketplace Revision 35 / Slice 7A (§0.33) — the client-side closure
+// around admin product classification.
+//
+// `setPilotProductClassification` (Admin SDK, which bypasses Rules by
+// construction) is the sole write authority for `pilotProductClass` and its
+// provenance metadata. These cases prove the complementary half: that no
+// client-SDK actor — seller-owner, another authenticated user, or an
+// authenticated ADMIN using the client SDK — can write, alter, remove or
+// forge any of it, while a legitimate seller draft edit still succeeds.
+// =======================================================================
+
+const REV35_CLASSIFICATION_FIELDS = [
+  "pilotProductClass",
+  "pilotProductClassifiedAt",
+  "pilotProductClassifiedByUid",
+  "pilotProductClassificationRevision",
+];
+
+function rev35ClassifiedProduct(overrides = {}) {
+  return safeProduct({
+    pilotProductClass: "sealed_dry_food",
+    pilotProductClassifiedAt: new Date("2026-09-01T00:00:00Z"),
+    pilotProductClassifiedByUid: "admin-1",
+    pilotProductClassificationRevision: 2,
+    ...overrides,
+  });
+}
+
+rulesTest(
+  "REV35-CLS-1. a seller may still edit a classified product — the server-written metadata never fails the closed schema",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev35-1",
+      rev35ClassifiedProduct()
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // The exact defect this guards against: a server-owned field missing
+    // from productAllowedFields() locks the seller out of their own product
+    // the instant an admin writes it, even though they never touched it.
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-1"), { stock: 7 })
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-1"), {
+        name: "Renamed by the seller",
+        price: 12,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV35-CLS-2. a seller may not add, alter or remove any classification field",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev35-2",
+      rev35ClassifiedProduct()
+    );
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev35-2b",
+      safeProduct()
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+
+    const mutations = {
+      pilotProductClass: "sealed_wet_food",
+      pilotProductClassifiedAt: new Date("2030-01-01T00:00:00Z"),
+      pilotProductClassifiedByUid: "seller-1",
+      pilotProductClassificationRevision: 99,
+    };
+    for (const field of REV35_CLASSIFICATION_FIELDS) {
+      // Alter it on a classified product...
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/rev35-2"), {
+          [field]: mutations[field],
+        })
+      );
+      // ...remove it...
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/rev35-2"), {
+          [field]: deleteField(),
+        })
+      );
+      // ...and add it to a product that has none.
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/rev35-2b"), {
+          [field]: mutations[field],
+        })
+      );
+    }
+  }
+);
+
+rulesTest(
+  "REV35-CLS-3. forging classification history is denied even while the class value itself is left alone",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev35-3",
+      rev35ClassifiedProduct()
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // Back-dating, advancing, and re-attributing the classification — the
+    // class value stays byte-identical in every one of these.
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-3"), {
+        pilotProductClassificationRevision: 1,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-3"), {
+        pilotProductClassificationRevision: 500,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-3"), {
+        pilotProductClassifiedAt: new Date("2020-01-01T00:00:00Z"),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-3"), {
+        pilotProductClassifiedByUid: "some-other-admin",
+      })
+    );
+    // Nor bundled inside an otherwise-legitimate edit.
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-3"), {
+        stock: 9,
+        pilotProductClassificationRevision: 3,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV35-CLS-4. an authenticated ADMIN using the client SDK is denied identically — the guard sits outside the isAdmin() OR",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev35-4",
+      rev35ClassifiedProduct()
+    );
+    const db = (await env()).authenticatedContext("admin-1").firestore();
+    for (const field of REV35_CLASSIFICATION_FIELDS) {
+      await assertFails(
+        updateDoc(doc(db, "businesses/biz-1/products/rev35-4"), {
+          [field]: deleteField(),
+        })
+      );
+    }
+    await assertFails(
+      updateDoc(doc(db, "businesses/biz-1/products/rev35-4"), {
+        pilotProductClass: "non_biocidal_litter",
+        pilotProductClassificationRevision: 3,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "REV35-CLS-5. no client may create a product carrying classification fields, nor delete a classified one",
+  async () => {
+    await resetSeed();
+    await seedProductAsTrustedServer(
+      "businesses/biz-1/products/rev35-5",
+      rev35ClassifiedProduct()
+    );
+    for (const uid of ["seller-1", "admin-1"]) {
+      const db = (await env()).authenticatedContext(uid).firestore();
+      await assertFails(
+        setDoc(
+          doc(db, "businesses/biz-1/products/rev35-5-new"),
+          rev35ClassifiedProduct()
+        )
+      );
+      await assertFails(deleteDoc(doc(db, "businesses/biz-1/products/rev35-5")));
+    }
+  }
+);
+
+rulesTest(
+  "REV35-CLS-6. the pilotProductClassificationAuditEvents collection is fully client-immutable, admin-read-only",
+  async () => {
+    const rulesEnv = await env();
+    const adminDb = rulesEnv.authenticatedContext("admin-1").firestore();
+    const sellerDb = rulesEnv.authenticatedContext("seller-1").firestore();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", "admin-1"), { role: "admin" });
+      await setDoc(
+        doc(context.firestore(), "pilotProductClassificationAuditEvents", "cls-evt-1"),
+        { businessId: "biz-1", productId: "p-1", newPilotProductClass: "sealed_dry_food" }
+      );
+    });
+    await assertSucceeds(
+      getDoc(doc(adminDb, "pilotProductClassificationAuditEvents", "cls-evt-1"))
+    );
+    await assertFails(
+      getDoc(doc(sellerDb, "pilotProductClassificationAuditEvents", "cls-evt-1"))
+    );
+    // Not creatable, not alterable, not erasable — by anyone, admin included.
+    for (const db of [adminDb, sellerDb]) {
+      await assertFails(
+        setDoc(doc(db, "pilotProductClassificationAuditEvents", "cls-evt-2"), {
+          businessId: "biz-1",
+        })
+      );
+      await assertFails(
+        updateDoc(doc(db, "pilotProductClassificationAuditEvents", "cls-evt-1"), {
+          newPilotProductClass: "non_biocidal_litter",
+        })
+      );
+      await assertFails(
+        deleteDoc(doc(db, "pilotProductClassificationAuditEvents", "cls-evt-1"))
+      );
+    }
+  }
+);
+
+rulesTest(
+  "REV35-CLS-7. (static) all four classification fields are in the closed schema and in the single preservation guard",
+  async () => {
+    const allowed = rulesCode.match(/function productAllowedFields\(\)[\s\S]*?\n  \}/);
+    assert.ok(allowed, "productAllowedFields() not found");
+    const guard = rulesCode.match(
+      /function preservesPilotProductClassOnUpdate\([\s\S]*?\n  \}/
+    );
+    assert.ok(guard, "preservesPilotProductClassOnUpdate() not found");
+    for (const field of REV35_CLASSIFICATION_FIELDS) {
+      assert.ok(
+        allowed[0].includes(`'${field}'`),
+        `${field} must be part of the closed document schema`
+      );
+      assert.ok(
+        guard[0].includes(`'${field}'`),
+        `${field} must be covered by the preservation guard`
+      );
+    }
+    // Still exactly one definition and one call site — the guard was
+    // extended, never duplicated.
+    const refs = rulesCode.match(/(function\s+)?preservesPilotProductClassOnUpdate\(/g) || [];
+    const defs = refs.filter((r) => r.startsWith("function"));
+    assert.equal(defs.length, 1);
+    assert.equal(refs.length - defs.length, 1);
+  }
+);

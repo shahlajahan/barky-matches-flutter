@@ -50,6 +50,18 @@ const List<String> _kAllowedPilotCategories = [
 const String _kReasonAdminManual = 'pilot_revoked_admin_manual';
 const String _kReasonContentChanged = 'pilot_revoked_content_changed';
 
+// Marketplace Revision 35 (Slice 7A) — the closed four-value pilot class
+// set, kept byte-identical to `complianceConstants.js`'s
+// `PILOT_PRODUCT_CLASS_VALUES`. This list only decides what the admin is
+// OFFERED; the authoritative allowlist is the server's, which rejects
+// anything outside it regardless of what this client sends.
+const List<String> _kPilotProductClasses = [
+  'sealed_dry_food',
+  'sealed_wet_food',
+  'non_medicinal_treats',
+  'non_biocidal_litter',
+];
+
 class PilotProductApprovalDetailPage extends StatefulWidget {
   final String businessId;
   final String productId;
@@ -83,15 +95,31 @@ class _PilotProductApprovalDetailPageState
   bool _attested = false;
   bool _isSubmitting = false;
 
+  // Revision 35 (Slice 7A) classification form state. `_selectedClass` is
+  // seeded from canonical server state on first build and thereafter follows
+  // the admin's own selection, so a live update never silently discards an
+  // in-progress edit.
+  String? _selectedClass;
+  bool _classSeeded = false;
+  final TextEditingController _classificationReason = TextEditingController();
+  bool _classificationReasonTouched = false;
+  bool _isClassifying = false;
+
+  @override
+  void dispose() {
+    _classificationReason.dispose();
+    super.dispose();
+  }
+
   MarketplaceFunctionCaller get _invoke =>
       widget.callableInvoker ?? _defaultCallableInvoker();
 
   DocumentReference<Map<String, dynamic>> get _productRef =>
       (widget.firestoreOverride ?? FirebaseFirestore.instance)
-      .collection('businesses')
-      .doc(widget.businessId)
-      .collection('products')
-      .doc(widget.productId);
+          .collection('businesses')
+          .doc(widget.businessId)
+          .collection('products')
+          .doc(widget.productId);
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +191,153 @@ class _PilotProductApprovalDetailPageState
             '${_sellerRelationshipLabel(l10n, data['sellerRelationship'] as String)}',
           ),
         const SizedBox(height: 24),
+        // Classification comes BEFORE the approval controls, because it is a
+        // precondition of approval rather than a step within it.
+        _buildClassificationSection(context, l10n, data, isActive: isActive),
+        const SizedBox(height: 24),
         if (isActive)
           _buildRevokeSection(context, l10n)
         else
           _buildApproveSection(context, l10n, data),
       ],
     );
+  }
+
+  /// Revision 35 (Slice 7A) — the admin-only classification control.
+  ///
+  /// Displays canonical server state only: the class shown is the one stored
+  /// on the product, and "not classified" is shown whenever no recognised
+  /// value is stored — an unrecognised legacy value is never rendered as if
+  /// it were a valid class.
+  Widget _buildClassificationSection(
+    BuildContext context,
+    AppLocalizations l10n,
+    Map<String, dynamic> data, {
+    required bool isActive,
+  }) {
+    final stored = data['pilotProductClass'];
+    final currentClass = _kPilotProductClasses.contains(stored)
+        ? stored as String
+        : null;
+    if (!_classSeeded) {
+      _selectedClass = currentClass;
+      _classSeeded = true;
+    }
+
+    final reasonText = _classificationReason.text.trim();
+    final reasonMissing = reasonText.isEmpty;
+    final busy = _isClassifying || _isSubmitting;
+    final canSave = !busy && _selectedClass != null && !reasonMissing;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.pilotAdminClassificationSectionTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.pilotAdminClassificationExplanation,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${l10n.pilotAdminClassificationCurrentLabel}: '
+              '${currentClass == null ? l10n.pilotAdminClassificationNotClassified : _pilotClassLabel(l10n, currentClass)}',
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: const Key('pilotClassificationDropdown'),
+              initialValue: _selectedClass,
+              decoration: InputDecoration(
+                labelText: l10n.pilotAdminClassificationFieldLabel,
+              ),
+              items: _kPilotProductClasses
+                  .map(
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(_pilotClassLabel(l10n, value)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: busy
+                  ? null
+                  : (value) => setState(() => _selectedClass = value),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('pilotClassificationReasonField'),
+              controller: _classificationReason,
+              enabled: !busy,
+              maxLines: 3,
+              maxLength: 2000,
+              decoration: InputDecoration(
+                labelText: l10n.pilotAdminClassificationReasonLabel,
+                hintText: l10n.pilotAdminClassificationReasonHint,
+                errorText: (_classificationReasonTouched && reasonMissing)
+                    ? l10n.pilotAdminClassificationReasonRequired
+                    : null,
+              ),
+              onChanged: (_) => setState(() {
+                _classificationReasonTouched = true;
+              }),
+            ),
+            // Shown only while the product is genuinely published, so the
+            // warning always describes what this action will actually do.
+            if (isActive) ...[
+              const SizedBox(height: 4),
+              Text(
+                l10n.pilotAdminClassificationUnpublishWarning,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.orange.shade900),
+              ),
+            ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                key: const Key('pilotClassificationSaveButton'),
+                onPressed: canSave
+                    ? () => _handleClassify(
+                        context,
+                        l10n,
+                        isActive: isActive,
+                        currentClass: currentClass,
+                      )
+                    : null,
+                child: _isClassifying
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.pilotAdminClassificationSaveButton),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _pilotClassLabel(AppLocalizations l10n, String value) {
+    switch (value) {
+      case 'sealed_dry_food':
+        return l10n.pilotAdminClassSealedDryFood;
+      case 'sealed_wet_food':
+        return l10n.pilotAdminClassSealedWetFood;
+      case 'non_medicinal_treats':
+        return l10n.pilotAdminClassNonMedicinalTreats;
+      case 'non_biocidal_litter':
+        return l10n.pilotAdminClassNonBiocidalLitter;
+      default:
+        return value;
+    }
   }
 
   Widget _buildMedia(Map<String, dynamic> data) {
@@ -275,8 +444,13 @@ class _PilotProductApprovalDetailPageState
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              // Keyed since Revision 35 (Slice 7A) put a second dropdown —
+              // the classification control — on this same page.
+              key: const Key('pilotApprovalCategoryDropdown'),
               initialValue: _selectedCategory,
-              decoration: InputDecoration(labelText: l10n.pilotAdminCategoryLabel),
+              decoration: InputDecoration(
+                labelText: l10n.pilotAdminCategoryLabel,
+              ),
               items: _kAllowedPilotCategories
                   .map(
                     (value) => DropdownMenuItem(
@@ -302,7 +476,8 @@ class _PilotProductApprovalDetailPageState
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (_isSubmitting || _selectedCategory == null || !_attested)
+                onPressed:
+                    (_isSubmitting || _selectedCategory == null || !_attested)
                     ? null
                     : () => _handleApprove(context, l10n, data),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -386,7 +561,80 @@ class _PilotProductApprovalDetailPageState
     }
   }
 
-  Future<void> _handleRevoke(BuildContext context, AppLocalizations l10n) async {
+  /// Sends exactly one `setPilotProductClassification` call per confirmed
+  /// action. The button is disabled for the whole round trip, so a double tap
+  /// cannot produce a second invocation, and the resulting state is read back
+  /// from the product stream rather than assumed here.
+  Future<void> _handleClassify(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool isActive,
+    required String? currentClass,
+  }) async {
+    final selected = _selectedClass;
+    final reason = _classificationReason.text.trim();
+    if (selected == null || reason.isEmpty) return;
+
+    // Confirm only when this action really will unpublish something.
+    if (isActive && selected != currentClass) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.pilotAdminClassificationConfirmTitle),
+          content: Text(l10n.pilotAdminClassificationConfirmMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l10n.pilotAdminClassificationSaveButton),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    setState(() => _isClassifying = true);
+    try {
+      final result = await _invoke('setPilotProductClassification', {
+        'businessId': widget.businessId,
+        'productId': widget.productId,
+        'pilotProductClass': selected,
+        'reason': reason,
+      });
+      if (!mounted) return;
+      // The server's own report of what happened — never a local guess.
+      final map = result is Map ? result : const {};
+      final String message;
+      if (map['changed'] != true) {
+        message = l10n.pilotAdminClassificationUnchanged;
+      } else if (map['unpublished'] == true) {
+        message = l10n.pilotAdminClassificationUnpublished;
+      } else {
+        message = l10n.pilotAdminClassificationSaved;
+      }
+      setState(() {
+        _classificationReason.clear();
+        _classificationReasonTouched = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      _showError(context, l10n, e);
+    } finally {
+      if (mounted) setState(() => _isClassifying = false);
+    }
+  }
+
+  Future<void> _handleRevoke(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     final reasonCode = await showDialog<String>(
       context: context,
       builder: (dialogContext) => _RevokeReasonDialog(l10n: l10n),
@@ -430,6 +678,25 @@ class _PilotProductApprovalDetailPageState
           break;
         case 'seller-not-active':
           message = l10n.pilotAdminErrorSellerNotActive;
+          break;
+        // Revision 35 (Slice 7A) — approval's own classification
+        // precondition, and the classification callable's stable codes.
+        case 'pilot-class-missing-or-invalid':
+          message = l10n.pilotAdminErrorClassMissing;
+          break;
+        case 'classification-unsupported-class':
+          message = l10n.pilotAdminErrorClassUnsupported;
+          break;
+        case 'classification-invalid-transition':
+          message = l10n.pilotAdminErrorClassNotClassifiable;
+          break;
+        case 'classification-stale-generation':
+        case 'classification-generation-not-initialized':
+          message = l10n.pilotAdminErrorStaleGeneration;
+          break;
+        case 'classification-product-not-found':
+        case 'classification-business-not-found':
+          message = l10n.pilotAdminErrorNotFound;
           break;
         default:
           message = e.message ?? l10n.pilotAdminErrorGeneric;

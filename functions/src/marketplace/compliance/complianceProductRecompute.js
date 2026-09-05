@@ -44,6 +44,7 @@ const {
   COMPLIANCE_REVIEW_EVENT_ACTION,
   COMPLIANCE_REVIEW_EVENT_ACTOR_ROLE,
 } = require("./complianceConstants");
+const { isValidPilotProductClass } = require("./complianceConstants");
 const { isValidSellerRelationship } = require("./complianceValidators");
 const { resolveActivePolicy } = require("./compliancePolicyRegistryOperations");
 const { runComplianceMatching, deriveEvidenceLinkId, createCounters } = require("./complianceMatching");
@@ -148,11 +149,19 @@ function determineEffectiveStatus({ policyUnresolved, allRequiredSlotsSatisfied 
 // besides the accepted Timestamp-like shape are rejected outright.
 // ---------------------------------------------------------------------
 
-// Exactly these ten fields, no others (§4 "decisionHash canonicalization
-// contract"). `computedAt`/`decisionHash` themselves are excluded — a
-// write-time side value and the self-referential digest, respectively.
+// Exactly these eleven fields, no others (§4 "decisionHash canonicalization
+// contract", extended by Revision 35 §A3). `computedAt`/`decisionHash`
+// themselves are excluded — a write-time side value and the self-referential
+// digest, respectively.
+//
+// `pilotProductClassSnapshot` is the Revision 35 addition: the authoritative
+// class the decision was computed FOR. Binding it means a decision produced
+// under one class can never satisfy approval under another, so shared
+// brand-scoped evidence still requires a newly evaluated, product-bound
+// decision after any reclassification.
 const DECISION_HASH_INCLUDED_FIELDS = Object.freeze([
   "businessId",
+  "pilotProductClassSnapshot",
   "policyVersion",
   "evidenceRevision",
   "productInputRevisionSnapshot",
@@ -348,8 +357,17 @@ async function recomputeProductComplianceStatus({ db, businessId, productId, now
     }));
     const validUntil = computeEffectiveValidUntil(activeEvidenceRefs);
 
+    // Read from the canonical product, never from a seller field: the draft
+    // `category` is presentation metadata and can never substitute for it.
+    // An absent or invalid class is recorded as null, which both changes the
+    // hash and prevents an approval (approvePilotProduct fails closed on it).
+    const pilotProductClassSnapshot = isValidPilotProductClass(product.pilotProductClass)
+      ? product.pilotProductClass
+      : null;
+
     const decisionContent = {
       businessId,
+      pilotProductClassSnapshot,
       policyVersion: activeVersionId,
       evidenceRevision: epoch,
       productInputRevisionSnapshot,

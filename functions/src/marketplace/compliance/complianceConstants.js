@@ -947,12 +947,20 @@ const MATCHED_SCOPE_CAP = 10;
 // it: closes the dormant-window gap where a product's sellerRelationship
 // can change while productInputRevision stays absent on both sides
 // (firestore.rules row A), which revision-equality alone cannot detect.
+// `pilotProductClassSnapshot` (Marketplace Revision 35 §0.33, Slice 7A) —
+// the authoritative pilot class the decision was computed under. It is a
+// bound input of `decisionHash`, so it must be an allowed decision field for
+// the evaluator to accept the real schema the recompute writer now produces.
+// `null` is a legitimate stored value, meaning "no valid class was recorded
+// at compute time"; it is not a shortcut to eligibility, since approval
+// separately requires a valid class.
 const PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS = Object.freeze([
   "businessId",
   "policyVersion",
   "evidenceRevision",
   "productInputRevisionSnapshot",
   "sellerRelationshipSnapshot",
+  "pilotProductClassSnapshot",
   "requiredEvidenceSlots",
   "satisfiedEvidenceSlots",
   "activeEvidenceRefs",

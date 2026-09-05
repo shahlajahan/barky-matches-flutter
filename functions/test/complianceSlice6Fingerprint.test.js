@@ -89,6 +89,10 @@ async function seedApprovable({ decisionOverrides = {}, productOverrides = {} } 
       productInputRevision: 0,
       isActive: false,
       moderationStatus: "pending_review",
+      // Marketplace Revision 35 (Slice 7A): a valid, admin-recorded pilot
+      // class is a precondition of approval, so every fixture that is
+      // expected to reach approval carries one, as production does.
+      pilotProductClass: "sealed_dry_food",
       ...productOverrides,
     });
 

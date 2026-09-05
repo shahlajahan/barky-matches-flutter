@@ -10741,4 +10741,70 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get networkErrorTryAgain => 'Ağ hatası. Lütfen tekrar deneyin.';
+
+  @override
+  String get pilotAdminClassificationSectionTitle => 'Pilot ürün sınıflandırması';
+
+  @override
+  String get pilotAdminClassificationExplanation => 'Bir ürün onaylanmadan önce sınıflandırılmalıdır. Sınıflandırma idari bir karardır — satıcının kendi kategorisinden alınmaz.';
+
+  @override
+  String get pilotAdminClassificationCurrentLabel => 'Mevcut sınıflandırma';
+
+  @override
+  String get pilotAdminClassificationNotClassified => 'Sınıflandırılmadı';
+
+  @override
+  String get pilotAdminClassificationFieldLabel => 'Sınıflandırma';
+
+  @override
+  String get pilotAdminClassificationReasonLabel => 'Bu sınıflandırmanın gerekçesi';
+
+  @override
+  String get pilotAdminClassificationReasonHint => 'Bu sınıflandırmanın neden geçerli olduğunu kaydedin.';
+
+  @override
+  String get pilotAdminClassificationReasonRequired => 'Gerekçe zorunludur.';
+
+  @override
+  String get pilotAdminClassificationSaveButton => 'Sınıflandırmayı kaydet';
+
+  @override
+  String get pilotAdminClassificationSaved => 'Sınıflandırma kaydedildi.';
+
+  @override
+  String get pilotAdminClassificationUnchanged => 'Bu sınıflandırma zaten kayıtlıydı. Hiçbir şey değişmedi.';
+
+  @override
+  String get pilotAdminClassificationUnpublishWarning => 'Bu ürün şu anda yayında. Sınıflandırmasını değiştirmek ürünü yayından kaldırır ve incelemeye geri gönderir.';
+
+  @override
+  String get pilotAdminClassificationUnpublished => 'Sınıflandırma kaydedildi. Ürün yayından kaldırıldı ve incelemeye geri gönderildi.';
+
+  @override
+  String get pilotAdminClassificationConfirmTitle => 'Sınıflandırma değiştirilsin mi?';
+
+  @override
+  String get pilotAdminClassificationConfirmMessage => 'Ürün yayından kaldırılacak ve Marketplace\'e dönebilmesi için yeniden onaylanması gerekecek.';
+
+  @override
+  String get pilotAdminClassSealedDryFood => 'Kapalı ambalajlı kuru mama';
+
+  @override
+  String get pilotAdminClassSealedWetFood => 'Kapalı ambalajlı yaş mama';
+
+  @override
+  String get pilotAdminClassNonMedicinalTreats => 'Tıbbi olmayan ödül maması';
+
+  @override
+  String get pilotAdminClassNonBiocidalLitter => 'Biyosidal olmayan kum';
+
+  @override
+  String get pilotAdminErrorClassMissing => 'Bu ürünün henüz sınıflandırması yok. Onaylamadan önce sınıflandırın.';
+
+  @override
+  String get pilotAdminErrorClassUnsupported => 'Bu sınıflandırma, desteklenen pilot sınıflardan biri değil.';
+
+  @override
+  String get pilotAdminErrorClassNotClassifiable => 'Bu ürün artık sınıflandırılamaz.';
 }

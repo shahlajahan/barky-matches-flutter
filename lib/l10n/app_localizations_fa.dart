@@ -10741,4 +10741,70 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get networkErrorTryAgain => 'خطای شبکه. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get pilotAdminClassificationSectionTitle => 'طبقه‌بندی محصول آزمایشی';
+
+  @override
+  String get pilotAdminClassificationExplanation => 'یک محصول پیش از تایید باید طبقه‌بندی شود. طبقه‌بندی یک تصمیم اداری است و هرگز از دسته‌بندی خود فروشنده گرفته نمی‌شود.';
+
+  @override
+  String get pilotAdminClassificationCurrentLabel => 'طبقه‌بندی فعلی';
+
+  @override
+  String get pilotAdminClassificationNotClassified => 'طبقه‌بندی نشده';
+
+  @override
+  String get pilotAdminClassificationFieldLabel => 'طبقه‌بندی';
+
+  @override
+  String get pilotAdminClassificationReasonLabel => 'دلیل این طبقه‌بندی';
+
+  @override
+  String get pilotAdminClassificationReasonHint => 'ثبت کنید چرا این طبقه‌بندی اعمال می‌شود.';
+
+  @override
+  String get pilotAdminClassificationReasonRequired => 'ثبت دلیل الزامی است.';
+
+  @override
+  String get pilotAdminClassificationSaveButton => 'ذخیره طبقه‌بندی';
+
+  @override
+  String get pilotAdminClassificationSaved => 'طبقه‌بندی ذخیره شد.';
+
+  @override
+  String get pilotAdminClassificationUnchanged => 'این طبقه‌بندی از قبل ثبت شده بود. چیزی تغییر نکرد.';
+
+  @override
+  String get pilotAdminClassificationUnpublishWarning => 'این محصول در حال حاضر منتشر شده است. تغییر طبقه‌بندی آن، محصول را از انتشار خارج کرده و به بازبینی بازمی‌گرداند.';
+
+  @override
+  String get pilotAdminClassificationUnpublished => 'طبقه‌بندی ذخیره شد. محصول از انتشار خارج و به بازبینی بازگردانده شد.';
+
+  @override
+  String get pilotAdminClassificationConfirmTitle => 'طبقه‌بندی تغییر کند؟';
+
+  @override
+  String get pilotAdminClassificationConfirmMessage => 'محصول از انتشار خارج می‌شود و برای بازگشت به Marketplace باید دوباره تایید شود.';
+
+  @override
+  String get pilotAdminClassSealedDryFood => 'غذای خشک بسته‌بندی‌شده';
+
+  @override
+  String get pilotAdminClassSealedWetFood => 'غذای مرطوب بسته‌بندی‌شده';
+
+  @override
+  String get pilotAdminClassNonMedicinalTreats => 'تشویقی غیردارویی';
+
+  @override
+  String get pilotAdminClassNonBiocidalLitter => 'خاک بستر غیرزیست‌کش';
+
+  @override
+  String get pilotAdminErrorClassMissing => 'این محصول هنوز طبقه‌بندی ندارد. پیش از تایید، آن را طبقه‌بندی کنید.';
+
+  @override
+  String get pilotAdminErrorClassUnsupported => 'این طبقه‌بندی جزو کلاس‌های آزمایشی پشتیبانی‌شده نیست.';
+
+  @override
+  String get pilotAdminErrorClassNotClassifiable => 'این محصول دیگر قابل طبقه‌بندی نیست.';
 }
