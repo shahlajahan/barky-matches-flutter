@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'seller_product_availability.dart';
 import 'package:flutter/material.dart';
+
+import '../../services/marketplace_discovery_controller.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -410,69 +412,100 @@ class _OverviewTab extends StatelessWidget {
   }
 }
 
-class _ProductsTab extends StatelessWidget {
+/// Marketplace Revision 43 §0.41 (Slice 7D) — the shop's product preview.
+///
+/// Previously a direct `businesses/{id}/products` stream filtered on
+/// `isActive`/`moderationStatus`. Those two fields are not the publication
+/// contract: a product also needs a valid compliance decision, a live pilot
+/// approval, unexpired evidence, a matching business generation and a valid
+/// pilot class, none of which a client can evaluate. This now asks the
+/// server, scoped to this shop, and renders only what it returns.
+class _ProductsTab extends StatefulWidget {
   const _ProductsTab({required this.ownerId, required this.onBuyNow});
   final String ownerId;
   final VoidCallback onBuyNow;
 
   @override
+  State<_ProductsTab> createState() => _ProductsTabState();
+}
+
+class _ProductsTabState extends State<_ProductsTab> {
+  late final MarketplaceDiscoveryController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // This private widget takes no service seam: the loading, race,
+    // pagination and fail-closed behaviour it depends on is owned by
+    // MarketplaceDiscoveryController and proven in that controller's own
+    // tests, against a fake callable.
+    _controller = MarketplaceDiscoveryController(pageSize: 8)
+      ..addListener(_onChanged);
+    if (widget.ownerId.isNotEmpty) {
+      _controller.load(businessId: widget.ownerId);
+    }
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(covariant _ProductsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new shop must not keep showing the previous shop's products. The
+    // controller's own generation counter discards the superseded request.
+    if (oldWidget.ownerId != widget.ownerId && widget.ownerId.isNotEmpty) {
+      _controller.load(businessId: widget.ownerId);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    if (ownerId.isEmpty) {
+    if (widget.ownerId.isEmpty) {
       return Center(child: Text(l10n.noProductsAvailableFromShop));
     }
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(ownerId)
-          .collection('products')
-          .where('isActive', isEqualTo: true)
-          // P0 gap review item 4: mirror the products read rule
-          // (moderationStatus=='approved' && isActive==true for a
-          // non-owner reader), or Firestore rejects the query.
-          .where('moderationStatus', isEqualTo: 'approved')
-          .limit(8)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          debugPrint('Pet shop product preview failed: ${snapshot.error}');
-          return Center(child: Text(l10n.somethingWentWrong));
+    switch (_controller.status) {
+      case DiscoveryStatus.idle:
+      case DiscoveryStatus.loading:
+        return const Center(child: CircularProgressIndicator());
+      case DiscoveryStatus.failed:
+        return Center(child: Text(l10n.somethingWentWrong));
+      case DiscoveryStatus.empty:
+        return Center(child: Text(l10n.noProductsAvailableFromShop));
+      case DiscoveryStatus.loaded:
+        break;
+    }
+    final items = _controller.products;
+    if (items.isEmpty) {
+      return Center(child: Text(l10n.noProductsAvailableFromShop));
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: items.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        if (index == items.length) {
+          return TextButton(
+            onPressed: widget.onBuyNow,
+            child: Text(l10n.viewAllProducts),
+          );
         }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data!.docs;
-        if (docs.isEmpty) {
-          return Center(child: Text(l10n.noProductsAvailableFromShop));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length + 1,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            if (index == docs.length) {
-              return TextButton(
-                onPressed: onBuyNow,
-                child: Text(l10n.viewAllProducts),
-              );
-            }
-            final data = docs[index].data();
-            final name = (data['name'] ?? '').toString();
-            final base = (data['salePrice'] ?? data['price']) as num?;
-            final rate = (data['kdvRate'] as num?)?.toDouble() ?? 0;
-            final price = base == null
-                ? null
-                : double.parse(
-                    (base.toDouble() * (1 + rate / 100)).toStringAsFixed(2),
-                  );
-            return _Section(
-              title: name,
-              child: Text(
-                price == null ? '' : '₺$price',
-                style: AppTheme.bodyMedium(color: AppTheme.primary),
-              ),
-            );
-          },
+        final product = items[index];
+        return _Section(
+          title: product.name,
+          child: Text(
+            '₺${product.customerPrice.toStringAsFixed(2)}',
+            style: AppTheme.bodyMedium(color: AppTheme.primary),
+          ),
         );
       },
     );

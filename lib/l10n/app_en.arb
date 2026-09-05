@@ -4767,4 +4767,6 @@
 ,"subCategoryCarrier": "Carrier"
 ,"subCategoryGroomingTool": "Grooming Tool"
 ,"healthProductsNotSupported": "Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed."
+,"cartItemsNoLongerAvailable": "{count, plural, =1{1 item is no longer available and was removed from your cart.} other{{count} items are no longer available and were removed from your cart.}}"
+,"@cartItemsNoLongerAvailable": {"placeholders": {"count": {"type": "int"}}}
 }

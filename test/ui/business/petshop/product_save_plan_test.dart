@@ -1735,22 +1735,58 @@ void main() {
     });
   });
 
-  test('Phase B files remain byte-for-byte unmodified by Phase A '
-      '(all_products_page.dart, product_detail_page.dart do not import the '
-      'new dormant service)', () {
-    for (final path in [
-      'lib/ui/petshop/all_products_page.dart',
+  // Marketplace Revision 43 §0.41 (Slice 7D) supersedes this assertion.
+  //
+  // It was Slice 4.8 Phase A's dormancy guard: while the callable service
+  // existed but nothing used it, these two files had to stay untouched.
+  // Slice 7D IS the Phase B migration, so the requirement inverts — the
+  // catalogue must now reach products ONLY through the callable service, and
+  // must not read Firestore products directly. Deleting the test would have
+  // dropped the coupling it guards; it is re-pointed instead.
+  test('Phase B: all_products_page hydrates through the callable service, '
+      'and product_detail_page still reads nothing itself', () {
+    // Comments are stripped before the read-shape checks, exactly as
+    // test/architecture/marketplace_discovery_direct_read_guard_test.dart
+    // does: the file legitimately DOCUMENTS the query it used to run, and a
+    // comment must neither trip the check nor be able to hide a real read.
+    String withoutLineComments(String source) => source
+        .split('\n')
+        .map((line) {
+          final idx = line.indexOf('//');
+          return idx == -1 ? line : line.substring(0, idx);
+        })
+        .join('\n');
+
+    final catalogue = withoutLineComments(
+      File('lib/ui/petshop/all_products_page.dart').readAsStringSync(),
+    );
+    expect(
+      catalogue,
+      contains('marketplace_catalog_service'),
+      reason: 'the catalogue must use the trusted callable service',
+    );
+    expect(
+      catalogue,
+      contains('marketplace_discovery_controller'),
+      reason: 'listing must go through the shared discovery controller',
+    );
+    expect(
+      RegExp(r'''collection\(\s*['"]products['"]''').hasMatch(catalogue),
+      isFalse,
+      reason: 'no direct product collection read may remain',
+    );
+    expect(
+      RegExp(r'''collectionGroup\(\s*['"]products['"]''').hasMatch(catalogue),
+      isFalse,
+      reason: 'no direct product collection-group read may remain',
+    );
+
+    // The detail screen renders a Product it is handed; it never fetches one,
+    // so every entry point is responsible for hydrating through the server.
+    final detail = File(
       'lib/ui/product/product_detail_page.dart',
-    ]) {
-      final content = File(path).readAsStringSync();
-      expect(
-        content,
-        isNot(contains('marketplace_catalog_service')),
-        reason: path,
-      );
-      expect(content, isNot(contains('PublicProductListItem')), reason: path);
-      expect(content, isNot(contains('PublicProductDetail')), reason: path);
-    }
+    ).readAsStringSync();
+    expect(detail, isNot(contains('FirebaseFirestore')));
   });
 
   // A genuinely behavioral proof of the merge:true mechanism itself

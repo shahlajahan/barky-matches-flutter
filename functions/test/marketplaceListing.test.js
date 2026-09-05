@@ -547,6 +547,122 @@ test("list: non-object/array data is rejected", async () => {
 });
 
 // =====================================================================
+// Slice 7D — the `businessId` list scope (Revision 43 §0.41)
+// =====================================================================
+
+test("list scope: businessId narrows the query and returns only that business", async () => {
+  const docs = {
+    "businesses/biz1/products/a1": baseProduct({ businessId: "biz1" }),
+    "businesses/biz1/products/a2": baseProduct({ businessId: "biz1" }),
+    "businesses/biz2/products/b1": baseProduct({ businessId: "biz2" }),
+  };
+  const db = createFakeDb(docs);
+  const evaluator = createFakeEvaluator({
+    eligiblePaths: new Set(Object.keys(docs)),
+  });
+  const result = await getMarketplaceProductList({
+    db, data: { pageSize: 10, businessId: "biz1" }, featureEnabled: true, evaluator,
+  });
+  assert.equal(result.items.length, 2);
+  for (const item of result.items) assert.equal(item.businessId, "biz1");
+
+  // The narrowing is done by the QUERY, not by filtering after the fact —
+  // the other business's product is never even evaluated.
+  const where = db.queryCalls[0].wheres.find((w) => w.field === "businessId");
+  assert.ok(where, "the query must carry the businessId filter");
+  assert.equal(where.value, "biz1");
+  for (const call of evaluator.calls) assert.equal(call.businessId, "biz1");
+});
+
+test("list scope: an ineligible product in the scoped business is still excluded", async () => {
+  // Scoping is not authorization: the per-item eligibility evaluation is
+  // unchanged, so a scoped request can never surface something the unscoped
+  // catalogue would have refused.
+  const docs = {
+    "businesses/biz1/products/ok": baseProduct({ businessId: "biz1" }),
+    "businesses/biz1/products/bad": baseProduct({ businessId: "biz1" }),
+  };
+  const db = createFakeDb(docs);
+  const evaluator = createFakeEvaluator({
+    eligiblePaths: new Set(["businesses/biz1/products/ok"]),
+  });
+  const result = await getMarketplaceProductList({
+    db, data: { pageSize: 10, businessId: "biz1" }, featureEnabled: true, evaluator,
+  });
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].productId, "ok");
+});
+
+test("list scope: the unscoped catalogue is unchanged when businessId is absent or null", async () => {
+  const docs = {
+    "businesses/biz1/products/a1": baseProduct({ businessId: "biz1" }),
+    "businesses/biz2/products/b1": baseProduct({ businessId: "biz2" }),
+  };
+  for (const data of [{ pageSize: 10 }, { pageSize: 10, businessId: null }]) {
+    const db = createFakeDb(docs);
+    const evaluator = createFakeEvaluator({ eligiblePaths: new Set(Object.keys(docs)) });
+    const result = await getMarketplaceProductList({ db, data, featureEnabled: true, evaluator });
+    assert.equal(result.items.length, 2, JSON.stringify(data));
+    assert.equal(
+      db.queryCalls[0].wheres.some((w) => w.field === "businessId"),
+      false,
+      "no scope filter may be applied"
+    );
+  }
+});
+
+test("list scope: a malformed businessId is rejected, never silently widened", async () => {
+  // Silently ignoring a bad scope would turn a storefront request into a
+  // full-catalogue request without the caller noticing.
+  for (const businessId of ["", "   ", 5, true, [], {}, "x".repeat(257)]) {
+    const db = createFakeDb({});
+    await assert.rejects(
+      () => getMarketplaceProductList({
+        db, data: { pageSize: 5, businessId }, featureEnabled: true,
+      }),
+      { code: "invalid-argument", message: "Invalid request" },
+      JSON.stringify(businessId)
+    );
+    assert.equal(db.queryCalls.length, 0, "no query may run for a malformed scope");
+  }
+});
+
+test("list scope: paging within a scope stays inside the scope", async () => {
+  const docs = {
+    "businesses/biz1/products/p1": baseProduct({ businessId: "biz1" }),
+    "businesses/biz1/products/p2": baseProduct({ businessId: "biz1" }),
+    "businesses/biz2/products/p3": baseProduct({ businessId: "biz2" }),
+  };
+  const db = createFakeDb(docs);
+  const evaluator = createFakeEvaluator({ eligiblePaths: new Set(Object.keys(docs)) });
+  const page1 = await getMarketplaceProductList({
+    db, data: { pageSize: 1, businessId: "biz1" }, featureEnabled: true, evaluator,
+  });
+  assert.equal(page1.items.length, 1);
+  assert.equal(page1.items[0].businessId, "biz1");
+
+  const page2 = await getMarketplaceProductList({
+    db,
+    data: { pageSize: 1, businessId: "biz1", cursor: page1.nextCursor },
+    featureEnabled: true,
+    evaluator: createFakeEvaluator({ eligiblePaths: new Set(Object.keys(docs)) }),
+  });
+  for (const item of page2.items) assert.equal(item.businessId, "biz1");
+  assert.notEqual(page2.items[0]?.productId, page1.items[0].productId, "no duplicate across pages");
+});
+
+test("list scope: the feature gate still precedes scope validation", async () => {
+  const db = createFakeDb({});
+  await assert.rejects(
+    () => getMarketplaceProductList({
+      db, data: { businessId: 5 }, featureEnabled: false,
+    }),
+    { code: "failed-precondition" }
+  );
+  assert.equal(db.queryCalls.length, 0);
+});
+
+// =====================================================================
 // Detail request validation
 // =====================================================================
 

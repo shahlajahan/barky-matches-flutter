@@ -10901,4 +10901,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get healthProductsNotSupported => 'Витамины, добавки и ветеринарные препараты не поддерживаются на Маркетплейсе и не могут быть размещены.';
+
+  @override
+  String cartItemsNoLongerAvailable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count товара(ов) больше недоступны и удалены из корзины.',
+      one: '1 товар больше недоступен и удалён из корзины.',
+    );
+    return '$_temp0';
+  }
 }

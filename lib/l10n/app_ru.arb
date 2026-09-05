@@ -3552,4 +3552,5 @@
 ,"subCategoryCarrier": "Переноска"
 ,"subCategoryGroomingTool": "Инструмент для ухода"
 ,"healthProductsNotSupported": "Витамины, добавки и ветеринарные препараты не поддерживаются на Маркетплейсе и не могут быть размещены."
+,"cartItemsNoLongerAvailable": "{count, plural, =1{1 товар больше недоступен и удалён из корзины.} other{{count} товара(ов) больше недоступны и удалены из корзины.}}"
 }

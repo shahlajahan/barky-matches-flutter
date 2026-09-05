@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../../models/public_marketplace_product.dart';
+import '../../models/public_marketplace_product_adapter.dart';
+import '../../services/marketplace_catalog_service.dart';
+import '../../services/marketplace_discovery_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -60,6 +65,10 @@ class _AllProductsPageState extends State<AllProductsPage> {
     super.initState();
     _sellerIdFilter = widget.initialSellerId;
 
+    _controller = MarketplaceDiscoveryController()
+      ..addListener(_onCatalogChanged);
+    _startCatalogLoad();
+
     _loadCartFromFirestore(); // ✅ فقط اینجا
     _loadProductPromotionProjections();
 
@@ -93,6 +102,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
 
   @override
   void dispose() {
+    _controller.removeListener(_onCatalogChanged);
+    _controller.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -108,26 +119,26 @@ class _AllProductsPageState extends State<AllProductsPage> {
     });
   }
 
-  // P0 gap review item 4: the products read rule requires
-  // moderationStatus=='approved' in addition to isActive==true for a
-  // non-owner reader — both public product streams must mirror it or
-  // Firestore rejects the whole query.
-  Stream<QuerySnapshot<Map<String, dynamic>>> _productsStream() {
+  /// Slice 7D — the single catalogue service used for both the product
+  /// list and cart re-hydration.
+  final MarketplaceCatalogService _catalogService = MarketplaceCatalogService();
+
+  /// Slice 7D — the catalogue's only data source. Scoped to one shop when
+  /// the page was opened from a storefront, otherwise the whole public
+  /// catalogue. There is no Firestore fallback.
+  late final MarketplaceDiscoveryController _controller;
+
+  void _onCatalogChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _startCatalogLoad() {
     final sellerId = widget.initialSellerId?.trim();
-    if (_hasSellerScope) {
-      return FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(sellerId!.isEmpty ? '__invalid_shop__' : sellerId)
-          .collection('products')
-          .where('isActive', isEqualTo: true)
-          .where('moderationStatus', isEqualTo: 'approved')
-          .snapshots();
-    }
-    return FirebaseFirestore.instance
-        .collectionGroup('products')
-        .where('isActive', isEqualTo: true)
-        .where('moderationStatus', isEqualTo: 'approved')
-        .snapshots();
+    _controller.load(
+      businessId: _hasSellerScope && sellerId != null && sellerId.isNotEmpty
+          ? sellerId
+          : null,
+    );
   }
 
   void _addToBasket(Product product) {
@@ -217,76 +228,80 @@ class _AllProductsPageState extends State<AllProductsPage> {
         .collection('cart')
         .get();
 
-    final restoredItems = await Future.wait(
-      snapshot.docs.map((doc) async {
-        final data = doc.data();
-        final productId = data['productId']?.toString() ?? doc.id;
-        final shopId = data['shopId']?.toString() ?? '';
-        Map<String, dynamic>? productData;
+    // Marketplace Revision 43 §0.41 (Slice 7D) — cart hydration.
+    //
+    // A stored cart row is a historical snapshot of what the customer once
+    // added. It is NOT evidence that the product is still buyable, and its
+    // cached `product`/`price` fields are NOT authoritative: since the row
+    // was written the product may have been unpublished, reclassified, had
+    // its evidence expire or its approval revoked, or had its business
+    // generation rotated.
+    //
+    // Previously this read the live product document directly and, when that
+    // read failed, fell back to the cached snapshot or synthesized a
+    // `Product(isActive: true)` — presenting an unavailable product as ready
+    // to buy. Now every row is re-hydrated through the trusted callable, and
+    // ONLY rows the server still returns as available become cart items.
+    // Anything else is dropped from the purchasable cart.
+    //
+    // This does NOT make order creation safe. The server-side order boundary
+    // still does not evaluate live eligibility (Revision 39 §0.37 E); that
+    // remains an open blocker and Atomic Checkout is a separate slice.
+    final rows = snapshot.docs
+        .map((doc) {
+          final data = doc.data();
+          return (
+            data: data,
+            productId: data['productId']?.toString() ?? doc.id,
+            shopId: data['shopId']?.toString() ?? '',
+          );
+        })
+        .where((r) => r.shopId.isNotEmpty && r.productId.isNotEmpty)
+        .toList(growable: false);
 
-        final cachedProduct = data['product'];
-        if (cachedProduct is Map) {
-          productData = Map<String, dynamic>.from(cachedProduct);
+    // Hydrate in server-bounded chunks; a failure of any chunk leaves that
+    // chunk's rows unavailable rather than falling back to cached data.
+    final hydrated = <String, PublicProductDetail?>{};
+    for (var i = 0; i < rows.length; i += maxBatchProducts) {
+      final slice = rows.skip(i).take(maxBatchProducts);
+      final refs = slice
+          .map((r) => PublicProductRef(r.shopId, r.productId))
+          .toList(growable: false);
+      try {
+        hydrated.addAll(await _catalogService.fetchProductBatch(refs: refs));
+      } on MarketplaceCatalogException {
+        for (final ref in refs) {
+          hydrated[publicProductKey(ref.businessId, ref.productId)] = null;
         }
-        if (shopId.isNotEmpty && productId.isNotEmpty) {
-          // P0 gap review item 4: a product that was pending/rejected/
-          // suspended since being added to the cart is no longer
-          // publicly readable (products read rule requires
-          // moderationStatus=='approved' && isActive==true for a
-          // non-owner). get() throws permission-denied rather than
-          // returning exists:false in that case — treat it the same as
-          // not-found instead of letting it crash cart restoration.
-          try {
-            final productSnapshot = await FirebaseFirestore.instance
-                .collection('businesses')
-                .doc(shopId)
-                .collection('products')
-                .doc(productId)
-                .get();
-            if (productSnapshot.exists) {
-              productData = productSnapshot.data();
-            }
-          } on FirebaseException {
-            productData = productData;
-          }
-        }
+      }
+    }
 
-        final price = (data['price'] as num?)?.toDouble() ?? 0;
-        final product = productData != null
-            ? Product.fromJson(productId, productData)
-            : Product(
-                id: productId,
-                name: data['name']?.toString() ?? '',
-                description: '',
-                price: price,
-                currency: 'TRY',
-                businessId: shopId,
-                media: const [],
-                stock: 0,
-                category: 'general',
-                isActive: true,
-                shippingMode: data['shippingMode']?.toString(),
-                shippingPayer: data['shippingPayer']?.toString(),
-                shippingFee: (data['shippingFee'] as num?)?.toDouble(),
-                freeShippingThreshold: (data['freeShippingThreshold'] as num?)
-                    ?.toDouble(),
-                allowFreeShipping: data['allowFreeShipping'] == true,
-                allowedCarrierCodes: List<String>.from(
-                  data['allowedCarrierCodes'] ?? const [],
-                ),
-              );
-
-        return CartItem(
-          productId: productId,
+    var droppedCount = 0;
+    final restoredItems = <CartItem>[];
+    for (final row in rows) {
+      final detail = hydrated[publicProductKey(row.shopId, row.productId)];
+      if (detail == null) {
+        // Requested and not returned as available: the customer may no
+        // longer see or buy this. It leaves the cart rather than lingering
+        // as a stale, purchasable-looking row.
+        droppedCount += 1;
+        continue;
+      }
+      final product = detail.toProduct();
+      restoredItems.add(
+        CartItem(
+          productId: row.productId,
           product: product,
-          shopId: shopId,
-          name: data['name']?.toString() ?? product.name,
-          price: productData != null ? product.customerPrice : price,
-          quantity: (data['quantity'] as num?)?.toInt() ?? 1,
+          shopId: row.shopId,
+          // Name and price come from the SERVER's current projection, never
+          // from the stored row.
+          name: product.name,
+          price: product.customerPrice,
+          quantity: (row.data['quantity'] as num?)?.toInt() ?? 1,
           allowedCarrierCodes: product.allowedCarrierCodes,
-        );
-      }),
-    );
+        ),
+      );
+    }
 
     if (!mounted) return;
     setState(() {
@@ -294,6 +309,17 @@ class _AllProductsPageState extends State<AllProductsPage> {
         ..clear()
         ..addAll(restoredItems);
     });
+
+    // Tell the customer their cart changed. Items disappearing silently
+    // would be worse than the stale-but-visible behaviour this replaces.
+    if (droppedCount > 0 && mounted) {
+      final l10n = AppLocalizations.of(context);
+      if (l10n != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.cartItemsNoLongerAvailable(droppedCount))),
+        );
+      }
+    }
   }
 
   void _openBasket() {
@@ -883,21 +909,43 @@ class _AllProductsPageState extends State<AllProductsPage> {
           const SizedBox(width: 6),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _productsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            debugPrint("🔥 REAL ERROR: ${snapshot.error}");
-            return Center(child: Text(l10n.somethingWentWrong));
+      body: Builder(
+        builder: (context) {
+          // Marketplace Revision 43 §0.41 (Slice 7D) — the customer
+          // catalogue. Previously a direct `collectionGroup('products')`
+          // stream (or a seller-scoped subcollection stream) filtered on
+          // `isActive`/`moderationStatus`. Those two fields are not the
+          // publication contract: eligibility also depends on the compliance
+          // decision, the pilot approval, evidence validity, the business
+          // generation and the pilot class, none of which a client can read
+          // or evaluate. The server decides, and only what it returns is
+          // rendered.
+          //
+          // Search, category and sort below are UNCHANGED — they were always
+          // client-side refinements over the fetched set, and they remain
+          // descriptive refinements over the server-returned set. They never
+          // decide publishability.
+          switch (_controller.status) {
+            case DiscoveryStatus.idle:
+            case DiscoveryStatus.loading:
+              return const Center(child: CircularProgressIndicator());
+            case DiscoveryStatus.failed:
+              return Center(child: Text(l10n.somethingWentWrong));
+            case DiscoveryStatus.empty:
+              return Center(
+                child: Text(
+                  _hasSellerScope
+                      ? l10n.noProductsAvailableFromShop
+                      : l10n.noActiveProductsFound,
+                ),
+              );
+            case DiscoveryStatus.loaded:
+              break;
           }
 
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          final products = _controller.products;
 
-          final docs = snapshot.data!.docs;
-
-          if (docs.isEmpty) {
+          if (products.isEmpty) {
             return Center(
               child: Text(
                 _hasSellerScope
@@ -906,15 +954,6 @@ class _AllProductsPageState extends State<AllProductsPage> {
               ),
             );
           }
-
-          final products = docs.map((doc) {
-            final data = Map<String, dynamic>.from(doc.data());
-            if (_hasSellerScope &&
-                (data['businessId'] ?? '').toString().trim().isEmpty) {
-              data['businessId'] = widget.initialSellerId;
-            }
-            return Product.fromJson(doc.id, data);
-          }).toList();
 
           final categories =
               products

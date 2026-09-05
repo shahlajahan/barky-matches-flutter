@@ -78,6 +78,34 @@ typedef MarketplaceProductPage = ({
 /// of `getMarketplaceProductList`/`getMarketplaceProductDetail` exactly.
 const String marketplaceFunctionsRegion = 'europe-west3';
 
+/// Server-side `BATCH_MAX_ITEMS` (marketplaceListing.js). Mirrored so a
+/// caller can chunk before the server rejects the request.
+const int maxBatchProducts = 20;
+
+/// A canonical public product identity. A product is addressed by
+/// (businessId, productId) everywhere in the public contract; neither half
+/// is meaningful alone.
+class PublicProductRef {
+  final String businessId;
+  final String productId;
+
+  const PublicProductRef(this.businessId, this.productId);
+
+  @override
+  bool operator ==(Object other) =>
+      other is PublicProductRef &&
+      other.businessId == businessId &&
+      other.productId == productId;
+
+  @override
+  int get hashCode => Object.hash(businessId, productId);
+}
+
+/// The canonical cache/map key for a public product. Always built from both
+/// identity halves so a bare productId can never collide across businesses.
+String publicProductKey(String businessId, String productId) =>
+    '$businessId/$productId';
+
 class MarketplaceCatalogService {
   MarketplaceCatalogService({
     FirebaseFunctions? functions,
@@ -109,15 +137,24 @@ class MarketplaceCatalogService {
     }
   }
 
+  /// Fetches one page of the public catalogue.
+  ///
+  /// [businessId], when given, scopes the page to a single Pet Shop's
+  /// storefront (Slice 7D). It is descriptive request data, never
+  /// authorization: the server applies the identical per-item eligibility
+  /// evaluation either way, so a scoped page can never contain anything the
+  /// unscoped catalogue would have withheld.
   Future<MarketplaceProductPage> fetchProductList({
     int pageSize = 20,
     String? cursor,
+    String? businessId,
   }) async {
     final Object? data;
     try {
       data = await _callableInvoker('getMarketplaceProductList', {
         'pageSize': pageSize,
         'cursor': ?cursor,
+        'businessId': ?businessId,
       });
     } on FirebaseFunctionsException catch (e) {
       throw MarketplaceCatalogException(_mapFailureCode(e.code));
@@ -159,6 +196,98 @@ class MarketplaceCatalogService {
 
     final nextCursor = map['nextCursor'];
     return (items: items, nextCursor: nextCursor is String ? nextCursor : null);
+  }
+
+  /// Hydrates up to [maxBatchProducts] products by canonical identity.
+  ///
+  /// This is the ONLY way a customer surface may turn a stored product id —
+  /// from Favourites, a cart row, a deep link, a notification or a cache —
+  /// into displayable live product data. A raw id is never proof of
+  /// visibility: the server re-evaluates eligibility for every entry and
+  /// simply omits, or marks unavailable, anything a customer may not see.
+  ///
+  /// The returned map is keyed by [publicProductKey] and contains an entry
+  /// for EVERY requested reference, so a caller can distinguish "requested
+  /// and unavailable" from "never requested". An unavailable entry is
+  /// `null` — there is no partial or stale product to fall back on.
+  Future<Map<String, PublicProductDetail?>> fetchProductBatch({
+    required List<PublicProductRef> refs,
+  }) async {
+    // Deduplicate by canonical identity before the call, so a repeated
+    // favourite or two cart rows of the same product cost one slot.
+    final unique = <String, PublicProductRef>{};
+    for (final ref in refs) {
+      if (ref.businessId.isEmpty || ref.productId.isEmpty) continue;
+      unique[publicProductKey(ref.businessId, ref.productId)] = ref;
+    }
+    if (unique.isEmpty) return <String, PublicProductDetail?>{};
+    if (unique.length > maxBatchProducts) {
+      throw const MarketplaceCatalogException(
+        MarketplaceCatalogFailureKind.generic,
+      );
+    }
+
+    final Object? data;
+    try {
+      data = await _callableInvoker('getMarketplaceProductBatch', {
+        'products': unique.values
+            .map((r) => {'businessId': r.businessId, 'productId': r.productId})
+            .toList(growable: false),
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw MarketplaceCatalogException(_mapFailureCode(e.code));
+    }
+
+    if (data is! Map) {
+      throw const MarketplaceCatalogException(
+        MarketplaceCatalogFailureKind.unavailableRetry,
+      );
+    }
+    final rawResults = Map<String, dynamic>.from(data)['results'];
+    if (rawResults is! List) {
+      throw const MarketplaceCatalogException(
+        MarketplaceCatalogFailureKind.unavailableRetry,
+      );
+    }
+
+    // Every requested reference starts unavailable and is only promoted by
+    // an explicit, well-formed, available server result. A response that
+    // omits an entry therefore leaves it unavailable — fail closed.
+    final out = <String, PublicProductDetail?>{
+      for (final key in unique.keys) key: null,
+    };
+    for (final raw in rawResults) {
+      if (raw is! Map) {
+        throw const MarketplaceCatalogException(
+          MarketplaceCatalogFailureKind.unavailableRetry,
+        );
+      }
+      final entry = Map<String, dynamic>.from(raw);
+      final businessId = entry['businessId'];
+      final productId = entry['productId'];
+      if (businessId is! String || productId is! String) {
+        throw const MarketplaceCatalogException(
+          MarketplaceCatalogFailureKind.unavailableRetry,
+        );
+      }
+      final key = publicProductKey(businessId, productId);
+      // A result for something never asked for is a contract violation, not
+      // something to render.
+      if (!out.containsKey(key)) continue;
+      if (entry['available'] != true) continue;
+      final product = entry['product'];
+      if (product is! Map) continue;
+      try {
+        out[key] = PublicProductDetail.fromJson(
+          Map<String, dynamic>.from(product),
+        );
+      } catch (_) {
+        throw const MarketplaceCatalogException(
+          MarketplaceCatalogFailureKind.unavailableRetry,
+        );
+      }
+    }
+    return out;
   }
 
   Future<PublicProductDetail> fetchProductDetail({

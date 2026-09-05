@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../marketplace/marketplace_products_builder.dart';
+import '../../services/marketplace_discovery_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
@@ -291,42 +294,14 @@ class SellerProfilePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collectionGroup('products')
-                              .where('isActive', isEqualTo: true)
-                              // P0 gap review item 4: the products read
-                              // rule requires moderationStatus=='approved'
-                              // in addition to isActive==true for a
-                              // non-owner reader — this query must mirror
-                              // it or Firestore rejects the whole query.
-                              .where('moderationStatus', isEqualTo: 'approved')
-                              .where('businessId', isEqualTo: sellerId)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            debugPrint("🟡 SellerProfilePage QUERY RUN");
-                            debugPrint("👉 sellerId = $sellerId");
-                            debugPrint("👉 hasError = ${snapshot.hasError}");
-                            debugPrint("👉 hasData = ${snapshot.hasData}");
-
-                            if (snapshot.hasError) {
-                              debugPrint(
-                                "🔥 FIRESTORE ERROR: ${snapshot.error}",
-                              );
-                            }
-
-                            if (snapshot.hasData) {
-                              debugPrint(
-                                "📦 DOC COUNT: ${snapshot.data!.docs.length}",
-                              );
-                            }
-
-                            final docs = snapshot.data?.docs ?? [];
-                            final products = docs.map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              return Product.fromJson(doc.id, data);
-                            }).toList();
-
+                        // Marketplace Revision 43 §0.41 (Slice 7D) — the
+                        // seller's public storefront metrics are computed
+                        // from what the SERVER says is currently visible,
+                        // scoped to this seller. `isActive`/`moderationStatus`
+                        // were never the publication contract.
+                        MarketplaceProductsBuilder(
+                          businessId: sellerId,
+                          builder: (context, status, products) {
                             final totalProducts = products.length;
                             final inStockCount = products
                                 .where((p) => p.stock > 0)
@@ -585,20 +560,20 @@ class SellerProfilePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collectionGroup('products')
-                              .where('isActive', isEqualTo: true)
-                              // P0 gap review item 4: the products read
-                              // rule requires moderationStatus=='approved'
-                              // in addition to isActive==true for a
-                              // non-owner reader — this query must mirror
-                              // it or Firestore rejects the whole query.
-                              .where('moderationStatus', isEqualTo: 'approved')
-                              .where('businessId', isEqualTo: sellerId)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
+                        // Marketplace Revision 43 §0.41 (Slice 7D) — the
+                        // seller's public product grid.
+                        //
+                        // BEHAVIOUR CHANGE, recorded deliberately: this list
+                        // was sorted newest-first on `createdAt`. The public
+                        // projection does not carry `createdAt` — it is not a
+                        // public field — so the order is now the server's own
+                        // deterministic catalogue order. Re-deriving a client
+                        // sort would require a field the secure contract does
+                        // not expose, so the contract wins.
+                        MarketplaceProductsBuilder(
+                          businessId: sellerId,
+                          builder: (context, status, products) {
+                            if (status == DiscoveryStatus.failed) {
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -608,16 +583,15 @@ class SellerProfilePage extends StatelessWidget {
                                   padding: const EdgeInsets.all(24),
                                   child: Center(
                                     child: Text(
-                                      l10n.sellerProductsLoadError(
-                                        snapshot.error ?? '',
-                                      ),
+                                      l10n.sellerProductsLoadError(''),
                                     ),
                                   ),
                                 ),
                               );
                             }
 
-                            if (!snapshot.hasData) {
+                            if (status == DiscoveryStatus.idle ||
+                                status == DiscoveryStatus.loading) {
                               return Padding(
                                 padding: EdgeInsets.symmetric(vertical: 32),
                                 child: Center(
@@ -625,21 +599,6 @@ class SellerProfilePage extends StatelessWidget {
                                 ),
                               );
                             }
-
-                            final docs = snapshot.data!.docs;
-
-                            final products =
-                                docs.map((doc) {
-                                  final data =
-                                      doc.data() as Map<String, dynamic>;
-                                  return Product.fromJson(doc.id, data);
-                                }).toList()..sort((a, b) {
-                                  final aa =
-                                      a.createdAt?.millisecondsSinceEpoch ?? 0;
-                                  final bb =
-                                      b.createdAt?.millisecondsSinceEpoch ?? 0;
-                                  return bb.compareTo(aa);
-                                });
 
                             if (products.isEmpty) {
                               return Padding(

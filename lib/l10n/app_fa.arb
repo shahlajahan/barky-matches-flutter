@@ -4747,4 +4747,5 @@
 ,"subCategoryCarrier": "باکس حمل"
 ,"subCategoryGroomingTool": "ابزار آرایش"
 ,"healthProductsNotSupported": "ویتامین‌ها، مکمل‌ها و داروهای دامپزشکی در مارکت‌پلیس پشتیبانی نمی‌شوند و قابل ثبت نیستند."
+,"cartItemsNoLongerAvailable": "{count, plural, =1{۱ کالا دیگر موجود نیست و از سبد خرید شما حذف شد.} other{{count} کالا دیگر موجود نیستند و از سبد خرید شما حذف شدند.}}"
 }

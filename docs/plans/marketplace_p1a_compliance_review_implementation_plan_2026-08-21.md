@@ -2180,6 +2180,46 @@ The six Group B identifiers are new. The four Group A identifiers are **byte-ide
 ---
 
 
+### 0.41 Revision 43 change log — Flutter discovery migration (Slice 7D, 2026-09-05)
+
+**Status.** Every customer-facing Flutter path to Marketplace product data now goes through the trusted callables. **Implemented locally; nothing is deployed and no flag is enabled.** The Marketplace remains Pre-pilot. This revision amends by addition and supersedes exactly one earlier assertion, named in §F.
+
+**A. Why this was a repair, not only a hardening.** Revision 38 §0.36 removed the public `approved && isActive` product read branch from `firestore.rules`. The Flutter surfaces that relied on it were left behind, so as committed they query a path Rules now deny. Slice 7D closes that gap. It also removes a real defect that was demonstrated, not assumed: at `2587197` a product carrying `isActive: true` and `moderationStatus: 'approved'` but **no** pilot class, approval or compliance decision — one the server refuses outright — was reported to the customer as available.
+
+**B. Public paths migrated (7 surfaces, plus 1 removed).**
+
+| Surface | Was | Now |
+|---|---|---|
+| `all_products_page` catalogue + storefront | `collectionGroup('products')` / seller subcollection stream | `getMarketplaceProductList` (scoped when opened from a shop) |
+| `all_products_page` cart restore | direct product `get()` + cached fallback | `getMarketplaceProductBatch` |
+| `petshop_products_page` | shop product stream | scoped list callable |
+| `pet_shop_customer_details_page` preview | shop product stream, `limit(8)` | scoped list callable, `pageSize: 8` |
+| `seller_profile_page` metrics + grid | two collection-group streams | `MarketplaceProductsBuilder` |
+| `seller_product_availability` | `limit(1)` query | scoped list callable, `pageSize: 1` |
+| `favorite_products_page` tap-through | direct product `get()` | `getMarketplaceProductDetail` |
+| `seller_offers_page` | cross-seller barcode/name query | **removed** (see §E) |
+
+`product_detail_page` performs no reads of its own and never did; all three of its entry points now hand it a server-hydrated product. No deep-link or notification route to product detail exists in the codebase.
+
+**C. Callable contract, and the one minimal extension.** `getMarketplaceProductList` accepted only `pageSize`/`cursor`, which cannot serve a single shop's storefront — five surfaces need exactly that. One optional field, `businessId`, was added. It is a **scope, not an authorization input**: the identical per-item `evaluateLiveProductEligibility` runs either way, so a scoped page can never contain anything the unscoped catalogue would withhold; a malformed scope is rejected rather than silently widened; and the existing COLLECTION_GROUP index on `(isActive, moderationStatus, businessId)` already serves it, so **no index was added**. Search, category and sort were always client-side refinements over the fetched set and are unchanged.
+
+**D. Client architecture.** `MarketplaceCatalogService` (callables only) → `MarketplaceDiscoveryController` (one paged loader: request-generation race guard, canonical-identity deduplication, pagination, fail-closed errors) → surfaces, with `MarketplaceProductsBuilder` for widget use and one adapter from the public projection to the display `Product`. **No cache authorizes visibility**: a callable failure clears loaded products rather than leaving them on screen, an omitted batch entry is unavailable, and there is no direct-read fallback anywhere. The adapter pins `isActive`/`moderationStatus` because the server's willingness to return a product *is* the eligibility decision — those fields are not projected and must never be re-derived.
+
+**E. `seller_offers_page` removed.** It queried `collectionGroup('products')` by barcode or name across all sellers. It was **unreachable** — no route or widget navigated to it anywhere in `lib/` or `test/`. Serving it securely would need a cross-seller search capability the callable contract does not have, which is out of scope here. Rather than leave an unreachable direct-read bypass in the tree, the file was deleted. **Deferred capability:** cross-seller offer search by barcode/name.
+
+**F. Superseded assertion.** Slice 4.8 Phase A's dormancy guard in `product_save_plan_test.dart` — "Phase B files remain byte-for-byte unmodified by Phase A (`all_products_page.dart`, `product_detail_page.dart` do not import the new dormant service)" — is **superseded**: Slice 7D is that Phase B. The test is re-pointed, not deleted, to assert the inverse coupling.
+
+**G. Private readers intentionally retained**, each with its authority: `product_service.dart` (seller's own inventory across all statuses, and seller writes); `add_product_page.dart` (seller create/edit, business-scoped); `pilot_product_approval_list_page.dart` and `pilot_product_approval_detail_page.dart` (admin-only Rules branch); `order_return_service.dart` (return shipping policy for an order already placed, already failing closed when the product is unreadable). `favorite_products_page` still reads `users/{uid}/favoriteProducts` — the customer's own list, not product data. One known-dead read remains inside `add_product_page.dart`: an unscoped `collectionGroup("products")` barcode lookup for seller pricing hints, which current Rules already deny and which fails closed to "no market data"; cleaning it up belongs to a seller-side slice.
+
+**H. Guard.** `test/architecture/marketplace_discovery_direct_read_guard_test.dart` sweeps all of `lib/` with an **allowlist** of the justified private readers above, so a newly added customer surface is covered the moment it exists. It matches read *structure* (products collection, collection group, or a product document path) rather than a spelling, strips comments so documentation neither trips it nor hides a read, verifies every allowlist entry is still real, and contains its own non-vacuity check that planted reads are detected.
+
+**I. Tests and non-vacuity.** 21 behavioural discovery tests, 6 availability tests, 5 guard tests, 6 new server scope tests; focused suites run twice (588 Flutter, 131 listing). Against an isolated `2587197` worktree the guard named **all seven** unmigrated public surfaces, and a behavioural probe confirmed the ineligible-product defect in §A. Module-shape failures (files and parameters that do not exist pre-change) are reported separately from that behavioural evidence.
+
+**J. Still open — this slice changes none of it.** Order creation still does not evaluate live eligibility (§0.37 E): `createMarketplaceOrderV2` consults no publication or compliance predicate, reads non-transactionally and commits with `batch.commit()`. **Cart hydration does not make checkout safe** — it stops the client *displaying* an ineligible product as purchasable, and nothing more. Atomic Checkout and the direct client `orders` create exposure remain separate, open blockers. Nothing here is deployed, and the Pilot is not live.
+
+---
+
+
 ## 1. Executive plan verdict
 
 With all 10 corrections applied, the plan is internally consistent: every field has exactly one document of record, every slice's dependencies match its stated order, every compliance-eligibility check is a positive, fully-enumerated allowlist, and no unresolved product-owner/legal decision blocks anything beyond the specific production-activation step it actually gates. **Ready to commit as documentation.** Implementation itself remains gated on the same two named decisions as before (malware-scanning provider, Turkish legal evidence mapping) — but, per correction 8, only for the specific transitions those decisions govern, not for starting implementation work at all.

@@ -20534,6 +20534,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed.'**
   String get healthProductsNotSupported;
+
+  /// No description provided for @cartItemsNoLongerAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item is no longer available and was removed from your cart.} other{{count} items are no longer available and were removed from your cart.}}'**
+  String cartItemsNoLongerAvailable(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

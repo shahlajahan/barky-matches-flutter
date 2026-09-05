@@ -52,7 +52,14 @@ const MAX_FETCHES = 2;
 const CURSOR_MAX_ENCODED_LENGTH = 256;
 const CURSOR_VERSION = 1;
 
-const LIST_REQUEST_ALLOWED_FIELDS = Object.freeze(["pageSize", "cursor"]);
+// Marketplace Revision 43 §0.41 (Slice 7D) — `businessId` is the ONE field
+// added to the list request, so a Pet Shop storefront can be served through
+// this callable instead of a direct client query. It is a SCOPE, never an
+// authorization input: it narrows which products are considered, and every
+// candidate still passes the identical per-item eligibility evaluation below.
+// Scoping to a business therefore cannot surface anything the unscoped
+// catalogue would not already have served.
+const LIST_REQUEST_ALLOWED_FIELDS = Object.freeze(["pageSize", "cursor", "businessId"]);
 const DETAIL_REQUEST_ALLOWED_FIELDS = Object.freeze(["businessId", "productId"]);
 
 // Marketplace Revision 39 §0.37 (Slice 7B-C1) — bounded batch hydration for
@@ -403,6 +410,22 @@ function projectPublicProduct(rawData, docPath, mediaCap) {
 // per-candidate filtering contract"
 // =====================================================================
 
+/// Validates the optional `businessId` list scope.
+///
+/// Absent means the whole public catalogue. Present must be a non-empty,
+/// bounded string; anything else is rejected rather than silently ignored,
+/// so a malformed scope can never widen a request back to the full
+/// catalogue without the caller realising.
+function validateBusinessScope(payload) {
+  if (!Object.prototype.hasOwnProperty.call(payload, "businessId")) return null;
+  const value = payload.businessId;
+  if (value === null || value === undefined) return null;
+  if (!isNonEmptyTrimmedString(value, STR_MAX.businessId)) {
+    throw invalidRequest();
+  }
+  return value;
+}
+
 async function getMarketplaceProductList({
   db,
   data,
@@ -418,6 +441,7 @@ async function getMarketplaceProductList({
   assertAllowedKeys(payload, LIST_REQUEST_ALLOWED_FIELDS);
   const pageSize = validatePageSize(payload);
   const cursorLastPath = decodeCursor(payload.cursor);
+  const businessScope = validateBusinessScope(payload);
 
   const fetchLimit = pageSize * FETCH_LIMIT_MULTIPLIER;
   const examineCap = pageSize * EXAMINE_CAP_MULTIPLIER;
@@ -436,8 +460,13 @@ async function getMarketplaceProductList({
     let query = db
       .collectionGroup("products")
       .where("isActive", "==", true)
-      .where("moderationStatus", "==", "approved")
-      .orderBy(FieldPath.documentId(), "asc");
+      .where("moderationStatus", "==", "approved");
+    if (businessScope !== null) {
+      // Served by the existing COLLECTION_GROUP index on
+      // (isActive, moderationStatus, businessId) — no new index is required.
+      query = query.where("businessId", "==", businessScope);
+    }
+    query = query.orderBy(FieldPath.documentId(), "asc");
     if (startAfterRef !== null) {
       query = query.startAfter(startAfterRef);
     }

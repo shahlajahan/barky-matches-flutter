@@ -4746,4 +4746,5 @@
 ,"subCategoryCarrier": "Taşıma Çantası"
 ,"subCategoryGroomingTool": "Bakım Aleti"
 ,"healthProductsNotSupported": "Vitaminler, takviyeler ve veteriner ilaçları Marketplace'te desteklenmez ve listelenemez."
+,"cartItemsNoLongerAvailable": "{count, plural, =1{1 ürün artık mevcut değil ve sepetinizden kaldırıldı.} other{{count} ürün artık mevcut değil ve sepetinizden kaldırıldı.}}"
 }

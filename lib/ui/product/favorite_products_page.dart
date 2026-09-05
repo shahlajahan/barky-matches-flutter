@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../models/public_marketplace_product_adapter.dart';
+import '../../services/marketplace_catalog_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -10,7 +13,16 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 class FavoriteProductsPage extends StatelessWidget {
   final ValueChanged<Product> onAddToBasket;
 
-  const FavoriteProductsPage({super.key, required this.onAddToBasket});
+  /// Slice 7D — the only path from a saved favourite to a displayable
+  /// product. Test-only injection point; production leaves it unset and
+  /// gets the real callable-backed service.
+  final MarketplaceCatalogService catalogService;
+
+  FavoriteProductsPage({
+    super.key,
+    required this.onAddToBasket,
+    MarketplaceCatalogService? catalogService,
+  }) : catalogService = catalogService ?? MarketplaceCatalogService();
 
   @override
   Widget build(BuildContext context) {
@@ -83,37 +95,38 @@ class FavoriteProductsPage extends StatelessWidget {
                     final productId = data["productId"];
                     final shopId = data["shopId"];
 
-                    // Marketplace product compliance audit, P0 gap review
-                    // (item 4): this used to be an unfiltered
-                    // collectionGroup("products") scan of every product
-                    // across every business, filtered client-side by ID.
-                    // Besides being a full-collection read on every tap,
-                    // it is incompatible with the new products read rule
-                    // (approved+active OR owner OR admin) — a query with
-                    // no constraint on those fields cannot be proven safe
-                    // and would be rejected outright. A direct, scoped
-                    // get() on the exact known product is both cheaper
-                    // and correctly evaluated per-document: it succeeds
-                    // only if this product is still publicly visible (or
-                    // the caller owns it), which is also the right UX —
-                    // a favorited product that was unpublished should
-                    // show as not found, the same as a deleted one.
-                    DocumentSnapshot? found;
+                    // Marketplace Revision 43 §0.41 (Slice 7D). A stored
+                    // favourite is a pair of identifiers a customer saved at
+                    // some point in the past. It is NOT evidence that the
+                    // product is still visible: since it was saved, the
+                    // product may have been unpublished, reclassified, had
+                    // its evidence expire or revoked, had its approval
+                    // invalidated, or had its business generation rotated —
+                    // none of which a client can evaluate, and none of which
+                    // a direct document read would reveal.
+                    //
+                    // So the identifiers are re-hydrated through the trusted
+                    // callable, which re-runs live eligibility, and ONLY the
+                    // product it returns is opened. A favourite can never
+                    // resurrect something the catalogue would refuse to show.
+                    // There is deliberately no Firestore fallback: a callable
+                    // failure shows "not found" rather than an unverified
+                    // product.
+                    Product? product;
                     if (shopId != null && productId != null) {
                       try {
-                        final doc = await FirebaseFirestore.instance
-                            .collection("businesses")
-                            .doc(shopId)
-                            .collection("products")
-                            .doc(productId)
-                            .get();
-                        if (doc.exists) found = doc;
-                      } on FirebaseException {
-                        found = null;
+                        final detail = await catalogService.fetchProductDetail(
+                          businessId: shopId.toString(),
+                          productId: productId.toString(),
+                        );
+                        product = detail.toProduct();
+                      } on MarketplaceCatalogException {
+                        product = null;
                       }
                     }
 
-                    if (found == null) {
+                    if (product == null) {
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(l10n.productNotFound)),
                       );
@@ -121,18 +134,14 @@ class FavoriteProductsPage extends StatelessWidget {
                       return;
                     }
 
-                    final product = Product.fromJson(
-                      found.id,
-
-                      found.data() as Map<String, dynamic>,
-                    );
-
+                    if (!context.mounted) return;
+                    final resolved = product;
                     Navigator.push(
                       context,
 
                       MaterialPageRoute(
                         builder: (_) => ProductDetailPage(
-                          product: product,
+                          product: resolved,
                           onAddToBasket: onAddToBasket,
                         ),
                       ),

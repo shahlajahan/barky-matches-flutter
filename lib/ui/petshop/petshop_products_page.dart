@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../services/marketplace_discovery_controller.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
@@ -18,6 +19,27 @@ class PetShopProductsPage extends StatefulWidget {
 }
 
 class _PetShopProductsPageState extends State<PetShopProductsPage> {
+  // Slice 7D — the shop storefront's only data source.
+  late final MarketplaceDiscoveryController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MarketplaceDiscoveryController()..addListener(_onCatalogChanged);
+    _controller.load(businessId: widget.shopId);
+  }
+
+  void _onCatalogChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onCatalogChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
   final List<CartItem> _cart = [];
 
   String getMediaUrl(ProductMedia m) {
@@ -77,40 +99,35 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
         children: [
           /// 🔥 REAL PRODUCTS FROM FIRESTORE
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('businesses')
-                  .doc(widget.shopId)
-                  .collection('products')
-                  .where('isActive', isEqualTo: true)
-                  // P0 gap review item 4: mirror the products read rule
-                  // (moderationStatus=='approved' && isActive==true for a
-                  // non-owner reader), or Firestore rejects the query.
-                  .where('moderationStatus', isEqualTo: 'approved')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text(l10n.somethingWentWrong));
+            child: Builder(
+              builder: (context) {
+                // Marketplace Revision 43 §0.41 (Slice 7D) — the shop's
+                // catalogue comes from the trusted callable, scoped to this
+                // shop, never from a direct Firestore query. `isActive` and
+                // `moderationStatus` were never the publication contract;
+                // the server's live eligibility evaluation is.
+                switch (_controller.status) {
+                  case DiscoveryStatus.idle:
+                  case DiscoveryStatus.loading:
+                    return const Center(child: CircularProgressIndicator());
+                  case DiscoveryStatus.failed:
+                    return Center(child: Text(l10n.somethingWentWrong));
+                  case DiscoveryStatus.empty:
+                    return Center(child: Text(l10n.noProductsFound));
+                  case DiscoveryStatus.loaded:
+                    break;
                 }
 
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final docs = snapshot.data!.docs;
-
-                if (docs.isEmpty) {
+                final items = _controller.products;
+                if (items.isEmpty) {
                   return Center(child: Text(l10n.noProductsFound));
                 }
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
+                  itemCount: items.length,
                   itemBuilder: (_, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-
-                    final product = Product.fromJson(doc.id, data);
+                    final product = items[index];
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 14),

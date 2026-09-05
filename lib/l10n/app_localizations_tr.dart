@@ -10899,4 +10899,15 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get healthProductsNotSupported => 'Vitaminler, takviyeler ve veteriner ilaçları Marketplace\'te desteklenmez ve listelenemez.';
+
+  @override
+  String cartItemsNoLongerAvailable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ürün artık mevcut değil ve sepetinizden kaldırıldı.',
+      one: '1 ürün artık mevcut değil ve sepetinizden kaldırıldı.',
+    );
+    return '$_temp0';
+  }
 }

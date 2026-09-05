@@ -10899,4 +10899,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthProductsNotSupported => 'Vitamins, supplements and veterinary medicines are not supported on the Marketplace and cannot be listed.';
+
+  @override
+  String cartItemsNoLongerAvailable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items are no longer available and were removed from your cart.',
+      one: '1 item is no longer available and was removed from your cart.',
+    );
+    return '$_temp0';
+  }
 }

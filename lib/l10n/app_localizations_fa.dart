@@ -10899,4 +10899,15 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get healthProductsNotSupported => 'ویتامین‌ها، مکمل‌ها و داروهای دامپزشکی در مارکت‌پلیس پشتیبانی نمی‌شوند و قابل ثبت نیستند.';
+
+  @override
+  String cartItemsNoLongerAvailable(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count کالا دیگر موجود نیستند و از سبد خرید شما حذف شدند.',
+      one: '۱ کالا دیگر موجود نیست و از سبد خرید شما حذف شد.',
+    );
+    return '$_temp0';
+  }
 }
