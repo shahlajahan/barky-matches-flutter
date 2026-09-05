@@ -4352,6 +4352,27 @@ async function finalizeWebSubscriptionPayment({
   });
 }
 
+// TEST-ONLY SEAM — not a Cloud Function, and not a public API.
+//
+// `finalizeWebSubscriptionPayment` is the security boundary that authorizes a
+// subscription entitlement, but it is module-private and its only production
+// caller is `isbank3DPayHostingCallback`, which requires a valid İş Bank HMAC
+// that cannot be reproduced in a test without duplicating three private hash
+// helpers. That left the wiring between the finalizer and
+// `authorizeWebSubscriptionPayment` provable only by source-text assertion.
+//
+// This alias exposes the SAME function object — no wrapper, no copy, no
+// duplicated logic — so the behavioural suite can drive the real finalizer,
+// with a real transaction, against the emulator.
+//
+// It carries no `__endpoint`, so Firebase deployment discovery ignores it
+// exactly as it already ignores the pre-existing `metricsScheduler` and
+// `updateMetrics` exports; the deployed callable surface is unchanged and is
+// asserted to be so. It changes no production code path: the callback still
+// calls the same function it always did, and İş Bank HMAC validation is
+// untouched.
+exports.testOnlyFinalizeWebSubscriptionPayment = finalizeWebSubscriptionPayment;
+
 exports.readWebSubscriptionPaymentStatus = onCall(
   {
     region: "europe-west3",
